@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>June 3 Data Loader - KPR</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+  .box { background: #16213e; border-radius: 16px; padding: 32px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  h2 { color: #f5a623; margin-bottom: 8px; }
+  p { color: #aaa; font-size: 14px; margin-bottom: 24px; }
+  button { background: #f5a623; color: #1a1a2e; border: none; padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 12px; }
+  button:hover { background: #e8951e; }
+  .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; display: none; }
+  .ok { background: #1a472a; color: #51cf66; display: block; }
+  .err { background: #4a1a1a; color: #ff6b6b; display: block; }
+  .info { color: #74c0fc; font-size: 13px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>📅 June 3, 2026</h2>
+  <p>Purchase + Sales data<br>localStorage-ல் load பண்ணும்</p>
+  <button onclick="loadData()">🚀 Load June 3 Data</button>
+  <button onclick="checkData()" style="background:#0f3460;color:#eee;">🔍 Check Existing Data</button>
+  <div class="status" id="status"></div>
+  <div class="info">Load ஆன பிறகு → KPR App திற → Purchase → PDF Import → Load Latest</div>
+</div>
+  <a href="https://pookadaikpr-oss.github.io/kpr-pookadai/index-21-44.html" 
+     style="display:block;background:#27ae60;color:white;text-decoration:none;padding:16px;border-radius:10px;font-size:17px;font-weight:bold;margin-top:16px;text-align:center;">
+    🌸 KPR App திற →
+  </a>
+</div>
+
+<script>
+const DATA = {
+  "date": "2026-06-03",
+  "purchases": [
+    {"supplier": "பொன் மருதாயி", "items": [{"name": "முல்லை", "qty": 13, "price": 17, "amount": 221}], "total": 221, "advance": 0, "commission": 22.10},
+    {"supplier": "பொன் இருளன்", "items": [{"name": "மல்லி", "qty": 2, "price": 20, "amount": 40}], "total": 40, "advance": 0, "commission": 4.00},
+    {"supplier": "பொன்ராஜ்", "items": [{"name": "மல்லி", "qty": 60, "price": 20, "amount": 1200},{"name": "மல்லி", "qty": 60, "price": 40, "amount": 2400},{"name": "மல்லி", "qty": 116, "price": 37, "amount": 4292},{"name": "மல்லி", "qty": 15, "price": 27, "amount": 405},{"name": "மல்லி", "qty": 30, "price": 40, "amount": 1200},{"name": "மல்லி", "qty": 40, "price": 32, "amount": 1280},{"name": "மல்லி", "qty": 40, "price": 30, "amount": 1200},{"name": "மல்லி", "qty": 20, "price": 25, "amount": 500},{"name": "மல்லி", "qty": 11, "price": 30, "amount": 330},{"name": "மல்லி", "qty": 100, "price": 25, "amount": 2500},{"name": "மல்லி", "qty": 65, "price": 23, "amount": 1495}], "total": 16802, "advance": 500, "commission": 2100.25},
+    {"supplier": "பெத்தம்மாள்", "items": [{"name": "முல்லை", "qty": 20, "price": 20, "amount": 400}], "total": 400, "advance": 0, "commission": 40.00},
+    {"supplier": "வெற்றிவேல்", "items": [{"name": "டிங்டாங்", "qty": 16, "price": 14, "amount": 224},{"name": "மல்லி", "qty": 0.5, "price": 22, "amount": 11}], "total": 235, "advance": 0, "commission": 29.38},
+    {"supplier": "ஜெய கொடி", "items": [{"name": "முல்லை", "qty": 8.5, "price": 15, "amount": 127.5}], "total": 127.5, "advance": 0, "commission": 12.75},
+    {"supplier": "ஜெயராம்", "items": [{"name": "கன.பூ", "qty": 9, "price": 50, "amount": 450}], "total": 450, "advance": 0, "commission": 45.00},
+    {"supplier": "செம் சுந்தர்", "items": [{"name": "முல்லை", "qty": 7, "price": 12, "amount": 84}], "total": 84, "advance": 0, "commission": 8.40},
+    {"supplier": "செம்.குமார்", "items": [{"name": "முல்லை", "qty": 1, "price": 10, "amount": 10}], "total": 10, "advance": 0, "commission": 1.00},
+    {"supplier": "செல்வி", "items": [{"name": "மல்லி", "qty": 7, "price": 40, "amount": 280}], "total": 280, "advance": 0, "commission": 28.00},
+    {"supplier": "செல்வலட்சுமி", "items": [{"name": "முல்லை", "qty": 9.5, "price": 18, "amount": 171},{"name": "முல்லை", "qty": 13, "price": 10, "amount": 130}], "total": 301, "advance": 0, "commission": 37.63},
+    {"supplier": "காயத்ரி", "items": [{"name": "மல்லி", "qty": 9, "price": 35, "amount": 315}], "total": 315, "advance": 0, "commission": 31.50},
+    {"supplier": "கர்ணன்", "items": [{"name": "கஞ்சா", "qty": 15, "price": 70, "amount": 1050}], "total": 1050, "advance": 0, "commission": 105.00},
+    {"supplier": "கணேஷ் பாண்டி", "items": [{"name": "முல்லை", "qty": 25, "price": 17, "amount": 425},{"name": "முல்லை", "qty": 12, "price": 10, "amount": 120}], "total": 545, "advance": 0, "commission": 68.13},
+    {"supplier": "கதிர்வேல்", "items": [{"name": "சம்பங்கி", "qty": 6, "price": 10, "amount": 60}], "total": 60, "advance": 0, "commission": 6.00},
+    {"supplier": "கரிசல் நல்லுச்சாமி", "items": [{"name": "முல்லை", "qty": 13, "price": 15, "amount": 195}], "total": 195, "advance": 0, "commission": 24.38},
+    {"supplier": "கமலேஷ்", "items": [{"name": "முல்லை", "qty": 5, "price": 18, "amount": 90}], "total": 90, "advance": 0, "commission": 9.00},
+    {"supplier": "கண்டமங்கலம் விஜயலட்சுமி", "items": [{"name": "முல்லை", "qty": 16.5, "price": 17, "amount": 280.5},{"name": "முல்லை", "qty": 12, "price": 10, "amount": 120}], "total": 400.5, "advance": 5000, "commission": 50.06},
+    {"supplier": "கருப்பையா", "items": [{"name": "மல்லி", "qty": 23, "price": 25, "amount": 575}], "total": 575, "advance": 1300, "commission": 71.88},
+    {"supplier": "நாகரத்தினம்", "items": [{"name": "மல்லி", "qty": 10, "price": 22, "amount": 220}], "total": 220, "advance": 0, "commission": 22.00},
+    {"supplier": "நந்தகுமார்", "items": [{"name": "மல்லி", "qty": 10, "price": 35, "amount": 350},{"name": "நந்தியாவட்டம்", "qty": 3, "price": 100, "amount": 300},{"name": "டிங்டாங்", "qty": 230, "price": 13, "amount": 2990},{"name": "கஞ்சா", "qty": 29.5, "price": 40, "amount": 1180},{"name": "கஞ்சா", "qty": 40, "price": 70, "amount": 2800},{"name": "மல்லி", "qty": 36, "price": 35, "amount": 1260},{"name": "மல்லி", "qty": 52, "price": 40, "amount": 2080},{"name": "மல்லி", "qty": 28, "price": 20, "amount": 560}], "total": 11520, "advance": 0, "commission": 1440.00},
+    {"supplier": "அலெக்ஸ்பாண்டியன்", "items": [{"name": "முல்லை", "qty": 23, "price": 20, "amount": 460}], "total": 460, "advance": 0, "commission": 46.00},
+    {"supplier": "அழகு செல்வி", "items": [{"name": "மல்லி", "qty": 11, "price": 27, "amount": 297},{"name": "முல்லை", "qty": 9.5, "price": 14, "amount": 133}], "total": 430, "advance": 0, "commission": 43.00},
+    {"supplier": "அழகு மாரீஸ்வரன்", "items": [{"name": "மல்லி", "qty": 67, "price": 30, "amount": 2010}], "total": 2010, "advance": 0, "commission": 201.00},
+    {"supplier": "அழகு பாண்டியன்", "items": [{"name": "முல்லை", "qty": 18, "price": 17, "amount": 306}], "total": 306, "advance": 0, "commission": 30.60},
+    {"supplier": "அழகு பிரியதர்ஷினி", "items": [{"name": "முல்லை", "qty": 3, "price": 20, "amount": 60},{"name": "முல்லை", "qty": 4, "price": 12, "amount": 48}], "total": 108, "advance": 0, "commission": 10.80},
+    {"supplier": "அழகு விஜயா", "items": [{"name": "முல்லை", "qty": 12, "price": 15, "amount": 180},{"name": "முல்லை", "qty": 7, "price": 10, "amount": 70}], "total": 250, "advance": 0, "commission": 25.00},
+    {"supplier": "அழகு லட்சுமி", "items": [{"name": "முல்லை", "qty": 14, "price": 20, "amount": 280},{"name": "முல்லை", "qty": 6, "price": 10, "amount": 60}], "total": 340, "advance": 0, "commission": 34.00},
+    {"supplier": "அழகு முருகன்", "items": [{"name": "முல்லை", "qty": 18.5, "price": 15, "amount": 277.5},{"name": "முல்லை", "qty": 14, "price": 10, "amount": 140}], "total": 417.5, "advance": 0, "commission": 41.75},
+    {"supplier": "அட்சிகா ஸ்ரீ", "items": [{"name": "முல்லை", "qty": 17.5, "price": 20, "amount": 350},{"name": "முல்லை", "qty": 10, "price": 17, "amount": 170}], "total": 520, "advance": 0, "commission": 65.00},
+    {"supplier": "அங்கு முத்து", "items": [{"name": "முல்லை", "qty": 6.5, "price": 20, "amount": 130},{"name": "முல்லை", "qty": 18.5, "price": 10, "amount": 185}], "total": 315, "advance": 0, "commission": 31.50},
+    {"supplier": "அம்மாசி முருகன்", "items": [{"name": "மல்லி", "qty": 3.5, "price": 30, "amount": 105}], "total": 105, "advance": 0, "commission": 10.50},
+    {"supplier": "ஞானசேகர்", "items": [{"name": "அரளி", "qty": 3, "price": 10, "amount": 30}], "total": 30, "advance": 0, "commission": 3.00},
+    {"supplier": "ஹேமாவதி", "items": [{"name": "முல்லை", "qty": 7.5, "price": 13, "amount": 97.5}], "total": 97.5, "advance": 0, "commission": 9.75},
+    {"supplier": "ஜோதிலிங்கம்", "items": [{"name": "மல்லி", "qty": 5, "price": 30, "amount": 150}], "total": 150, "advance": 0, "commission": 15.00},
+    {"supplier": "ஆண்டி செம்பட்டி", "items": [{"name": "முல்லை", "qty": 30, "price": 17, "amount": 510}], "total": 510, "advance": 0, "commission": 63.75},
+    {"supplier": "தினேஷ்", "items": [{"name": "முல்லை", "qty": 7, "price": 17, "amount": 119}], "total": 119, "advance": 0, "commission": 11.90},
+    {"supplier": "திவ்யா", "items": [{"name": "மல்லி", "qty": 26, "price": 20, "amount": 520},{"name": "மல்லி", "qty": 10, "price": 45, "amount": 450},{"name": "மல்லி", "qty": 16, "price": 35, "amount": 560},{"name": "மல்லி", "qty": 28, "price": 25, "amount": 700},{"name": "மல்லி", "qty": 24, "price": 25, "amount": 600}], "total": 2830, "advance": 20000, "commission": 283.00},
+    {"supplier": "திவ்யலட்சுமி", "items": [{"name": "முல்லை", "qty": 11, "price": 18, "amount": 198},{"name": "முல்லை", "qty": 12, "price": 10, "amount": 120}], "total": 318, "advance": 0, "commission": 31.80},
+    {"supplier": "தமிழ் அழகர்", "items": [{"name": "முல்லை", "qty": 11, "price": 20, "amount": 220}], "total": 220, "advance": 200, "commission": 27.50},
+    {"supplier": "தமிழ் முத்துமாரி", "items": [{"name": "முல்லை", "qty": 10, "price": 16, "amount": 160},{"name": "முல்லை", "qty": 6, "price": 12, "amount": 72},{"name": "முல்லை", "qty": 9, "price": 10, "amount": 90},{"name": "முல்லை", "qty": 12, "price": 10, "amount": 120}], "total": 442, "advance": 0, "commission": 55.25},
+    {"supplier": "தங்கபாண்டியன்", "items": [{"name": "அரளி", "qty": 11.5, "price": 15, "amount": 172.5}], "total": 172.5, "advance": 20, "commission": 17.25},
+    {"supplier": "A.செல்வன்", "items": [{"name": "மல்லி", "qty": 2.5, "price": 22, "amount": 55},{"name": "முல்லை", "qty": 11, "price": 15, "amount": 165}], "total": 220, "advance": 0, "commission": 27.50},
+    {"supplier": "A.முனியசாமி", "items": [{"name": "மல்லி", "qty": 9, "price": 30, "amount": 270}], "total": 270, "advance": 0, "commission": 27.00},
+    {"supplier": "பாலகிருஷ்ணன்", "items": [{"name": "மல்லி", "qty": 14, "price": 45, "amount": 630},{"name": "முல்லை", "qty": 12, "price": 10, "amount": 120}], "total": 750, "advance": 0, "commission": 75.00},
+    {"supplier": "மாயி", "items": [{"name": "அருகம்புல்", "qty": 6, "price": 10, "amount": 60}], "total": 60, "advance": 0, "commission": 6.00},
+    {"supplier": "ராமர்-லட்சுமணர்", "items": [{"name": "முல்லை", "qty": 11, "price": 20, "amount": 220},{"name": "முல்லை", "qty": 7.5, "price": 15, "amount": 112.5}], "total": 332.5, "advance": 0, "commission": 33.25},
+    {"supplier": "யாழினி", "items": [{"name": "முல்லை", "qty": 19, "price": 20, "amount": 380},{"name": "முல்லை", "qty": 5, "price": 13, "amount": 65}], "total": 445, "advance": 0, "commission": 44.50},
+    {"supplier": "பாலசுப்பிரமணி", "items": [{"name": "கஞ்சா", "qty": 4.5, "price": 20, "amount": 90},{"name": "முல்லை", "qty": 8, "price": 13, "amount": 104},{"name": "மல்லி", "qty": 11, "price": 25, "amount": 275}], "total": 469, "advance": 0, "commission": 46.90},
+    {"supplier": "ராஜகோபால்", "items": [{"name": "மல்லி", "qty": 6, "price": 20, "amount": 120},{"name": "மல்லி", "qty": 28, "price": 40, "amount": 1120},{"name": "மல்லி", "qty": 6, "price": 25, "amount": 150}], "total": 1390, "advance": 500, "commission": 173.75},
+    {"supplier": "பாண்டி", "items": [{"name": "முல்லை", "qty": 108, "price": 20, "amount": 2160},{"name": "முல்லை", "qty": 70, "price": 15, "amount": 1050}], "total": 3210, "advance": 0, "commission": 321.00},
+    {"supplier": "பாண்டி மூரி", "items": [{"name": "மல்லி", "qty": 66, "price": 37, "amount": 2442},{"name": "முல்லை", "qty": 20, "price": 13, "amount": 260},{"name": "மல்லி", "qty": 5, "price": 40, "amount": 200},{"name": "மல்லி", "qty": 13, "price": 35, "amount": 455},{"name": "மல்லி", "qty": 9, "price": 20, "amount": 180}], "total": 3537, "advance": 0, "commission": 442.13},
+    {"supplier": "பாண்டிஸ்வரன்", "items": [{"name": "அரளி", "qty": 5, "price": 15, "amount": 75}], "total": 75, "advance": 0, "commission": 7.50},
+    {"supplier": "மகாலிங்கம்", "items": [{"name": "மல்லி", "qty": 17, "price": 35, "amount": 595}], "total": 595, "advance": 0, "commission": 74.38},
+    {"supplier": "வினோத்", "items": [{"name": "முல்லை", "qty": 8, "price": 20, "amount": 160}], "total": 160, "advance": 0, "commission": 16.00},
+    {"supplier": "விஜயராகவன்", "items": [{"name": "முல்லை", "qty": 14.5, "price": 12, "amount": 174},{"name": "முல்லை", "qty": 15, "price": 10, "amount": 150}], "total": 324, "advance": 0, "commission": 40.50},
+    {"supplier": "விஜய்", "items": [{"name": "முல்லை", "qty": 3, "price": 20, "amount": 60},{"name": "முல்லை", "qty": 17, "price": 10, "amount": 170}], "total": 230, "advance": 0, "commission": 28.75},
+    {"supplier": "லிங்கம்மாள்", "items": [{"name": "மல்லி", "qty": 1, "price": 35, "amount": 35}], "total": 35, "advance": 0, "commission": 3.50},
+    {"supplier": "விக்னேஷ்", "items": [{"name": "முல்லை", "qty": 18, "price": 12, "amount": 216}], "total": 216, "advance": 500, "commission": 21.60},
+    {"supplier": "வீரம்மாள்(முல்)", "items": [{"name": "முல்லை", "qty": 9, "price": 20, "amount": 180}], "total": 180, "advance": 0, "commission": 18.00},
+    {"supplier": "வீரன்", "items": [{"name": "டிங்டாங்", "qty": 15, "price": 13, "amount": 195}], "total": 195, "advance": 100, "commission": 24.38},
+    {"supplier": "மீனா", "items": [{"name": "மல்லி", "qty": 29, "price": 42, "amount": 1218},{"name": "முல்லை", "qty": 6, "price": 15, "amount": 90}], "total": 1308, "advance": 0, "commission": 163.50},
+    {"supplier": "மகேஸ்வரன்", "items": [{"name": "மல்லி", "qty": 14, "price": 45, "amount": 630}], "total": 630, "advance": 0, "commission": 63.00},
+    {"supplier": "மஹா அர்ச்சனா", "items": [{"name": "முல்லை", "qty": 14, "price": 17, "amount": 238},{"name": "முல்லை", "qty": 16, "price": 10, "amount": 160}], "total": 398, "advance": 0, "commission": 39.80},
+    {"supplier": "மதன் சித்ரா", "items": [{"name": "முல்லை", "qty": 6, "price": 16, "amount": 96}], "total": 96, "advance": 0, "commission": 9.60},
+    {"supplier": "பூமிநாதன்", "items": [{"name": "முல்லை", "qty": 6, "price": 10, "amount": 60}], "total": 60, "advance": 0, "commission": 6.00},
+    {"supplier": "பரதன் (துளசி)", "items": [{"name": "துளசி", "qty": 19.5, "price": 40, "amount": 780}], "total": 780, "advance": 0, "commission": 78.00},
+    {"supplier": "பழனி", "items": [{"name": "முல்லை", "qty": 22, "price": 20, "amount": 440},{"name": "முல்லை", "qty": 13, "price": 16, "amount": 208}], "total": 648, "advance": 0, "commission": 81.00},
+    {"supplier": "பழனியாண்டி", "items": [{"name": "முல்லை", "qty": 24, "price": 17, "amount": 408}], "total": 408, "advance": 0, "commission": 51.00},
+    {"supplier": "மதுமிதா", "items": [{"name": "முல்லை", "qty": 7, "price": 18, "amount": 126},{"name": "முல்லை", "qty": 7, "price": 17, "amount": 119}], "total": 245, "advance": 0, "commission": 24.50},
+    {"supplier": "மதுப்பிரிதா", "items": [{"name": "முல்லை", "qty": 10, "price": 10, "amount": 100},{"name": "முல்லை", "qty": 8, "price": 10, "amount": 80}], "total": 180, "advance": 0, "commission": 18.00},
+    {"supplier": "பஞ்சவர்ணம்", "items": [{"name": "முல்லை", "qty": 1, "price": 15, "amount": 15}], "total": 15, "advance": 0, "commission": 1.50},
+    {"supplier": "மருதாயி", "items": [{"name": "முல்லை", "qty": 7, "price": 16, "amount": 112},{"name": "முல்லை", "qty": 6, "price": 13, "amount": 78}], "total": 190, "advance": 0, "commission": 19.00},
+    {"supplier": "மருது ராஜ்", "items": [{"name": "முல்லை", "qty": 7, "price": 15, "amount": 105},{"name": "முல்லை", "qty": 10, "price": 10, "amount": 100}], "total": 205, "advance": 0, "commission": 25.63},
+    {"supplier": "வசந்தா", "items": [{"name": "அரளி", "qty": 5, "price": 8, "amount": 40},{"name": "அரளி", "qty": 7, "price": 10, "amount": 70},{"name": "முல்லை", "qty": 1, "price": 15, "amount": 15}], "total": 125, "advance": 0, "commission": 12.50},
+    {"supplier": "CMI", "items": [{"name": "முல்லை", "qty": 12, "price": 20, "amount": 240}], "total": 240, "advance": 0, "commission": 30.00},
+    {"supplier": "துணைமாலை", "items": [{"name": "முல்லை", "qty": 11, "price": 16, "amount": 176},{"name": "மல்லி", "qty": 10, "price": 20, "amount": 200},{"name": "முல்லை", "qty": 6, "price": 10, "amount": 60}], "total": 436, "advance": 0, "commission": 54.50},
+    {"supplier": "ஜான்சிராணி", "items": [{"name": "முல்லை", "qty": 4.5, "price": 20, "amount": 90}], "total": 90, "advance": 500, "commission": 9.00},
+    {"supplier": "சுரேஷ் கிருஷ்ணா", "items": [{"name": "முல்லை", "qty": 6, "price": 18, "amount": 108},{"name": "முல்லை", "qty": 9.5, "price": 10, "amount": 95}], "total": 203, "advance": 0, "commission": 20.30},
+    {"supplier": "குமரேசன்", "items": [{"name": "முல்லை", "qty": 12, "price": 18, "amount": 216}], "total": 216, "advance": 500, "commission": 27.00},
+    {"supplier": "குருமூர்த்தி", "items": [{"name": "முல்லை", "qty": 10, "price": 15, "amount": 150}], "total": 150, "advance": 1000, "commission": 15.00},
+    {"supplier": "K.S.K", "items": [{"name": "முல்லை", "qty": 4, "price": 18, "amount": 72},{"name": "முல்லை", "qty": 12, "price": 10, "amount": 120},{"name": "முல்லை", "qty": 7.5, "price": 12, "amount": 90}], "total": 282, "advance": 0, "commission": 35.25},
+    {"supplier": "M.R.அழகம்மாள்", "items": [{"name": "முல்லை", "qty": 18, "price": 16, "amount": 288},{"name": "முல்லை", "qty": 13, "price": 10, "amount": 130}], "total": 418, "advance": 0, "commission": 52.25},
+    {"supplier": "சித்.கணபதி", "items": [{"name": "முல்லை", "qty": 9, "price": 18, "amount": 162},{"name": "முல்லை", "qty": 8, "price": 10, "amount": 80}], "total": 242, "advance": 0, "commission": 24.20},
+    {"supplier": "சின்னக்காளை", "items": [{"name": "மல்லி", "qty": 41, "price": 40, "amount": 1640},{"name": "மல்லி", "qty": 11, "price": 20, "amount": 220},{"name": "மல்லி", "qty": 95, "price": 48, "amount": 4560},{"name": "முல்லை", "qty": 13.5, "price": 13, "amount": 175.5}], "total": 6595.5, "advance": 20000, "commission": 659.55},
+    {"supplier": "சின்னப்பொண்ணு", "items": [{"name": "முல்லை", "qty": 8, "price": 10, "amount": 80}], "total": 80, "advance": 0, "commission": 8.00},
+    {"supplier": "முகேஷ்", "items": [{"name": "மல்லி", "qty": 8, "price": 22, "amount": 176},{"name": "மல்லி", "qty": 56, "price": 22, "amount": 1232},{"name": "முல்லை", "qty": 6, "price": 13, "amount": 78},{"name": "மல்லி", "qty": 3, "price": 23, "amount": 69}], "total": 1555, "advance": 0, "commission": 155.50},
+    {"supplier": "சதீஸ்வரி", "items": [{"name": "முல்லை", "qty": 14, "price": 15, "amount": 210},{"name": "முல்லை", "qty": 9.5, "price": 10, "amount": 95}], "total": 305, "advance": 0, "commission": 30.50},
+    {"supplier": "ப்ரீத்தி", "items": [{"name": "முல்லை", "qty": 8, "price": 17, "amount": 136}], "total": 136, "advance": 0, "commission": 13.60},
+    {"supplier": "யுவராம்", "items": [{"name": "முல்லை", "qty": 17, "price": 20, "amount": 340},{"name": "முல்லை", "qty": 25, "price": 13, "amount": 325},{"name": "முல்லை", "qty": 7.5, "price": 10, "amount": 75}], "total": 740, "advance": 0, "commission": 74.00},
+    {"supplier": "சபரிஸ்", "items": [{"name": "முல்லை", "qty": 3, "price": 20, "amount": 60}], "total": 60, "advance": 6300, "commission": 6.00},
+    {"supplier": "சரஸ்வதி ஆத்திபட்டி", "items": [{"name": "கஞ்சா", "qty": 11.5, "price": 50, "amount": 575},{"name": "மல்லி", "qty": 3, "price": 22, "amount": 66},{"name": "கன.பூ", "qty": 21, "price": 80, "amount": 1680}], "total": 2321, "advance": 0, "commission": 232.10},
+    {"supplier": "முனியசாமி", "items": [{"name": "டிங்டாங்", "qty": 2.5, "price": 10, "amount": 25}], "total": 25, "advance": 0, "commission": 2.50},
+    {"supplier": "முனீஸ்வரி", "items": [{"name": "கன.பூ", "qty": 2, "price": 50, "amount": 100},{"name": "கன.பூ", "qty": 8, "price": 80, "amount": 640},{"name": "கன.பூ", "qty": 5.5, "price": 50, "amount": 275},{"name": "முல்லை", "qty": 21, "price": 15, "amount": 315},{"name": "மல்லி", "qty": 9, "price": 25, "amount": 225}], "total": 1555, "advance": 0, "commission": 155.50},
+    {"supplier": "சங்கீத குமாரி", "items": [{"name": "முல்லை", "qty": 18, "price": 17, "amount": 306},{"name": "முல்லை", "qty": 17, "price": 14, "amount": 238}], "total": 544, "advance": 0, "commission": 68.00},
+    {"supplier": "சக்திவேல்", "items": [{"name": "முல்லை", "qty": 2.5, "price": 16, "amount": 40}], "total": 40, "advance": 0, "commission": 4.00},
+    {"supplier": "முருகன்", "items": [{"name": "கன.பூ", "qty": 1, "price": 50, "amount": 50},{"name": "கஞ்சா", "qty": 10, "price": 80, "amount": 800},{"name": "கன.பூ", "qty": 6.5, "price": 50, "amount": 325},{"name": "முல்லை", "qty": 8, "price": 20, "amount": 160}], "total": 1335, "advance": 400, "commission": 133.50},
+    {"supplier": "முருகேசன் (பச்சை)", "items": [{"name": "பச்சை", "qty": 121, "price": 40, "amount": 4840}], "total": 4840, "advance": 0, "commission": 484.00},
+    {"supplier": "சந்தோஷ்குமார்", "items": [{"name": "முல்லை", "qty": 5, "price": 18, "amount": 90}], "total": 90, "advance": 0, "commission": 9.00},
+    {"supplier": "முத்துராமலிங்கம்", "items": [{"name": "டிங்டாங்", "qty": 15, "price": 10, "amount": 150}], "total": 150, "advance": 0, "commission": 15.00},
+    {"supplier": "முத்துராமு", "items": [{"name": "டிங்டாங்", "qty": 70, "price": 14, "amount": 980}], "total": 980, "advance": 0, "commission": 98.00},
+    {"supplier": "சமுத்திர பாண்டி", "items": [{"name": "அரளி", "qty": 13, "price": 5, "amount": 65},{"name": "அரளி", "qty": 3, "price": 10, "amount": 30}], "total": 95, "advance": 0, "commission": 9.50},
+    {"supplier": "P.ராமன்", "items": [{"name": "முல்லை", "qty": 13, "price": 10, "amount": 130}], "total": 130, "advance": 0, "commission": 13.00},
+    {"supplier": "R.அழகன்", "items": [{"name": "முல்லை", "qty": 9, "price": 17, "amount": 153}], "total": 153, "advance": 0, "commission": 15.30},
+    {"supplier": "R.R.R(முல்லை)", "items": [{"name": "முல்லை", "qty": 13, "price": 15, "amount": 195},{"name": "முல்லை", "qty": 26, "price": 13, "amount": 338}], "total": 533, "advance": 0, "commission": 66.63},
+    {"supplier": "R.T.ஈஸ்வரி", "items": [{"name": "முல்லை", "qty": 11, "price": 13, "amount": 143}], "total": 143, "advance": 0, "commission": 14.30},
+    {"supplier": "S.K", "items": [{"name": "முல்லை", "qty": 8, "price": 17, "amount": 136},{"name": "முல்லை", "qty": 1, "price": 10, "amount": 10}], "total": 146, "advance": 0, "commission": 18.25},
+    {"supplier": "S.R", "items": [{"name": "மல்லி", "qty": 13, "price": 45, "amount": 585}], "total": 585, "advance": 20, "commission": 58.50},
+    {"supplier": "SSK", "items": [{"name": "முல்லை", "qty": 14, "price": 15, "amount": 210}], "total": 210, "advance": 0, "commission": 21.00},
+    {"supplier": "இளவரசி", "items": [{"name": "முல்லை", "qty": 14, "price": 20, "amount": 280},{"name": "முல்லை", "qty": 12, "price": 15, "amount": 180},{"name": "மல்லி", "qty": 6, "price": 30, "amount": 180}], "total": 640, "advance": 0, "commission": 64.00},
+    {"supplier": "இனியன்", "items": [{"name": "முல்லை", "qty": 8.5, "price": 20, "amount": 170}], "total": 170, "advance": 0, "commission": 17.00},
+    {"supplier": "இந்துமதி", "items": [{"name": "சம்பங்கி", "qty": 18, "price": 10, "amount": 180},{"name": "முல்லை", "qty": 10.5, "price": 17, "amount": 178.5},{"name": "முல்லை", "qty": 14, "price": 12, "amount": 168}], "total": 526.5, "advance": 0, "commission": 65.81},
+    {"supplier": "YRSK", "items": [{"name": "மல்லி", "qty": 7, "price": 25, "amount": 175}], "total": 175, "advance": 2000, "commission": 21.88}
+  ],
+  "sales": [
+    {"customer": "சோனை முத்து", "amount": 3070},{"customer": "வைரமுத்து", "amount": 3510},{"customer": "தாமோதரன்", "amount": 2770},{"customer": "தரக்குடி பாலமுருகன்", "amount": 2935},{"customer": "பந்தல் மாரி", "amount": 7860},{"customer": "VKM அய்யனார்", "amount": 3740},{"customer": "நாகலட்சுமி", "amount": 2680},{"customer": "கிளாமரம் முருகன்", "amount": 3330},{"customer": "குருராமர்", "amount": 1650},{"customer": "எர்ணன்", "amount": 5115},{"customer": "சுந்தரம் புதூர்", "amount": 1660},{"customer": "குருசாமி புதூர்", "amount": 1750},{"customer": "SM நாதன்", "amount": 250},{"customer": "பெரு முருகன்", "amount": 3255},{"customer": "சண்முகம் திருச்சுழி", "amount": 1710},{"customer": "பந்தல் மாலையம்மாள்", "amount": 590},{"customer": "No 10", "amount": 2192},{"customer": "மாலை சிவா", "amount": 150},{"customer": "லாட்ஜ்", "amount": 186},{"customer": "No 1", "amount": 3325},{"customer": "கிருஷ்ணா", "amount": 2638},{"customer": "MLS", "amount": 1500},{"customer": "No 2", "amount": 2860},{"customer": "பத்மாராணி", "amount": 3323},{"customer": "NMV", "amount": 2360},{"customer": "VK கடை", "amount": 400},{"customer": "TTV", "amount": 40},{"customer": "No 12", "amount": 460},{"customer": "ST திருத்தணி", "amount": 120},{"customer": "SVK", "amount": 784},{"customer": "ஆதி சக்தி", "amount": 277},{"customer": "முத்துப்புலவர்", "amount": 1530},{"customer": "திருவாசகம்", "amount": 4564},{"customer": "மணி", "amount": 579},{"customer": "பாளை சக்தி", "amount": 302.5},{"customer": "பாளை pk", "amount": 960},{"customer": "பஸ் ரவி", "amount": 5681},{"customer": "ரமேஷ்", "amount": 3018},{"customer": "கிட்டு", "amount": 2830},{"customer": "மீசை", "amount": 7890},{"customer": "சுந்தரம் புதூர் 2", "amount": 2070},{"customer": "செண்பகவள்ளி", "amount": 1335},{"customer": "முத்து செம்பட்டி", "amount": 750},{"customer": "ரஜினி பாலு", "amount": 420},{"customer": "MLS கண்ணன்", "amount": 300},{"customer": "அய்யாவு", "amount": 1140},{"customer": "கணபதி", "amount": 2480},{"customer": "மேட்டுப்பட்டி", "amount": 4919},{"customer": "PRC", "amount": 458},{"customer": "கோகுல்", "amount": 1210},{"customer": "செல்வி மண்டலம்", "amount": 520},{"customer": "No 10 லட்சுமணன்", "amount": 280},{"customer": "ராம வள்ளி", "amount": 9165},{"customer": "பொடிக்கடை", "amount": 100},{"customer": "VV குமார்", "amount": 680},{"customer": "பாண்டி செம்பட்டி sales", "amount": 980},{"customer": "MLS மாரி", "amount": 972.5},{"customer": "பாலவராமர்", "amount": 300},{"customer": "கடை பாண்டி", "amount": 180},{"customer": "பந்தல் லெட்சுமி", "amount": 898},{"customer": "வீரம்மாள் sales", "amount": 2180},{"customer": "சித் அழகர்", "amount": 6042},{"customer": "SN பாலாஜி", "amount": 130},{"customer": "விஜயன்", "amount": 870},{"customer": "செந்தில்", "amount": 240},{"customer": "காரியா சக்தி", "amount": 130},{"customer": "அல்லம்பட்டி", "amount": 120},{"customer": "உதிரி குமார்", "amount": 500},{"customer": "RK", "amount": 980},{"customer": "SKS", "amount": 1050},{"customer": "இலக்கியா", "amount": 1697},{"customer": "மனோகர்", "amount": 780}
+  ],
+  "purchase_total": 89188,
+  "sales_total": 137721,
+  "commission_total": 10039.85
+};
+
+function loadData() {
+  const APP_URL = "https://pookadaikpr-oss.github.io/kpr-pookadai/index-21-44.html";
+  try {
+    localStorage.setItem('kpr_latest_purchase', JSON.stringify(DATA));
+    localStorage.setItem('kpr_latest_purchase_date', '2026-06-03');
+    const s = document.getElementById('status');
+    s.className = 'status ok';
+    s.innerHTML = "✅ Loaded! Redirecting to app..."; setTimeout(() => { window.location.href = APP_URL; }, 1500);
+  } catch(e) {
+    const s = document.getElementById('status');
+    s.className = 'status err';
+    s.innerHTML = '❌ Error: ' + e.message;
+  }
+}
+
+function checkData() {
+  const d = localStorage.getItem('kpr_latest_purchase');
+  const date = localStorage.getItem('kpr_latest_purchase_date');
+  const s = document.getElementById('status');
+  if (d) {
+    const parsed = JSON.parse(d);
+    s.className = 'status ok';
+    s.innerHTML = `📦 Data found: ${date}<br>Suppliers: ${parsed.purchases?.length || 0}<br>Customers: ${parsed.sales?.length || 0}`;
+  } else {
+    s.className = 'status err';
+    s.innerHTML = '⚠️ localStorage-ல் data இல்லை. Load பண்ணுங்க!';
+  }
+}
+</script>
+</body>
+</html>
