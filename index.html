@@ -94,12 +94,24 @@ tbody td{padding:8px 11px}
 #fb-loading.on{display:block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;width:16px;height:16px;border:2.5px solid #b3dfc4;border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@media print{
+  .hdr,.nav,.stabs,.filt,.btn-row,.btn,button,.moverlay,#fb-loading,#rpt-print-btn-row{display:none!important}
+  body{background:#fff;font-size:12px}
+  .pg{display:block!important;padding:0}
+  .card{box-shadow:none;border:1px solid #ddd;margin-bottom:8px}
+  .twrap{overflow:visible}
+  table{font-size:11px}
+  .print-header{display:block!important}
+}
+.print-header{display:none}
 @media(max-width:560px){
   .frow{grid-template-columns:1fr}
   .frow.t3{grid-template-columns:1fr 1fr}
   .dash-grid{grid-template-columns:1fr 1fr}
   .irow{grid-template-columns:2fr 1fr 1fr 1fr 28px}
 }
+  @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -186,11 +198,40 @@ tbody td{padding:8px 11px}
   <div id="pur-pdf" style="display:none">
     <div class="card">
       <div class="sec" style="margin-top:0">📁 Purchase PDF Import</div>
-      <div style="background:#e8f4fd;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#1a5276;line-height:1.8">
-        <b>📋 Easy Steps:</b><br>1️⃣ Chat-ல் PDF attach பண்ணுங்க 📎<br>2️⃣ Claude "✅ Ready!" சொல்வார்<br>3️⃣ கீழே <b>"🔄 Load Latest Data"</b> press பண்ணுங்க
-      </div>
       <div id="pur-upload-step">
-        <button class="btn bg" style="width:100%;padding:16px;font-size:15px;margin-bottom:10px" onclick="loadPurFromStorage()">🔄 Load Latest Purchase Data</button>
+        <!-- API Key Input -->
+        <div id="pur-key-section" style="background:#fff8e1;border-radius:10px;padding:12px;margin-bottom:14px;border:1.5px solid #f0b429">
+          <div style="font-size:12px;font-weight:700;color:#7d6008;margin-bottom:8px">🔑 Claude API Key</div>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="claude-key-input" placeholder="sk-ant-api03-..." style="flex:1;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:11px;font-family:monospace" value="">
+            <button onclick="saveKeyAndHide()" class="btn bg bsm">💾 Save</button>
+          </div>
+          <div id="key-status" style="font-size:11px;margin-top:6px;color:#666"></div>
+        </div>
+        <!-- Direct PDF Upload -->
+        <div style="background:#e8f4fd;border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:#1a5276;margin-bottom:10px">📄 PDF நேரடியா Upload பண்ணுங்க</div>
+          <label id="pur-pdf-label" style="display:block;border:2px dashed #2980b9;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#f0f8ff;transition:background 0.2s">
+            <input type="file" id="pur-pdf-input" accept=".pdf" style="display:none" onchange="handlePurPDF(this)">
+            <div style="font-size:28px;margin-bottom:6px">📁</div>
+            <div style="font-size:13px;color:#2980b9;font-weight:600">Purchase PDF தேர்வு பண்ணுங்க</div>
+            <div style="font-size:11px;color:#5d8aa8;margin-top:4px">Click செய்து file select பண்ணுங்க</div>
+          </label>
+          <div id="pur-pdf-status" style="margin-top:10px;display:none">
+            <div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;padding:10px">
+              <div id="pur-pdf-spinner" style="width:20px;height:20px;border:3px solid #e0e0e0;border-top:3px solid #2980b9;border-radius:50%;animation:spin 1s linear infinite"></div>
+              <div id="pur-pdf-msg" style="font-size:12px;color:#1a5276;font-weight:600">PDF படிக்கிறோம்...</div>
+            </div>
+          </div>
+        </div>
+        <!-- Divider -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <div style="font-size:11px;color:var(--muted)">அல்லது</div>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <!-- Load from storage -->
+        <button class="btn bg" style="width:100%;padding:14px;font-size:14px;margin-bottom:10px" onclick="loadPurFromStorage()">🔄 Claude-ல் இருந்து Load பண்ணுங்க</button>
         <div id="pur-load-status" style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:12px"></div>
         <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px">அல்லது manually JSON paste பண்ணலாம்:</div>
@@ -279,11 +320,39 @@ tbody td{padding:8px 11px}
   <div id="sal-pdf" style="display:none">
     <div class="card">
       <div class="sec" style="margin-top:0">📁 Sales PDF Import</div>
-      <div style="background:#fef8e8;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7d6008;line-height:1.8">
-        <b>📋 Easy Steps:</b><br>1️⃣ Chat-ல் PDF attach பண்ணுங்க 📎<br>2️⃣ Claude "✅ Ready!" சொல்வார்<br>3️⃣ கீழே <b>"🔄 Load Latest Data"</b> press பண்ணுங்க
-      </div>
       <div id="sal-upload-step">
-        <button class="btn bo" style="width:100%;padding:16px;font-size:15px;margin-bottom:10px" onclick="loadSalFromStorage()">🔄 Load Latest Sales Data</button>
+        <!-- API Key Input -->
+        <div style="background:#fff8e1;border-radius:10px;padding:12px;margin-bottom:14px;border:1.5px solid #f0b429">
+          <div style="font-size:12px;font-weight:700;color:#7d6008;margin-bottom:8px">🔑 Claude API Key</div>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="claude-key-input-sal" placeholder="sk-ant-api03-..." style="flex:1;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:11px;font-family:monospace" value="">
+            <button onclick="saveKeyAndHide()" class="btn bo bsm">💾 Save</button>
+          </div>
+        </div>
+        <!-- Direct PDF Upload -->
+        <div style="background:#fef8e8;border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:#7d6008;margin-bottom:10px">📄 PDF நேரடியா Upload பண்ணுங்க</div>
+          <label id="sal-pdf-label" style="display:block;border:2px dashed #f5a623;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#fffdf0;transition:background 0.2s">
+            <input type="file" id="sal-pdf-input" accept=".pdf" style="display:none" onchange="handleSalPDF(this)">
+            <div style="font-size:28px;margin-bottom:6px">📁</div>
+            <div style="font-size:13px;color:#e67e22;font-weight:600">Sales PDF தேர்வு பண்ணுங்க</div>
+            <div style="font-size:11px;color:#a07030;margin-top:4px">Click செய்து file select பண்ணுங்க</div>
+          </label>
+          <div id="sal-pdf-status" style="margin-top:10px;display:none">
+            <div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;padding:10px">
+              <div id="sal-pdf-spinner" style="width:20px;height:20px;border:3px solid #e0e0e0;border-top:3px solid #f5a623;border-radius:50%;animation:spin 1s linear infinite"></div>
+              <div id="sal-pdf-msg" style="font-size:12px;color:#7d6008;font-weight:600">PDF படிக்கிறோம்...</div>
+            </div>
+          </div>
+        </div>
+        <!-- Divider -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <div style="font-size:11px;color:var(--muted)">அல்லது</div>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <!-- Load from storage -->
+        <button class="btn bo" style="width:100%;padding:14px;font-size:14px;margin-bottom:10px" onclick="loadSalFromStorage()">🔄 Claude-ல் இருந்து Load பண்ணுங்க</button>
         <div id="sal-load-status" style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:12px"></div>
         <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px">அல்லது manually JSON paste பண்ணலாம்:</div>
@@ -426,48 +495,56 @@ tbody td{padding:8px 11px}
 <div class="pg" id="pg-report">
   <div class="card">
     <div class="sec" style="margin-top:0">📈 Report</div>
-    <div class="stabs" style="margin-bottom:12px">
+    <div class="stabs" style="margin-bottom:12px;flex-wrap:wrap">
       <button class="stab on" id="rpt-month-btn" onclick="setRptMode('month')">📅 மாதம்</button>
-      <button class="stab" id="rpt-range-btn" onclick="setRptMode('range')">📆 Date Range</button>
+      <button class="stab" id="rpt-range-btn" onclick="setRptMode('range')">📆 Range</button>
       <button class="stab" id="rpt-party-btn" onclick="setRptMode('party')">👤 தனியார்</button>
       <button class="stab" id="rpt-full-btn" onclick="setRptMode('full')" style="font-size:11px">📋 Full</button>
     </div>
+
+    <!-- மாதம் filter -->
     <div id="rpt-month-filter">
       <div class="frow">
         <div class="fg"><label>மாதம்</label><input type="month" id="rpt-month"></div>
         <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn bg" onclick="genReport()">📊 Generate</button></div>
       </div>
     </div>
+
+    <!-- Date Range filter -->
     <div id="rpt-range-filter" style="display:none">
       <div class="frow">
         <div class="fg"><label>From</label><input type="date" id="rpt-from"></div>
         <div class="fg"><label>To</label><input type="date" id="rpt-to"></div>
       </div>
-      <button class="btn bg" style="width:100%;margin-top:4px" onclick="genReport()">📊 Generate</button>
+      <button class="btn bg" style="width:100%;margin-top:8px" onclick="genReport()">📊 Generate</button>
     </div>
+
+    <!-- தனியார் filter -->
     <div id="rpt-party-filter" style="display:none">
       <div class="stabs" style="margin-bottom:10px">
         <button class="stab on" id="rpt-sup-btn" onclick="setRptPartyType('sup')">🌿 Supplier</button>
         <button class="stab" id="rpt-cust-btn" onclick="setRptPartyType('cust')">🛒 Customer</button>
       </div>
-      <div class="frow">
-        <div class="fg"><label>பெயர் தேர்வு</label>
-          <input type="text" id="rpt-party-name" placeholder="பெயர் type பண்ணுங்க..." list="rpt-party-dl">
-          <datalist id="rpt-party-dl"></datalist>
-        </div>
+      <div class="fg" style="margin-bottom:8px">
+        <label>பெயர் தேர்வு</label>
+        <input type="text" id="rpt-party-name" placeholder="பெயர் type பண்ணுங்க..." list="rpt-party-dl">
+        <datalist id="rpt-party-dl"></datalist>
       </div>
       <div class="frow">
         <div class="fg"><label>From (optional)</label><input type="date" id="rpt-party-from"></div>
         <div class="fg"><label>To (optional)</label><input type="date" id="rpt-party-to"></div>
       </div>
-      <button class="btn bg" style="width:100%;margin-top:4px" onclick="rptMode='party';genReport()">📊 Generate</button>
+      <button class="btn bg" style="width:100%;margin-top:8px" onclick="rptMode='party';genReport()">📊 Generate</button>
     </div>
+
+    <!-- Full Report filter -->
     <div id="rpt-full-filter" style="display:none">
-      <div style="font-size:12px;color:#777;margin-bottom:8px">மொத்த Summary + எல்லா Suppliers + எல்லா Customers</div>
+      <div style="font-size:12px;color:#777;margin-bottom:8px">மொத்த Summary + எல்லா Suppliers + எல்லா Customers — ஒரே Print-ல்</div>
       <div class="fg" style="margin-bottom:8px">
-        <label>மாதம்</label>
-        <input type="month" id="rpt-full-month" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit" oninput="setFullMonth(this.value)">
+        <label>மாதம் select பண்ணுங்க</label>
+        <input type="month" id="rpt-full-month" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit" oninput="setFullMonthRange(this.value)">
       </div>
+      <div style="font-size:11px;color:#777;margin-bottom:6px;text-align:center">— அல்லது —</div>
       <div class="frow">
         <div class="fg"><label>From</label><input type="date" id="rpt-full-from"></div>
         <div class="fg"><label>To</label><input type="date" id="rpt-full-to"></div>
@@ -476,7 +553,7 @@ tbody td{padding:8px 11px}
     </div>
   </div>
   <div id="rpt-out"></div>
-  <div id="rpt-print-btn-row" style="display:none;margin-top:12px;padding-bottom:14px">
+  <div id="rpt-print-btn-row" style="display:none;margin-top:12px">
     <button class="btn bg" onclick="printReport()" style="width:100%;padding:12px;font-size:14px">🖨️ Print / PDF Download</button>
   </div>
 </div>
@@ -1297,60 +1374,113 @@ function setRptMode(m){
   });
   if(m==='party') updateRptPartyDL();
 }
-function setFullMonth(val){
-  if(!val) return;
-  const from=val+'-01';
-  const d=new Date(val+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0);
-  document.getElementById('rpt-full-from').value=from;
-  document.getElementById('rpt-full-to').value=d.toISOString().split('T')[0];
-}
 function genFullReport(){
   const out=document.getElementById('rpt-out');
-  const month=document.getElementById('rpt-full-month').value;
   let from,to;
-  if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
-  else { from=document.getElementById('rpt-full-from').value; to=document.getElementById('rpt-full-to').value; }
-  if(!from||!to){ alert2('Date கொடுங்க!','err'); return; }
+  
+  // Try month first
+  const month=document.getElementById('rpt-full-month').value;
+  if(month){
+    from=month+'-01';
+    const d=new Date(month+'-01');
+    d.setMonth(d.getMonth()+1); d.setDate(0);
+    to=d.toISOString().split('T')[0];
+  } else {
+    from=document.getElementById('rpt-full-from').value||'2000-01-01';
+    to=document.getElementById('rpt-full-to').value||'2099-12-31';
+  }
+
   const purs=db.purchases.filter(p=>p.date>=from&&p.date<=to);
   const sals=db.sales.filter(s=>s.date>=from&&s.date<=to);
-  if(!purs.length&&!sals.length){ out.innerHTML='<div class="empty">Data இல்லை</div>'; return; }
-  const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
-  const dl=from.split('-').reverse().join('/')+' — '+to.split('-').reverse().join('/');
-  let html=`<div class="card" style="border:2px solid #1a6b3a"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:10px">📊 மொத்த Summary — ${dl}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div></div><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:8px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:22px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div></div>`;
-  const sups=[...new Set(purs.map(p=>p.supplier))].sort();
-  if(sups.length){
-    const supBal=purs.reduce((a,p)=>a+p.balance,0);
-    html+=`<div class="sec" style="margin:14px 0 8px">🌿 Suppliers (${sups.length}) — நிலுவை ₹${supBal.toLocaleString('en-IN')}</div>`;
-    sups.forEach(name=>{
-      const e=purs.filter(p=>p.supplier===name);
-      const t=e.reduce((a,p)=>a+p.total,0),b=e.reduce((a,p)=>a+p.balance,0);
-      html+=`<div class="card" style="margin-bottom:8px;padding:10px;page-break-inside:avoid"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:13px;font-weight:700;color:#1a6b3a">🌿 ${name}</div><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toLocaleString('en-IN'):'Paid ✓'}</span></div><div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${e.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${x.items.map(i=>i.name).join(', ')}</td><td>₹${x.total.toFixed(2)}</td><td><span class="bdg ${x.balance>0?'br2':'bg2'}">${x.balance>0?'₹'+x.balance.toFixed(2):'✓'}</span></td></tr>`).join('')}</tbody></table></div><div style="background:#f0f8f4;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-top:4px"><span>மொத்தம் ₹${t.toFixed(2)}</span><span style="color:${b>0?'#c0392b':'#1a6b3a'}">நிலுவை ₹${b.toFixed(2)}</span></div></div>`;
+  
+  if(!purs.length&&!sals.length){ 
+    out.innerHTML='<div class="empty">இந்த period-ல் data இல்லை</div>'; 
+    return; 
+  }
+  
+  const purTotal=purs.reduce((a,b)=>a+b.total,0);
+  const salTotal=sals.reduce((a,b)=>a+b.total,0);
+  const profit=salTotal-purTotal;
+  const dateLabel=from.split('-').reverse().join('/')+' — '+to.split('-').reverse().join('/');
+
+  let html=`<div class="card" style="border:2px solid #1a6b3a">
+    <div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:10px">📊 மொத்த Summary — ${dateLabel}</div>
+    <div class="dash-grid">
+      <div class="dash-card"><div class="lbl">Purchase</div><div class="val" style="font-size:16px">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div>
+      <div class="dash-card gold"><div class="lbl">Sales</div><div class="val" style="font-size:16px">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div>
+    </div>
+    <div class="profit-box ${profit>=0?'ppos':'pneg'}" style="margin-top:8px;padding:10px">
+      <div class="plbl">லாபம்</div><div class="pval" style="font-size:24px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div>
+    </div>
+  </div>`;
+
+  // Suppliers
+  const suppliers=[...new Set(purs.map(p=>p.supplier))].sort();
+  if(suppliers.length){
+    const purBal=purs.reduce((a,p)=>a+p.balance,0);
+    html+=`<div class="sec" style="margin:16px 0 8px">🌿 Suppliers (${suppliers.length}) — நிலுவை ₹${purBal.toLocaleString('en-IN')}</div>`;
+    suppliers.forEach(name=>{
+      const entries=purs.filter(p=>p.supplier===name);
+      const total=entries.reduce((a,e)=>a+e.total,0);
+      const bal=entries.reduce((a,e)=>a+e.balance,0);
+      html+=`<div class="card" style="margin-bottom:8px;padding:10px;page-break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:700;color:#1a6b3a">🌿 ${name}</div>
+          <span class="bdg ${bal>0?'br2':'bg2'}">${bal>0?'₹'+bal.toLocaleString('en-IN'):'Paid ✓'}</span>
+        </div>
+        <div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>
+        ${entries.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${e.items.map(i=>i.name+'('+i.qty+')').join(', ')}</td><td>₹${e.total.toFixed(2)}</td><td><span class="bdg ${e.balance>0?'br2':'bg2'}">${e.balance>0?'₹'+e.balance.toFixed(2):'✓'}</span></td></tr>`).join('')}
+        </tbody></table></div>
+        <div style="background:#f0f8f4;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-top:4px">
+          <span>மொத்தம் ₹${total.toFixed(2)}</span><span style="color:${bal>0?'#c0392b':'#1a6b3a'}">நிலுவை ₹${bal.toFixed(2)}</span>
+        </div>
+      </div>`;
     });
   }
+
+  // Customers
   const parties=[...new Set(sals.map(s=>s.party))].sort();
   if(parties.length){
     const salBal=sals.reduce((a,s)=>a+s.balance,0);
-    html+=`<div class="sec" style="margin:14px 0 8px">🛒 Customers (${parties.length}) — நிலுவை ₹${salBal.toLocaleString('en-IN')}</div>`;
+    html+=`<div class="sec" style="margin:16px 0 8px">🛒 Customers (${parties.length}) — நிலுவை ₹${salBal.toLocaleString('en-IN')}</div>`;
     parties.forEach(name=>{
-      const e=sals.filter(s=>s.party===name);
-      const t=e.reduce((a,s)=>a+s.total,0),b=e.reduce((a,s)=>a+s.balance,0);
-      html+=`<div class="card" style="margin-bottom:8px;padding:10px;page-break-inside:avoid"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:13px;font-weight:700;color:#c8952a">🛒 ${name}</div><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toLocaleString('en-IN'):'Paid ✓'}</span></div><div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${e.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${x.items.map(i=>i.name).join(', ')}</td><td>₹${x.total.toFixed(2)}</td><td><span class="bdg ${x.balance>0?'br2':'bg2'}">${x.balance>0?'₹'+x.balance.toFixed(2):'✓'}</span></td></tr>`).join('')}</tbody></table></div><div style="background:#fef8e8;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-top:4px"><span>மொத்தம் ₹${t.toFixed(2)}</span><span style="color:${b>0?'#c0392b':'#1a6b3a'}">நிலுவை ₹${b.toFixed(2)}</span></div></div>`;
+      const entries=sals.filter(s=>s.party===name);
+      const total=entries.reduce((a,e)=>a+e.total,0);
+      const bal=entries.reduce((a,e)=>a+e.balance,0);
+      html+=`<div class="card" style="margin-bottom:8px;padding:10px;page-break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:700;color:#c8952a">🛒 ${name}</div>
+          <span class="bdg ${bal>0?'br2':'bg2'}">${bal>0?'₹'+bal.toLocaleString('en-IN'):'Paid ✓'}</span>
+        </div>
+        <div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>
+        ${entries.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${e.items.map(i=>i.name).join(', ')}</td><td>₹${e.total.toFixed(2)}</td><td><span class="bdg ${e.balance>0?'br2':'bg2'}">${e.balance>0?'₹'+e.balance.toFixed(2):'✓'}</span></td></tr>`).join('')}
+        </tbody></table></div>
+        <div style="background:#fef8e8;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-top:4px">
+          <span>மொத்தம் ₹${total.toFixed(2)}</span><span style="color:${bal>0?'#c0392b':'#1a6b3a'}">நிலுவை ₹${bal.toFixed(2)}</span>
+        </div>
+      </div>`;
     });
   }
+
   document.getElementById('rpt-print-btn-row').style.display='block';
   out.innerHTML=html;
 }
-function printReport(){
-  const out=document.getElementById('rpt-out');
-  if(!out||!out.innerHTML.trim()){ alert2('முதல்ல Generate பண்ணுங்க!','err'); return; }
-  const pw=window.open('','_blank');
-  pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPR Report</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet"><style>body{font-family:'Noto Sans Tamil',sans-serif;padding:16px;font-size:12px;color:#111}.print-top{text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:14px}.print-top h2{color:#1a6b3a;font-size:18px;margin:0}.print-top p{margin:4px 0;font-size:11px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}thead{background:#1a6b3a;color:#fff}thead th{padding:5px 7px;text-align:left}tbody td{padding:4px 7px;border-bottom:1px solid #eee}.card{margin-bottom:12px;border:1px solid #ddd;border-radius:8px;padding:10px}.sec{font-size:13px;font-weight:700;color:#1a6b3a;margin-bottom:8px}.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}.bg2{background:#e6f7ed;color:#1a6b3a}.br2{background:#fdecea;color:#c0392b}.totbar{background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}.profit-box{text-align:center;padding:10px;border-radius:8px;margin-bottom:10px}.ppos{background:#e6f7ed;color:#1a6b3a}.pneg{background:#fdecea;color:#c0392b}.pval{font-size:24px;font-weight:700}.plbl{font-size:11px}.dash-card{padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px}.lbl{font-size:10px;color:#777}.val{font-size:16px;font-weight:700;color:#1a6b3a}.gold .val{color:#c8952a}.sub{font-size:10px;color:#999}@media print{button{display:none}}</style></head><body><div class="print-top"><h2>🌸 KPR பூக்கடை</h2><p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p><p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p></div><button onclick="window.print()" style="margin-bottom:14px;padding:8px 20px;background:#1a6b3a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨️ Print பண்ணுங்க</button>${out.innerHTML}</body></html>`);
-  pw.document.close();
+
+function setFullMonthRange(val){
+  if(!val) return;
+  const d=new Date(val+'-01');
+  const from=val+'-01';
+  d.setMonth(d.getMonth()+1); d.setDate(0);
+  const to=d.toISOString().split('T')[0];
+  document.getElementById('rpt-full-from').value=from;
+  document.getElementById('rpt-full-to').value=to;
 }
 function setRptPartyType(t){
   rptPartyType=t;
   document.getElementById('rpt-sup-btn').classList.toggle('on',t==='sup');
   document.getElementById('rpt-cust-btn').classList.toggle('on',t==='cust');
+  document.getElementById('rpt-party-name').value='';
+  document.getElementById('rpt-party-name').placeholder=t==='sup'?'Supplier பெயர்...':'Customer பெயர்...';
   updateRptPartyDL();
 }
 function updateRptPartyDL(){
@@ -1360,41 +1490,139 @@ function updateRptPartyDL(){
 }
 function genReport(){
   const out=document.getElementById('rpt-out');
+  out.innerHTML='';
+  document.getElementById('rpt-print-btn-row').style.display='none';
 
-  let from,to;
-  if(rptMode==='month'){ const m=document.getElementById('rpt-month').value; if(!m){ alert2('மாதம் தேர்வு பண்ணவும்!','err'); return; } from=m+'-01'; const d=new Date(m+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
-  else if(rptMode==='range'){ from=document.getElementById('rpt-from').value; to=document.getElementById('rpt-to').value; if(!from||!to){ alert2('Date range கொடுங்க!','err'); return; } }
-  else {
+  // FULL REPORT
+  if(rptMode==='full'){ genFullReport(); return; }
+
+  // PARTY (தனியார்)
+  if(rptMode==='party'){
     const name=document.getElementById('rpt-party-name').value.trim();
     if(!name){ alert2('பெயர் கொடுங்க!','err'); return; }
     const rawFrom=document.getElementById('rpt-party-from').value||'';
     const rawTo=document.getElementById('rpt-party-to').value||'';
-    function p2d(v){ if(!v) return null; v=v.trim(); if(v.length===10&&v[4]==='-') return v; const p=v.split('/'); if(p.length===3) return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); return null; }
-    from=p2d(rawFrom)||'2000-01-01';
-    to=p2d(rawTo)||'2099-12-31';
-    const normName=name.trim();
-    const entries=rptPartyType==='sup'
-      ?db.purchases.filter(p=>p.supplier&&p.supplier.trim()===normName&&p.date>=from&&p.date<=to)
-      :db.sales.filter(s=>s.party&&s.party.trim()===normName&&s.date>=from&&s.date<=to);
-    if(!entries.length){ out.innerHTML='<div class="empty"><div class="eico">📋</div>Data இல்லை</div>'; return; }
-    const total=entries.reduce((a,e)=>a+e.total,0),paid=entries.reduce((a,e)=>a+e.paid,0),bal=entries.reduce((a,e)=>a+e.balance,0);
-    const printBtn=document.getElementById('rpt-print-btn-row');
-    if(printBtn) printBtn.style.display='block';
-    let rowsHtml='';
-    entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
-      const bal=e.balance>0?'<span class="bdg br2">₹'+e.balance.toFixed(2)+'</span>':'<span class="bdg bg2">Paid ✓</span>';
-      rowsHtml+='<tr><td>'+fmtDate(e.date)+'</td><td>'+e.items.map(i=>i.name).join(', ')+'</td><td>₹'+e.total.toFixed(2)+'</td><td>₹'+e.paid.toFixed(2)+'</td><td>'+bal+'</td></tr>';
-    });
-    out.innerHTML='<div class="card"><div class="sec" style="margin-top:0">'+(rptPartyType==='sup'?'🌿':'🛒')+' '+normName+'</div>'
-      +'<div class="totbar" style="margin-bottom:12px">மொத்தம்: ₹'+total.toFixed(2)+' | கட்டியது: ₹'+paid.toFixed(2)+' | நிலுவை: ₹'+bal.toFixed(2)+'</div>'
-      +'<div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>கட்டியது</th><th>நிலுவை</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div></div>';
+    function p2ymd(v){
+      if(!v||!v.trim()) return null;
+      v=v.trim();
+      if(v.length===10&&v[4]==='-') return v;
+      const p=v.split('/');
+      if(p.length===3) return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0');
+      return null;
+    }
+    const pFrom=p2ymd(rawFrom)||'2000-01-01';
+    const pTo=p2ymd(rawTo)||'2099-12-31';
+    const isSup=rptPartyType==='sup';
+    const entries=isSup
+      ? db.purchases.filter(p=>p.supplier===name&&p.date>=pFrom&&p.date<=pTo)
+      : db.sales.filter(s=>s.party===name&&s.date>=pFrom&&s.date<=pTo);
+    if(!entries.length){
+      out.innerHTML='<div class="empty"><div class="eico">📋</div>'+name+' — Data இல்லை<br><small>பெயர் சரியா இருக்கா check பண்ணுங்க</small></div>';
+      return;
+    }
+    const total=entries.reduce((a,e)=>a+e.total,0);
+    const paid=entries.reduce((a,e)=>a+e.paid,0);
+    const bal=entries.reduce((a,e)=>a+e.balance,0);
+    document.getElementById('rpt-print-btn-row').style.display='block';
+    out.innerHTML=`<div class="card">
+      <div class="sec" style="margin-top:0">${isSup?'🌿':'🛒'} ${name}</div>
+      <div class="totbar" style="margin-bottom:12px">மொத்தம்: ₹${total.toFixed(2)} | கட்டியது: ₹${paid.toFixed(2)} | நிலுவை: ₹${bal.toFixed(2)}</div>
+      <div class="twrap"><table>
+        <thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>கட்டியது</th><th>நிலுவை</th></tr></thead>
+        <tbody>${entries.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`
+          <tr><td>${fmtDate(e.date)}</td>
+          <td>${e.items.map(i=>i.name+(isSup?'('+i.qty+')':'')).join(', ')}</td>
+          <td>₹${e.total.toFixed(2)}</td>
+          <td>₹${e.paid.toFixed(2)}</td>
+          <td><span class="bdg ${e.balance>0?'br2':'bg2'}">${e.balance>0?'₹'+e.balance.toFixed(2):'Paid ✓'}</span></td></tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
     return;
   }
+
+  // MONTH
+  let from,to;
+  if(rptMode==='month'){
+    const m=document.getElementById('rpt-month').value;
+    if(!m){ alert2('மாதம் தேர்வு பண்ணவும்!','err'); return; }
+    from=m+'-01';
+    const d=new Date(m+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0);
+    to=d.toISOString().split('T')[0];
+  } else {
+    from=document.getElementById('rpt-from').value;
+    to=document.getElementById('rpt-to').value;
+    if(!from||!to){ alert2('Date range கொடுங்க!','err'); return; }
+  }
+
   const purs=db.purchases.filter(p=>p.date>=from&&p.date<=to);
   const sals=db.sales.filter(s=>s.date>=from&&s.date<=to);
   const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
   document.getElementById('rpt-print-btn-row').style.display='block';
-  out.innerHTML=`<div class="card"><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="margin-bottom:12px"><div class="plbl">லாபம் (Sales - Purchase)</div><div class="pval">${profit>=0?'+':''}₹${profit.toFixed(2)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toFixed(2)}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toFixed(2)}</div><div class="sub">${sals.length} bills</div></div></div></div><div class="card"><div class="sec" style="margin-top:0">🌿 Supplier Breakdown</div><div class="twrap"><table><thead><tr><th>Supplier</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(purs.map(p=>p.supplier))].sort().map(n=>{ const t=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.total,0),b=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div><div class="card"><div class="sec" style="margin-top:0">🛒 Customer Breakdown</div><div class="twrap"><table><thead><tr><th>Party</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(sals.map(s=>s.party))].sort().map(n=>{ const t=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.total,0),b=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div>`;
+  out.innerHTML=`<div class="card"><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="margin-bottom:12px"><div class="plbl">லாபம் (Sales - Purchase)</div><div class="pval">${profit>=0?'+':''}₹${profit.toFixed(2)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toFixed(2)}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toFixed(2)}</div><div class="sub">${sals.length} bills</div></div></div></div><div class="card"><div class="sec" style="margin-top:0">🌿 Supplier Breakdown</div><div class="twrap"><table><thead><tr><th>Supplier</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(purs.map(p=>p.supplier))].sort().map(n=>{ const t=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.total,0),b=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.balance,0); return\`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>\`; }).join('')}</tbody></table></div></div><div class="card"><div class="sec" style="margin-top:0">🛒 Customer Breakdown</div><div class="twrap"><table><thead><tr><th>Party</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(sals.map(s=>s.party))].sort().map(n=>{ const t=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.total,0),b=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.balance,0); return\`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>\`; }).join('')}</tbody></table></div></div>`;
+}
+
+
+// ===== PRINT / PDF =====
+function printReport(){
+  const out = document.getElementById('rpt-out');
+  if(!out || !out.innerHTML.trim()){ alert2('முதல்ல Report generate பண்ணுங்க!','err'); return; }
+  
+  // Get filter info for header
+  let headerText = 'KPR பூக்கடை — Punnaivanam';
+  let subText = '';
+  if(rptMode==='month'){
+    const m = document.getElementById('rpt-month').value;
+    subText = m ? 'மாதம்: ' + m : '';
+  } else if(rptMode==='range'){
+    const f = document.getElementById('rpt-from').value;
+    const t = document.getElementById('rpt-to').value;
+    subText = f && t ? f.split('-').reverse().join('/') + ' முதல் ' + t.split('-').reverse().join('/') + ' வரை' : '';
+  } else {
+    const name = document.getElementById('rpt-party-name').value;
+    subText = name ? (rptPartyType==='sup'?'Supplier: ':'Customer: ') + name : '';
+  }
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>KPR பூக்கடை Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Noto Sans Tamil',sans-serif;padding:20px;color:#111;font-size:12px}
+  .print-top{text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:14px}
+  .print-top h2{color:#1a6b3a;font-size:18px;margin:0}
+  .print-top p{margin:4px 0;font-size:12px;color:#555}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px}
+  thead{background:#1a6b3a;color:#fff}
+  thead th{padding:6px 8px;text-align:left}
+  tbody td{padding:5px 8px;border-bottom:1px solid #eee}
+  .totbar{background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}
+  .card{margin-bottom:14px;border:1px solid #ddd;border-radius:8px;padding:12px}
+  .sec{font-size:13px;font-weight:700;color:#1a6b3a;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:4px}
+  .bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+  .bg2{background:#e6f7ed;color:#1a6b3a}
+  .br2{background:#fdecea;color:#c0392b}
+  .profit-box{text-align:center;padding:14px;border-radius:8px;margin-bottom:12px}
+  .ppos{background:#e6f7ed;color:#1a6b3a}
+  .pneg{background:#fdecea;color:#c0392b}
+  .pval{font-size:28px;font-weight:700}
+  @media print{button{display:none}}
+</style>
+</head>
+<body>
+<div class="print-top">
+  <h2>🌸 KPR பூக்கடை</h2>
+  <p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p>
+  ${subText ? '<p><b>' + subText + '</b></p>' : ''}
+  <p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p>
+</div>
+<button onclick="window.print()" style="margin-bottom:14px;padding:8px 20px;background:#1a6b3a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨️ Print பண்ணுங்க</button>
+${out.innerHTML}
+</body></html>`);
+  printWin.document.close();
 }
 
 // ===== HELPERS =====
@@ -1444,6 +1672,187 @@ function clearAllData(){
   db={purchases:[],sales:[],payments:[],commissions:{}};
   saveDB(); updateDash(); renderPL(); renderSL(); renderPay();
   alert2('🗑 All data cleared!','warn');
+}
+</script>
+
+
+<script>
+// ===== PDF DIRECT UPLOAD WITH API KEY =====
+function getClaudeKey(){ return localStorage.getItem('kpr-claude-key')||''; }
+function saveClaudeKey(k){ localStorage.setItem('kpr-claude-key', k); }
+
+// Firebase-ல் key save பண்ண
+async function saveKeyToFirebase(k){
+  try{
+    await fetch(FIREBASE_URL + '/settings/claude_key.json', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(k)
+    });
+    return true;
+  }catch(e){ return false; }
+}
+
+// Firebase-ல் இருந்து key load பண்ண
+async function loadKeyFromFirebase(){
+  try{
+    const r = await fetch(FIREBASE_URL + '/settings/claude_key.json');
+    const k = await r.json();
+    if(k && k.startsWith('sk-ant')){
+      saveClaudeKey(k); // localStorage-லயும் cache பண்ணு
+      return k;
+    }
+  }catch(e){}
+  return null;
+}
+
+async function saveKeyAndHide(){
+  const k1 = document.getElementById('claude-key-input');
+  const k2 = document.getElementById('claude-key-input-sal');
+  const k = (k1&&k1.value.trim()) || (k2&&k2.value.trim());
+  if(!k||!k.startsWith('sk-ant')){
+    const st=document.getElementById('key-status');
+    if(st) st.textContent='❌ Key தப்பு — sk-ant-api03-... என்று start ஆகணும்';
+    return;
+  }
+  saveClaudeKey(k);
+  const st=document.getElementById('key-status');
+  if(st) st.textContent='☁️ Firebase-ல் save பண்றோம்...';
+  const ok = await saveKeyToFirebase(k);
+  if(k1) k1.value='';
+  if(k2) k2.value='';
+  if(st) st.textContent = ok ? '✅ எல்லா device-லயும் ready!' : '✅ Local-ல் saved (Firebase offline)';
+  updateKeyStatus();
+}
+
+function updateKeyStatus(){
+  const k=getClaudeKey();
+  const el=document.getElementById('pur-key-section');
+  const st=document.getElementById('key-status');
+  if(k&&k.startsWith('sk-ant')){
+    if(el) el.style.background='#e6f7ed';
+    if(st) st.innerHTML='✅ Key ready — PDF upload பண்ணலாம்! <button onclick="clearKey()" style="margin-left:8px;background:none;border:1px solid #c0392b;color:#c0392b;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer">🗑 Clear</button>';
+  }
+}
+
+function clearKey(){
+  localStorage.removeItem('kpr-claude-key');
+  updateKeyStatus();
+  const st=document.getElementById('key-status');
+  if(st) st.textContent='Key cleared';
+}
+
+// App load-ல் Firebase-ல் இருந்து key தானா load ஆகும்
+window.addEventListener('load', async function(){
+  // முதலில் localStorage check
+  const local = getClaudeKey();
+  if(local && local.startsWith('sk-ant')){
+    updateKeyStatus();
+    return;
+  }
+  // இல்லன்னா Firebase-ல் இருந்து load
+  const st=document.getElementById('key-status');
+  if(st) st.textContent='☁️ Key load பண்றோம்...';
+  const fbKey = await loadKeyFromFirebase();
+  if(fbKey){
+    if(st) st.textContent='✅ Firebase-ல் இருந்து Key loaded!';
+    updateKeyStatus();
+  } else {
+    if(st) st.textContent='⚠️ Key இல்லை — கீழே enter பண்ணுங்க';
+  }
+});
+function saveClaudeKey(k){ localStorage.setItem('kpr-claude-key', k); }
+
+const PUR_PROMPT = `நீ KPR பூக்கடை Purchase Statement PDF படிக்கிறாய். ஒவ்வொரு supplier-க்கும் JSON object create பண்ணு. ONLY return valid JSON array, no explanation, no markdown.
+Format: [{"supplier":"பெயர்","date":"YYYY-MM-DD","items":[{"name":"பொருள்","qty":10,"price":50,"amount":500}],"total":500,"advance":0,"commission":50,"balance":0}]`;
+
+const SAL_PROMPT = `நீ KPR பூக்கடை Sale Report PDF படிக்கிறாய். ஒவ்வொரு party-க்கும் JSON object create பண்ணு. ONLY return valid JSON array, no explanation, no markdown.
+Format: [{"party":"பெயர்","date":"YYYY-MM-DD","items":[{"name":"பொருள்","qty":10,"amount":500}],"total":500,"paid":0,"balance":500}]`;
+
+async function pdfToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('File read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function callClaudeWithPDF(base64, prompt){
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': getClaudeKey(),
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:4000,
+      messages:[{
+        role:'user',
+        content:[
+          {type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
+          {type:'text', text:prompt}
+        ]
+      }]
+    })
+  });
+  if(!resp.ok) throw new Error('API error: '+resp.status);
+  const data = await resp.json();
+  const text = data.content.map(c=>c.text||'').join('');
+  const clean = text.replace(/```json|```/g,'').trim();
+  return JSON.parse(clean);
+}
+
+async function handlePurPDF(input){
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('pur-pdf-status');
+  const msg = document.getElementById('pur-pdf-msg');
+  const spinner = document.getElementById('pur-pdf-spinner');
+  status.style.display='block';
+  msg.textContent='PDF படிக்கிறோம்... ⏳';
+  try{
+    if(!getClaudeKey()){ msg.textContent='❌ API Key இல்லை — Key enter பண்ணுங்க!'; spinner.style.display='none'; return; }
+    const base64 = await pdfToBase64(file);
+    msg.textContent='Claude parse பண்றோம்... 🤖';
+    const data = await callClaudeWithPDF(base64, PUR_PROMPT);
+    msg.textContent='Import பண்றோம்...';
+    spinner.style.borderTopColor='#27ae60';
+    doImportPur(data);
+    status.style.display='none';
+    input.value='';
+  } catch(e){
+    msg.textContent='❌ Error: '+e.message;
+    spinner.style.display='none';
+    console.error(e);
+  }
+}
+
+async function handleSalPDF(input){
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('sal-pdf-status');
+  const msg = document.getElementById('sal-pdf-msg');
+  const spinner = document.getElementById('sal-pdf-spinner');
+  status.style.display='block';
+  msg.textContent='PDF படிக்கிறோம்... ⏳';
+  try{
+    const base64 = await pdfToBase64(file);
+    msg.textContent='Claude parse பண்றோம்... 🤖';
+    const data = await callClaudeWithPDF(base64, SAL_PROMPT);
+    msg.textContent='Import பண்றோம்...';
+    spinner.style.borderTopColor='#f5a623';
+    doImportSal(data);
+    status.style.display='none';
+    input.value='';
+  } catch(e){
+    msg.textContent='❌ Error: '+e.message;
+    spinner.style.display='none';
+    console.error(e);
+  }
 }
 </script>
 
