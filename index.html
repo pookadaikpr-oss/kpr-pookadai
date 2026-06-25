@@ -1316,27 +1316,69 @@ function genFullReport(){
   if(!purs.length&&!sals.length){ out.innerHTML='<div class="empty">Data இல்லை</div>'; return; }
   const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
   const dl=from.split('-').reverse().join('/')+' — '+to.split('-').reverse().join('/');
+
+  // Helper: row serial number
+  let nirCount=0;
+
   let html=`<div class="card" style="border:2px solid #1a6b3a"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:10px">📊 மொத்த Summary — ${dl}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div></div><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:8px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:22px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div></div>`;
+
+  // ===== PURCHASE STATEMENT =====
   const sups=[...new Set(purs.map(p=>p.supplier))].sort();
   if(sups.length){
-    const supBal=purs.reduce((a,p)=>a+p.balance,0);
-    html+=`<div class="sec" style="margin:14px 0 8px">🌿 Suppliers (${sups.length}) — நிலுவை ₹${supBal.toLocaleString('en-IN')}</div>`;
+    const supTotal=purs.reduce((a,p)=>a+p.total,0);
+    const supViyapar=purs.reduce((a,p)=>a+(p.commission||0),0);
+    html+=`<div class="sec" style="margin:14px 0 6px;font-size:15px">🌿 Purchase Statement</div>`;
+    nirCount=0;
     sups.forEach(name=>{
-      const e=purs.filter(p=>p.supplier===name);
-      const t=e.reduce((a,p)=>a+p.total,0),b=e.reduce((a,p)=>a+p.balance,0);
-      html+=`<div class="card" style="margin-bottom:8px;padding:10px;page-break-inside:avoid"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:13px;font-weight:700;color:#1a6b3a">🌿 ${name}</div><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toLocaleString('en-IN'):'Paid ✓'}</span></div><div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${e.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${x.items.map(i=>i.name).join(', ')}</td><td>₹${x.total.toFixed(2)}</td><td><span class="bdg ${x.balance>0?'br2':'bg2'}">${x.balance>0?'₹'+x.balance.toFixed(2):'✓'}</span></td></tr>`).join('')}</tbody></table></div><div style="background:#f0f8f4;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-top:4px"><span>மொத்தம் ₹${t.toFixed(2)}</span><span style="color:${b>0?'#c0392b':'#1a6b3a'}">நிலுவை ₹${b.toFixed(2)}</span></div></div>`;
+      const entries=purs.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
+      let supRowTotal=0, supRowVaravu=0, supRowPatru=0, supRowViyapar=0;
+      let rows='';
+      entries.forEach(x=>{
+        nirCount++;
+        // Each item as separate row
+        x.items.forEach((item,idx)=>{
+          const varavu=item.amount||0;
+          const patru=idx===0?(x.advance||0):0;
+          const viyapar=idx===0?(x.commission||0):0;
+          supRowTotal+=(idx===0?x.total:0);
+          supRowVaravu+=varavu;
+          supRowPatru+=patru;
+          supRowViyapar+=viyapar;
+          rows+=`<tr><td style="text-align:center">${idx===0?nirCount:''}</td><td>${idx===0?fmtDate(x.date):''}</td><td>${idx===0?name:''}</td><td>${item.name}</td><td style="text-align:right">${item.qty||''}</td><td style="text-align:right">${item.price||''}</td><td style="text-align:right">${varavu>0?varavu.toFixed(2):''}</td><td style="text-align:right">${patru>0?patru.toFixed(2):''}</td><td style="text-align:right">${viyapar>0?viyapar.toFixed(2):''}</td></tr>`;
+        });
+      });
+      const supBal=entries.reduce((a,p)=>a+p.balance,0);
+      rows+=`<tr style="background:#e8f5e9;font-weight:700"><td colspan="6" style="text-align:right;padding:4px 8px">${name} மொத்தம்</td><td style="text-align:right">${supRowVaravu.toFixed(2)}</td><td style="text-align:right">${supRowPatru.toFixed(2)}</td><td style="text-align:right">${supRowViyapar.toFixed(2)}</td></tr>`;
+      html+=`<div class="twrap" style="margin-bottom:12px"><div style="background:#1a6b3a;color:#fff;padding:5px 10px;font-weight:700;font-size:12px;border-radius:6px 6px 0 0">${name} <span style="float:right;font-size:11px">${supBal>0?'நிலுவை ₹'+supBal.toFixed(2):'Paid ✓'}</span></div><table style="font-size:11px"><thead><tr style="background:#2d8a50;color:#fff"><th>நிர்</th><th>தேதி</th><th>பெயர்</th><th>பொருட்கள்</th><th>எடை</th><th>விலை</th><th>வரவு</th><th>பற்று</th><th>விபாரசெலவு</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     });
+    html+=`<div style="background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between"><span>Purchase மொத்தம்: ₹${purTotal.toFixed(2)}</span><span>விபாரசெலவு: ₹${purs.reduce((a,p)=>a+(p.commission||0),0).toFixed(2)}</span></div>`;
   }
+
+  // ===== SALES STATEMENT =====
   const parties=[...new Set(sals.map(s=>s.party))].sort();
   if(parties.length){
-    const salBal=sals.reduce((a,s)=>a+s.balance,0);
-    html+=`<div class="sec" style="margin:14px 0 8px">🛒 Customers (${parties.length}) — நிலுவை ₹${salBal.toLocaleString('en-IN')}</div>`;
+    html+=`<div class="sec" style="margin:14px 0 6px;font-size:15px">🛒 Sales Statement</div>`;
+    nirCount=0;
     parties.forEach(name=>{
-      const e=sals.filter(s=>s.party===name);
-      const t=e.reduce((a,s)=>a+s.total,0),b=e.reduce((a,s)=>a+s.balance,0);
-      html+=`<div class="card" style="margin-bottom:8px;padding:10px;page-break-inside:avoid"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:13px;font-weight:700;color:#c8952a">🛒 ${name}</div><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toLocaleString('en-IN'):'Paid ✓'}</span></div><div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${e.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${x.items.map(i=>i.name).join(', ')}</td><td>₹${x.total.toFixed(2)}</td><td><span class="bdg ${x.balance>0?'br2':'bg2'}">${x.balance>0?'₹'+x.balance.toFixed(2):'✓'}</span></td></tr>`).join('')}</tbody></table></div><div style="background:#fef8e8;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-top:4px"><span>மொத்தம் ₹${t.toFixed(2)}</span><span style="color:${b>0?'#c0392b':'#1a6b3a'}">நிலுவை ₹${b.toFixed(2)}</span></div></div>`;
+      const entries=sals.filter(s=>s.party===name).sort((a,b)=>a.date.localeCompare(b.date));
+      let rows='';
+      let partyTotal=0, partyPaid=0;
+      entries.forEach(x=>{
+        nirCount++;
+        x.items.forEach((item,idx)=>{
+          partyTotal+=idx===0?x.total:0;
+          partyPaid+=idx===0?x.paid:0;
+          rows+=`<tr><td style="text-align:center">${idx===0?nirCount:''}</td><td>${idx===0?fmtDate(x.date):''}</td><td>${idx===0?name:''}</td><td>${item.name}</td><td style="text-align:right">${item.qty||''}</td><td style="text-align:right">${item.amount>0?item.amount.toFixed(2):''}</td><td style="text-align:right">${idx===0&&x.paid>0?x.paid.toFixed(2):''}</td><td style="text-align:right">${idx===0&&x.balance>0?x.balance.toFixed(2):''}</td></tr>`;
+        });
+      });
+      const bal=entries.reduce((a,s)=>a+s.balance,0);
+      rows+=`<tr style="background:#fff8e1;font-weight:700"><td colspan="5" style="text-align:right;padding:4px 8px">${name} மொத்தம்</td><td style="text-align:right">${partyTotal.toFixed(2)}</td><td style="text-align:right">${partyPaid.toFixed(2)}</td><td style="text-align:right">${bal.toFixed(2)}</td></tr>`;
+      html+=`<div class="twrap" style="margin-bottom:12px"><div style="background:#c8952a;color:#fff;padding:5px 10px;font-weight:700;font-size:12px;border-radius:6px 6px 0 0">${name} <span style="float:right;font-size:11px">${bal>0?'நிலுவை ₹'+bal.toFixed(2):'Paid ✓'}</span></div><table style="font-size:11px"><thead><tr style="background:#d4a017;color:#fff"><th>நிர்</th><th>தேதி</th><th>Party</th><th>பொருட்கள்</th><th>Qty</th><th>மொத்தம்</th><th>கட்டியது</th><th>நிலுவை</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     });
+    const salBal=sals.reduce((a,s)=>a+s.balance,0);
+    html+=`<div style="background:#c8952a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between"><span>Sales மொத்தம்: ₹${salTotal.toFixed(2)}</span><span>நிலுவை: ₹${salBal.toFixed(2)}</span></div>`;
   }
+
   document.getElementById('rpt-print-btn-row').style.display='block';
   out.innerHTML=html;
 }
