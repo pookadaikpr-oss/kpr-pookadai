@@ -153,7 +153,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🌿 Purchase Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="pe-date"></div>
-        <div class="fg"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl"><datalist id="sup-dl"></datalist></div>
+        <div class="fg"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" oninput="autoFillComm(this.value)"><datalist id="sup-dl"></datalist></div>
       </div>
       <div class="frow">
         <div class="fg"><label>வகை</label>
@@ -163,7 +163,11 @@ tbody td{padding:8px 11px}
             <option value="வெளிகடை">🏪 வெளிகடை</option>
           </select>
         </div>
-        <div class="fg"><label>முன் பாக்கி</label><input type="number" id="pe-prev" placeholder="0" oninput="calcPB()"></div>
+      </div>
+      <div class="frow t3">
+        <div class="fg"><label>முன்பாக்கி</label><input type="number" id="pe-prev" placeholder="0" oninput="calcPB()"></div>
+        <div class="fg"><label>கமிஷன்%</label><input type="number" id="pe-comm" placeholder="10" step="0.5" min="0" max="100" oninput="calcPB()"></div>
+        <div class="fg"><label>எடுப்பு%</label><input type="number" id="pe-eduppu" placeholder="0" step="0.5" min="0" max="100" oninput="calcPB()"></div>
       </div>
       <div class="frow">
         <div class="fg"><label>குறிப்பு</label><input type="text" id="pe-note" placeholder="Optional"></div>
@@ -670,10 +674,20 @@ function calcPB(){
   const bal=t-prev-p;
   document.getElementById('pe-bal').value=bal.toFixed(2);
 }
+function autoFillComm(supName){
+  const name=supName.trim();
+  if(!name) return;
+  const pct=db.commissions[name]||0;
+  const commEl=document.getElementById('pe-comm');
+  if(commEl&&pct>0) commEl.value=pct;
+}
+
 function clearPur(){
   document.getElementById('pe-sup').value='';
   document.getElementById('pe-type').value='தோட்டம்';
   document.getElementById('pe-prev').value='';
+  document.getElementById('pe-comm').value='';
+  document.getElementById('pe-eduppu').value='';
   document.getElementById('pe-paid').value='';
   document.getElementById('pe-note').value='';
   document.getElementById('pe-items').innerHTML='';
@@ -697,7 +711,11 @@ function savePur(){
     if(name&&qty>0) items.push({name,qty,price,amount:qty*price});
     else if(!name&&!qty&&!price) r.remove(); // empty row remove
   });
-  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value};
+  const commPct=parseFloat(document.getElementById('pe-comm').value)||0;
+  const eduppuPct=parseFloat(document.getElementById('pe-eduppu').value)||0;
+  const totalCommPct=commPct+eduppuPct;
+  const commission=Math.round(total*totalCommPct/100*100)/100;
+  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission};
   db.purchases.push(newPur);
   saveLocal();
   updateSupDL(); updateDash();
@@ -1317,66 +1335,80 @@ function genFullReport(){
   const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
   const dl=from.split('-').reverse().join('/')+' — '+to.split('-').reverse().join('/');
 
-  // Helper: row serial number
-  let nirCount=0;
+  const thStyle='padding:5px 6px;text-align:left;font-size:11px;white-space:nowrap';
+  const tdStyle='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
+  const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
 
-  let html=`<div class="card" style="border:2px solid #1a6b3a"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:10px">📊 மொத்த Summary — ${dl}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div></div><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:8px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:22px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div></div>`;
+  let html=`<div class="card" style="border:2px solid #1a6b3a;margin-bottom:12px"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:8px">📊 ${dl}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div></div><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:6px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:20px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div></div>`;
 
   // ===== PURCHASE STATEMENT =====
   const sups=[...new Set(purs.map(p=>p.supplier))].sort();
   if(sups.length){
-    const supTotal=purs.reduce((a,p)=>a+p.total,0);
-    const supViyapar=purs.reduce((a,p)=>a+(p.commission||0),0);
-    html+=`<div class="sec" style="margin:14px 0 6px;font-size:15px">🌿 Purchase Statement</div>`;
-    nirCount=0;
+    html+=`<div style="font-size:14px;font-weight:700;color:#1a6b3a;margin:10px 0 6px;text-align:center">Purchase Statement</div>`;
+    let nirCount=0;
+    let grandVaravu=0, grandPatru=0, grandViyapar=0, grandEdai=0;
     sups.forEach(name=>{
       const entries=purs.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
-      let supRowTotal=0, supRowVaravu=0, supRowPatru=0, supRowViyapar=0;
+      let supVaravu=0, supPatru=0, supViyapar=0, supEdai=0;
       let rows='';
       entries.forEach(x=>{
-        nirCount++;
-        // Each item as separate row
-        x.items.forEach((item,idx)=>{
-          const varavu=item.amount||0;
-          const patru=idx===0?(x.advance||0):0;
-          const viyapar=idx===0?(x.commission||0):0;
-          supRowTotal+=(idx===0?x.total:0);
-          supRowVaravu+=varavu;
-          supRowPatru+=patru;
-          supRowViyapar+=viyapar;
-          rows+=`<tr><td style="text-align:center">${idx===0?nirCount:''}</td><td>${idx===0?fmtDate(x.date):''}</td><td>${idx===0?name:''}</td><td>${item.name}</td><td style="text-align:right">${item.qty||''}</td><td style="text-align:right">${item.price||''}</td><td style="text-align:right">${varavu>0?varavu.toFixed(2):''}</td><td style="text-align:right">${patru>0?patru.toFixed(2):''}</td><td style="text-align:right">${viyapar>0?viyapar.toFixed(2):''}</td></tr>`;
-        });
+        const patru=x.advance||x.prev||0;
+        const entryCommPct=(x.commPct||0)+(x.eduppuPct||0);
+        if(x.items && x.items.length>0){
+          x.items.forEach((item,idx)=>{
+            nirCount++;
+            const edai=item.qty||0;
+            const vilai=item.price||0;
+            const varavu=item.amount||0;
+            // Per-item commission
+            let itemViyapar=0;
+            if(entryCommPct>0 && varavu>0){
+              itemViyapar=Math.round(varavu*entryCommPct/100*100)/100;
+            } else if(x.total>0 && x.commission>0 && varavu>0){
+              itemViyapar=Math.round(varavu/x.total*(x.commission||0)*100)/100;
+            }
+            supEdai+=edai; supVaravu+=varavu; supViyapar+=itemViyapar;
+            if(idx===0) supPatru+=patru;
+            rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">${item.name}</td><td style="${tdR}">${edai>0?edai:''}</td><td style="${tdR}">${vilai>0?vilai:''}</td><td style="${tdR}">${varavu>0?varavu.toFixed(2):''}</td><td style="${tdR}">${idx===0&&patru>0?patru.toFixed(2):''}</td><td style="${tdR}">${itemViyapar>0?itemViyapar.toFixed(2):''}</td></tr>`;
+          });
+        } else {
+          nirCount++;
+          const patruOnly=x.advance||x.prev||0;
+          supPatru+=patruOnly;
+          rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">பற்று</td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}">${patruOnly>0?patruOnly.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
+        }
       });
-      const supBal=entries.reduce((a,p)=>a+p.balance,0);
-      rows+=`<tr style="background:#e8f5e9;font-weight:700"><td colspan="6" style="text-align:right;padding:4px 8px">${name} மொத்தம்</td><td style="text-align:right">${supRowVaravu.toFixed(2)}</td><td style="text-align:right">${supRowPatru.toFixed(2)}</td><td style="text-align:right">${supRowViyapar.toFixed(2)}</td></tr>`;
-      html+=`<div class="twrap" style="margin-bottom:12px"><div style="background:#1a6b3a;color:#fff;padding:5px 10px;font-weight:700;font-size:12px;border-radius:6px 6px 0 0">${name} <span style="float:right;font-size:11px">${supBal>0?'நிலுவை ₹'+supBal.toFixed(2):'Paid ✓'}</span></div><table style="font-size:11px"><thead><tr style="background:#2d8a50;color:#fff"><th>நிர்</th><th>தேதி</th><th>பெயர்</th><th>பொருட்கள்</th><th>எடை</th><th>விலை</th><th>வரவு</th><th>பற்று</th><th>விபாரசெலவு</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      grandVaravu+=supVaravu; grandPatru+=supPatru; grandViyapar+=supViyapar; grandEdai+=supEdai;
+      rows+=`<tr style="background:#e8f5e9;font-weight:700"><td colspan="4" style="${tdStyle}"></td><td style="${tdR}">${supEdai>0?supEdai.toFixed(2):''}</td><td style="${tdR}"></td><td style="${tdR}">${supVaravu>0?supVaravu.toFixed(2):''}</td><td style="${tdR}">${supPatru>0?supPatru.toFixed(2):''}</td><td style="${tdR}">${supViyapar>0?supViyapar.toFixed(2):''}</td></tr>`;
+      html+=`<div style="margin-bottom:14px"><div style="background:#1a6b3a;color:#fff;padding:4px 8px;font-weight:700;font-size:12px"><b>${name}</b></div><div class="twrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#2d8a50;color:#fff"><th style="${thStyle}">நிர்</th><th style="${thStyle}">தேதி</th><th style="${thStyle}">பெயர்</th><th style="${thStyle}">பொருட்கள்</th><th style="${thStyle};text-align:right">எடை</th><th style="${thStyle};text-align:right">விலை</th><th style="${thStyle};text-align:right">வரவு</th><th style="${thStyle};text-align:right">பற்று</th><th style="${thStyle};text-align:right">விபாரசெலவு</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
     });
-    html+=`<div style="background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between"><span>Purchase மொத்தம்: ₹${purTotal.toFixed(2)}</span><span>விபாரசெலவு: ₹${purs.reduce((a,p)=>a+(p.commission||0),0).toFixed(2)}</span></div>`;
+    html+=`<div style="background:#1a6b3a;color:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>வரவு மொத்தம்: ₹${grandVaravu.toFixed(2)}</span><span>பற்று: ₹${grandPatru.toFixed(2)}</span><span>விபாரசெலவு: ₹${grandViyapar.toFixed(2)}</span></div>`;
   }
 
   // ===== SALES STATEMENT =====
   const parties=[...new Set(sals.map(s=>s.party))].sort();
   if(parties.length){
-    html+=`<div class="sec" style="margin:14px 0 6px;font-size:15px">🛒 Sales Statement</div>`;
-    nirCount=0;
+    html+=`<div style="font-size:14px;font-weight:700;color:#c8952a;margin:10px 0 6px;text-align:center">Sales Statement</div>`;
+    let nirCount=0;
+    let grandTotal=0, grandPaid=0, grandBal=0;
     parties.forEach(name=>{
       const entries=sals.filter(s=>s.party===name).sort((a,b)=>a.date.localeCompare(b.date));
+      let partyTotal=0, partyPaid=0, partyBal=0;
       let rows='';
-      let partyTotal=0, partyPaid=0;
       entries.forEach(x=>{
         nirCount++;
-        x.items.forEach((item,idx)=>{
-          partyTotal+=idx===0?x.total:0;
-          partyPaid+=idx===0?x.paid:0;
-          rows+=`<tr><td style="text-align:center">${idx===0?nirCount:''}</td><td>${idx===0?fmtDate(x.date):''}</td><td>${idx===0?name:''}</td><td>${item.name}</td><td style="text-align:right">${item.qty||''}</td><td style="text-align:right">${item.amount>0?item.amount.toFixed(2):''}</td><td style="text-align:right">${idx===0&&x.paid>0?x.paid.toFixed(2):''}</td><td style="text-align:right">${idx===0&&x.balance>0?x.balance.toFixed(2):''}</td></tr>`;
-        });
+        partyTotal+=x.total; partyPaid+=x.paid||0; partyBal+=x.balance||0;
+        if(x.items && x.items.length>0){
+          x.items.forEach((item,idx)=>{
+            rows+=`<tr><td style="${tdStyle}">${idx===0?nirCount:''}</td><td style="${tdStyle}">${idx===0?fmtDate(x.date):''}</td><td style="${tdStyle}">${idx===0?name:''}</td><td style="${tdStyle}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&x.paid>0?x.paid.toFixed(2):''}</td><td style="${tdR}">${idx===0&&x.balance>0?x.balance.toFixed(2):''}</td></tr>`;
+          });
+        }
       });
-      const bal=entries.reduce((a,s)=>a+s.balance,0);
-      rows+=`<tr style="background:#fff8e1;font-weight:700"><td colspan="5" style="text-align:right;padding:4px 8px">${name} மொத்தம்</td><td style="text-align:right">${partyTotal.toFixed(2)}</td><td style="text-align:right">${partyPaid.toFixed(2)}</td><td style="text-align:right">${bal.toFixed(2)}</td></tr>`;
-      html+=`<div class="twrap" style="margin-bottom:12px"><div style="background:#c8952a;color:#fff;padding:5px 10px;font-weight:700;font-size:12px;border-radius:6px 6px 0 0">${name} <span style="float:right;font-size:11px">${bal>0?'நிலுவை ₹'+bal.toFixed(2):'Paid ✓'}</span></div><table style="font-size:11px"><thead><tr style="background:#d4a017;color:#fff"><th>நிர்</th><th>தேதி</th><th>Party</th><th>பொருட்கள்</th><th>Qty</th><th>மொத்தம்</th><th>கட்டியது</th><th>நிலுவை</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      grandTotal+=partyTotal; grandPaid+=partyPaid; grandBal+=partyBal;
+      rows+=`<tr style="background:#fff8e1;font-weight:700"><td colspan="5" style="${tdStyle}"></td><td style="${tdR}">${partyTotal.toFixed(2)}</td><td style="${tdR}">${partyPaid.toFixed(2)}</td><td style="${tdR}">${partyBal.toFixed(2)}</td></tr>`;
+      html+=`<div style="margin-bottom:14px"><div style="background:#c8952a;color:#fff;padding:4px 8px;font-weight:700;font-size:12px"><b>${name}</b></div><div class="twrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#d4a017;color:#fff"><th style="${thStyle}">நிர்</th><th style="${thStyle}">தேதி</th><th style="${thStyle}">Party</th><th style="${thStyle}">பொருட்கள்</th><th style="${thStyle};text-align:right">Qty</th><th style="${thStyle};text-align:right">மொத்தம்</th><th style="${thStyle};text-align:right">கட்டியது</th><th style="${thStyle};text-align:right">நிலுவை</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
     });
-    const salBal=sals.reduce((a,s)=>a+s.balance,0);
-    html+=`<div style="background:#c8952a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between"><span>Sales மொத்தம்: ₹${salTotal.toFixed(2)}</span><span>நிலுவை: ₹${salBal.toFixed(2)}</span></div>`;
+    html+=`<div style="background:#c8952a;color:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>Sales மொத்தம்: ₹${grandTotal.toFixed(2)}</span><span>கட்டியது: ₹${grandPaid.toFixed(2)}</span><span>நிலுவை: ₹${grandBal.toFixed(2)}</span></div>`;
   }
 
   document.getElementById('rpt-print-btn-row').style.display='block';
