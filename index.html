@@ -719,12 +719,16 @@ function deleteMasterSup(idx){
 }
 function editMasterCust(idx){
   const c=master.customers[idx];
-  document.getElementById('ms-cust-name').value=c.name;
-  document.getElementById('ms-cust-town').value=c.town||'';
-  document.getElementById('ms-cust-phone').value=c.phone||'';
-  document.getElementById('ms-cust-prev').value=c.prev||0;
+  if(!c){ alert2('Error: customer not found','err'); return; }
   mstTab('cust', document.getElementById('mst-tab-cust'));
-  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>{
+    document.getElementById('ms-cust-name').value=c.name;
+    document.getElementById('ms-cust-town').value=c.town||'';
+    document.getElementById('ms-cust-phone').value=c.phone||'';
+    document.getElementById('ms-cust-prev').value=c.prev||0;
+    window.scrollTo({top:0,behavior:'smooth'});
+    alert2(c.name+' — edit பண்ணலாம்! Save பண்ணினா update ஆகும்','ok');
+  },100);
 }
 function deleteMasterCust(idx){
   if(!confirm('Delete பண்ணவா?')) return;
@@ -753,14 +757,22 @@ function deleteMasterCustByName(name){
 }
 function editMasterSup(idx){
   const s=master.suppliers[idx];
-  document.getElementById('ms-sup-name').value=s.name;
-  document.getElementById('ms-sup-town').value=s.town||'';
-  document.getElementById('ms-sup-phone').value=s.phone||'';
-  document.getElementById('ms-sup-comm').value=s.comm||10;
-  document.getElementById('ms-sup-eduppu').value=s.eduppu||0;
-  document.getElementById('ms-sup-prev').value=s.prev||0;
-  document.getElementById('ms-sup-name').focus();
-  window.scrollTo({top:0,behavior:'smooth'});
+  if(!s){ alert2('Error: supplier not found','err'); return; }
+  // Switch to sup tab first
+  mstTab('sup', document.getElementById('mst-tab-sup'));
+  // Fill form
+  setTimeout(()=>{
+    document.getElementById('ms-sup-name').value=s.name;
+    document.getElementById('ms-sup-town').value=s.town||'';
+    document.getElementById('ms-sup-phone').value=s.phone||'';
+    document.getElementById('ms-sup-comm').value=s.comm||10;
+    document.getElementById('ms-sup-eduppu').value=s.eduppu||0;
+    document.getElementById('ms-sup-prev').value=s.prev||0;
+    // Scroll to top of page
+    window.scrollTo({top:0,behavior:'smooth'});
+    document.getElementById('ms-sup-name').focus();
+    alert2(s.name+' — edit பண்ணலாம்! Save பண்ணினா update ஆகும்','ok');
+  },100);
 }
 
 function renderMaster(){
