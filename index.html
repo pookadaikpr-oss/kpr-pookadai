@@ -132,6 +132,18 @@ tbody td{padding:8px 11px}
   .dash-grid{grid-template-columns:1fr 1fr}
   .irow{grid-template-columns:2fr 1fr 1fr 1fr 28px}
 }
+  @media print{
+    @page{ size:A4 landscape; margin:6mm 8mm; }
+    body{ font-size:10px !important; background:#fff !important; }
+    .nav,.hdr-date,#rpt-print-btn-row{ display:none !important; }
+    #pg-report > *:not(#rpt-out){ display:none !important; }
+    #rpt-out{ display:block !important; max-width:148mm !important; margin:0 !important; }
+    .card{ box-shadow:none !important; border:none !important; padding:0 !important; margin:0 !important; }
+    table{ width:100% !important; font-size:9px !important; border-collapse:collapse !important; }
+    th{ padding:2px 4px !important; font-size:9px !important; }
+    td{ padding:2px 4px !important; border-bottom:0.5px solid #ccc !important; }
+    button,input,select,label{ display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -2086,22 +2098,76 @@ function genReport(){
               <span style="font-weight:700">${(totalComm+munPakki+totalPatru).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#fdecea':'#e6f7ed'};padding:8px 10px;border-radius:8px">
-              <span>${netBal>0?'நிலுவை :':'அதிக பற்று :'}</span>
+              <span>${netBal>0?'இருப்பு :':'அதிக பற்று :'}</span>
               <span style="color:${netBal>0?'#c0392b':'#1a6b3a'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
           </div>
         </div>`;
     } else {
-      // Customer report
-      const total=entries.reduce((a,e)=>a+e.total,0),paid=entries.reduce((a,e)=>a+e.paid,0),bal=entries.reduce((a,e)=>a+e.balance,0);
-      let rowsHtml='';
-      entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
-        const balBdg=e.balance>0?'<span class="bdg br2">₹'+e.balance.toFixed(2)+'</span>':'<span class="bdg bg2">Paid ✓</span>';
-        rowsHtml+='<tr><td>'+fmtDate(e.date)+'</td><td>'+e.items.map(i=>i.name).join(', ')+'</td><td>₹'+e.total.toFixed(2)+'</td><td>₹'+e.paid.toFixed(2)+'</td><td>'+balBdg+'</td></tr>';
+      // ===== CUSTOMER RECEIPT FORMAT =====
+      entries.sort((a,b)=>a.date.localeCompare(b.date));
+      const munPakkiCust=entries[0]?(entries[0].prev||0):0;
+      const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
+      const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
+      const grandTotalCust=mottaVirpanai+munPakkiCust;
+      const netBalCust=grandTotalCust-totalVaravu;
+      const d1=from.split('-').reverse().join('/');
+      const d2=to.split('-').reverse().join('/');
+      const thS='padding:5px 6px;font-size:11px;text-align:left;white-space:nowrap';
+      const tdS='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
+      const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
+      let custRowsHtml='';
+      entries.forEach(e=>{
+        if(e.items&&e.items.length>0){
+          e.items.forEach((item,idx)=>{
+            custRowsHtml+=`<tr><td style="${tdS}">${idx===0?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+          });
+        } else {
+          custRowsHtml+=`<tr><td style="${tdS}">${fmtDate(e.date)}</td><td style="${tdS}" colspan="3">${e.items&&e.items.length?e.items.map(i=>i.name).join(', '):'-'}</td><td style="${tdR}">${e.total.toFixed(2)}</td><td style="${tdR}">${e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+        }
       });
-      out.innerHTML='<div class="card"><div class="sec" style="margin-top:0">🛒 '+normName+'</div>'
-        +'<div class="totbar" style="margin-bottom:12px">மொத்தம்: ₹'+total.toFixed(2)+' | வரவு: ₹'+paid.toFixed(2)+' | நிலுவை: ₹'+bal.toFixed(2)+'</div>'
-        +'<div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>வரவு</th><th>நிலுவை</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div></div>';
+      out.innerHTML=`
+        <div style="background:#fff;border:2px solid #c8860a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
+          <div style="text-align:center;border-bottom:2px solid #c8860a;padding-bottom:10px;margin-bottom:12px">
+            <div style="font-size:15px;font-weight:700;color:#c8860a">KPR வன்னிசெந்தார் புதுமலரகம்</div>
+            <div style="font-size:11px;color:#555;margin-top:2px">புஷ்ப கமிஷன் வியாபாரம்</div>
+            <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட்</div>
+            <div style="font-size:10px;color:#888">செல்: 9787267300, 9944894147</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px">
+            <span>தேதி: <b>${d1} -- ${d2}</b></span>
+          </div>
+          <div style="font-size:12px;margin-bottom:4px">விவ.பெயர்: <b>${normName}</b></div>
+          ${munPakkiCust>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span>முன் பாக்கி</span><span><b>${munPakkiCust.toLocaleString('en-IN',{minimumFractionDigits:2})}</b></span></div>`:''}
+          <div style="overflow-x:auto;margin-bottom:10px">
+            <table style="width:100%;border-collapse:collapse">
+              <thead style="background:#c8860a;color:#fff">
+                <tr>
+                  <th style="${thS}">தேதி</th>
+                  <th style="${thS}">பொருள்</th>
+                  <th style="${thS};text-align:right">Qty</th>
+                  <th style="${thS};text-align:right">விலை</th>
+                  <th style="${thS};text-align:right">மொத்தம்</th>
+                  <th style="${thS};text-align:right">வரவு</th>
+                </tr>
+              </thead>
+              <tbody>${custRowsHtml}</tbody>
+            </table>
+          </div>
+          <div style="border-top:1px solid #ddd;padding-top:8px;font-size:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>மொத்த விற்பனை :</span><span>${mottaVirpanai.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span>${totalVaravu>0?totalVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</span></div>
+            ${munPakkiCust>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakkiCust.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
+              <span></span>
+              <span style="font-weight:700">${mottaVirpanai.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(munPakkiCust+totalVaravu).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBalCust>0?'#fdecea':'#e6f7ed'};padding:8px 10px;border-radius:8px">
+              <span>${netBalCust>0?'நிலுவை :':'அதிக வரவு :'}</span>
+              <span style="color:${netBalCust>0?'#c0392b':'#1a6b3a'}">${Math.abs(netBalCust).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>
+          </div>
+        </div>`;
     }
     return;
   }
