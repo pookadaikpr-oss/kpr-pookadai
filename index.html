@@ -991,7 +991,7 @@ window.addEventListener('DOMContentLoaded', function(){
   // ── STEP 1: Local data இருந்தால் உடனே காட்டு ──
   loadSettings(); loadLocal(); setTimeout(updateDataLists, 500); dedupDB();
   const hasLocal = (db.purchases.length + db.sales.length) > 0;
-  updateDash(); renderPL(); renderSL(); renderPay();
+  syncMasterFromDB(); updateDash(); renderPL(); renderSL(); renderPay();
   updateSupDL(); updateParDL();
 
   // ── STEP 2: Firebase fetch — NO setTimeout, உடனே ──
@@ -1021,6 +1021,7 @@ window.addEventListener('DOMContentLoaded', function(){
             commissions:Object.assign({},fbComm,db.commissions||{})
           };
           dedupDB(); saveLocal();
+          syncMasterFromDB();
           updateDash(); renderPL(); renderSL(); renderPay();
           updateSupDL(); updateParDL();
           if(!hasLocal) alert2('✅ Firebase data loaded! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
@@ -1363,7 +1364,7 @@ function doImportSal(data){
     if(exists) return;
     db.sales.push({...s,id:'sal_pdf_'+Date.now()+'_'+Math.floor(Math.random()*10000),src:'pdf'}); added++;
   });
-  saveDB(); updateParDL(); updateDash();
+  saveDB(); syncMasterFromDB(); updateParDL(); updateDash();
   show('sal-upload-step',false);
   document.getElementById('sal-done-msg').textContent=added+' parties successfully imported! ✅';
   document.getElementById('sal-done-list').innerHTML=data.map(s=>`<tr><td><b>${s.party||''}</b></td><td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(s.items||[]).map(i=>i.name+'('+i.qty+')').join(', ')}</td><td>₹${(s.total||0).toFixed(2)}</td><td><span class="bdg ${(s.balance||0)>0?'br2':'bg2'}">${(s.balance||0)>0?'₹'+(s.balance).toFixed(2):'Paid'}</span></td></tr>`).join('');
@@ -1424,7 +1425,7 @@ function delEntry(type,id){
   if(!confirm('Delete பண்றீங்களா?')) return;
   if(type==='pur'){ const e=db.purchases.find(p=>String(p.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.purchases=db.purchases.filter(p=>String(p.id)!==String(id)); }
   else{ const e=db.sales.find(s=>String(s.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.sales=db.sales.filter(s=>String(s.id)!==String(id)); }
-  saveDB().then(()=>{ renderPL(); renderSL(); updateDash(); showUndoBar(); });
+  saveDB().then(()=>{ syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar(); });
 }
 function showUndoBar(){
   const old=document.getElementById('undo-bar'); if(old) old.remove();
@@ -2091,6 +2092,31 @@ function alert2(msg,type='ok'){
 
 function updateSupDL(){ try{ const s=new Set(db.purchases.map(p=>p.supplier)); const dl=document.getElementById('sup-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
 function updateParDL(){ try{ const s=new Set(db.sales.map(p=>p.party)); const dl=document.getElementById('par-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
+
+function syncMasterFromDB(){
+  // Auto-add suppliers from purchases to master
+  let changed=false;
+  db.purchases.forEach(p=>{
+    if(p.supplier && !master.suppliers.find(s=>s.name===p.supplier)){
+      master.suppliers.push({
+        name:p.supplier,
+        town:'',phone:'',
+        comm:p.commPct||10,
+        eduppu:p.eduppuPct||0,
+        prev:p.prev||0
+      });
+      changed=true;
+    }
+  });
+  // Auto-add customers from sales to master
+  db.sales.forEach(s=>{
+    if(s.party && !master.customers.find(c=>c.name===s.party)){
+      master.customers.push({name:s.party,town:'',phone:'',prev:s.prev||0});
+      changed=true;
+    }
+  });
+  if(changed){ saveMasterLocal(); updateAllDataLists(); }
+}
 
 function refreshFromFirebase(){
   showFirebaseLoading(true);
