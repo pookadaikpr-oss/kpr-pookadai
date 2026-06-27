@@ -786,8 +786,8 @@ function renderMaster(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
           <span style="font-weight:700;font-size:14px;color:#1a6b3a">${s.name}</span>
           <div style="display:flex;gap:6px">
-            <button onclick="editMasterSupByName(s.name)" style="background:#e8f5e9;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
-            <button onclick="deleteMasterSupByName(s.name)" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
+            <button onclick="editMasterSupByName(this.dataset.name)" data-name="${s.name}" style="background:#e8f5e9;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
+            <button onclick="deleteMasterSupByName(this.dataset.name)" data-name="${s.name}" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
           </div>
         </div>
         <div style="font-size:11px;color:#666;line-height:1.8">
@@ -807,8 +807,8 @@ function renderMaster(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
           <span style="font-weight:700;font-size:14px;color:#c8860a">${c.name}</span>
           <div style="display:flex;gap:6px">
-            <button onclick="editMasterCustByName(c.name)" style="background:#fff8e1;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
-            <button onclick="deleteMasterCustByName(c.name)" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
+            <button onclick="editMasterCustByName(this.dataset.name)" data-name="${c.name}" style="background:#fff8e1;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
+            <button onclick="deleteMasterCustByName(this.dataset.name)" data-name="${c.name}" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
           </div>
         </div>
         <div style="font-size:11px;color:#666;line-height:1.8">
