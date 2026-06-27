@@ -2040,7 +2040,9 @@ function genReport(){
     if(rptPartyType==='sup'){
       // ===== SUPPLIER RECEIPT FORMAT (like KPR slip) =====
       entries.sort((a,b)=>a.date.localeCompare(b.date));
-      const munPakki=entries[0]?(entries[0].prev||entries[0].advance||0):0;
+      // முன்பாக்கி - master data-ல் இருந்து எடு
+      const masterSup=master.suppliers.find(s=>s.name===normName);
+      const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:(entries[0]?(entries[0].prev||entries[0].advance||0):0);
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
       const totalPatru=entries.reduce((a,e)=>a+e.paid,0);
@@ -2106,7 +2108,9 @@ function genReport(){
     } else {
       // ===== CUSTOMER RECEIPT FORMAT =====
       entries.sort((a,b)=>a.date.localeCompare(b.date));
-      const munPakkiCust=entries[0]?(entries[0].prev||0):0;
+      // முன்பாக்கி - master data-ல் இருந்து எடு, இல்லன்னா entries-ல் பார்
+      const masterCust=master.customers.find(c=>c.name===normName);
+      const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:(entries[0]?(entries[0].prev||0):0);
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
       const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
       const grandTotalCust=mottaVirpanai+munPakkiCust;
