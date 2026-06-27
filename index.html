@@ -9,7 +9,7 @@
 :root {
   --green:#1a6b3a; --green2:#2d9e58; --gold:#c8952a; --goldf:#f0b429;
   --bg:#f5f0ea; --white:#fff; --red:#c0392b; --text:#1a1a1a;
-  --muted:#777; --border:#e0dcd5; --shadow:0 2px 10px rgba(0,0,0,0.07);
+  --muted:#777; --border:#b5b0a8; --shadow:0 2px 10px rgba(0,0,0,0.07);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans Tamil',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
@@ -46,7 +46,7 @@ body{font-family:'Noto Sans Tamil',sans-serif;background:var(--bg);color:var(--t
 .frow.t3{grid-template-columns:1fr 1fr 1fr}
 .fg{display:flex;flex-direction:column;gap:3px}
 .fg label{font-size:11px;font-weight:700;color:var(--muted)}
-.fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fafafa;transition:border .2s}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;transition:border .2s;box-shadow:inset 0 1px 3px rgba(0,0,0,0.06)}
 .fg input:focus,.fg select:focus{border-color:var(--green);background:#fff}
 .fg input[readonly]{background:#f0f0f0;color:var(--muted)}
 .irow{display:grid;grid-template-columns:2.5fr 1fr 1fr 1.2fr 24px;gap:3px;align-items:center;margin-bottom:5px}
@@ -114,6 +114,7 @@ tbody td{padding:8px 11px}
   </div>
   <div class="nav">
     <button class="nav-btn on" onclick="goPage('dash',this)">📊 Dashboard</button>
+    <button class="nav-btn" onclick="goPage('master',this)">📒 பெயர் சேர்ப்பு</button>
     <button class="nav-btn" onclick="goPage('purchase',this)">🌿 Purchase</button>
     <button class="nav-btn" onclick="goPage('sales',this)">🛒 Sales</button>
     <button class="nav-btn" onclick="goPage('pay',this)">💰 Payments</button>
@@ -153,7 +154,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🌿 Purchase Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="pe-date"></div>
-        <div class="fg"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" oninput="autoFillComm(this.value)"><datalist id="sup-dl"></datalist></div>
+        <div class="fg"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" oninput="autoFillComm(this.value)" onkeydown="supEnterJump(event)"><datalist id="sup-dl"></datalist><datalist id="cust-dl"></datalist></div>
       </div>
       <div class="frow">
         <div class="fg"><label>வகை</label>
@@ -382,6 +383,7 @@ tbody td{padding:8px 11px}
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:6px;margin-top:4px"><span style="font-weight:700">நிலுவை</span><span id="pm-balance-show" style="font-weight:800;color:var(--red)"></span></div>
     </div>
     <input type="hidden" id="pm-amt">
+    <div class="fg" style="margin-bottom:10px" id="pm-varavy-row"><label id="pm-varavy-label">வரவு தொகை</label><input type="number" id="pm-varavy-input" placeholder="0" min="0" step="0.50" style="font-size:15px;font-weight:700"></div>
     <div class="fg" style="margin-bottom:14px"><label>தேதி</label><input type="date" id="pm-date"></div>
     <div class="btn-row">
       <button class="btn bg" onclick="confirmPay()">✅ Confirm</button>
@@ -413,6 +415,13 @@ tbody td{padding:8px 11px}
     <div class="ihdr"><span>பொருள்</span><span>எடை/qty</span><span>விலை</span><span>மொத்தம்</span><span></span></div>
     <div id="edit-items"></div>
     <button class="btn boo bsm" onclick="addEditItem()" style="margin-bottom:10px">+ சேர்</button>
+    <div id="edit-pur-fields" style="display:none">
+      <div class="frow t3" style="margin-bottom:10px">
+        <div class="fg"><label>முன்பாக்கி</label><input type="number" id="edit-prev" placeholder="0" oninput="calcEditBal()"></div>
+        <div class="fg"><label>கமிஷன்%</label><input type="number" id="edit-comm" placeholder="10" step="0.5" min="0" max="100"></div>
+        <div class="fg"><label>எடுப்பு%</label><input type="number" id="edit-eduppu" placeholder="0" step="0.5" min="0" max="100"></div>
+      </div>
+    </div>
     <div class="frow t3">
       <div class="fg"><label>மொத்தம்</label><input type="number" id="edit-tot" readonly></div>
       <div class="fg"><label>கட்டியது</label><input type="number" id="edit-paid" placeholder="0" oninput="calcEditBal()"></div>
@@ -476,12 +485,85 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>From</label><input type="date" id="rpt-full-from"></div>
         <div class="fg"><label>To</label><input type="date" id="rpt-full-to"></div>
       </div>
-      <button class="btn bg" style="width:100%;padding:12px;font-size:14px;margin-top:8px" onclick="genFullReport()">📊 Full Report Generate</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+        <button class="btn bg" style="padding:10px 4px;font-size:12px" onclick="genFullReport('purchase')">🌿 Purchase</button>
+        <button class="btn bo" style="padding:10px 4px;font-size:12px" onclick="genFullReport('sales')">🛒 Sales</button>
+        <button class="btn" style="padding:10px 4px;font-size:12px;background:#555;color:#fff" onclick="genFullReport('both')">📊 Full</button>
+      </div>
     </div>
   </div>
   <div id="rpt-out"></div>
   <div id="rpt-print-btn-row" style="display:none;margin-top:12px;padding-bottom:14px">
     <button class="btn bg" onclick="printReport()" style="width:100%;padding:12px;font-size:14px">🖨️ Print / PDF Download</button>
+  </div>
+</div>
+
+<div class="pg" id="pg-master">
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="stab on" id="mst-tab-sup" onclick="mstTab('sup',this)">🌿 தோட்டக்காரர்கள்</button>
+    <button class="stab" id="mst-tab-cust" onclick="mstTab('cust',this)">🛒 வியாபாரிகள்</button>
+    <button class="stab" id="mst-tab-item" onclick="mstTab('item',this)">🌸 பொருட்கள்</button>
+  </div>
+
+  <!-- தோட்டக்காரர்கள் -->
+  <div id="mst-sup-sec">
+    <div class="card" style="margin-bottom:12px">
+      <div class="sec" style="margin-top:0">➕ புது தோட்டக்காரர்</div>
+      <div class="frow t2" style="margin-bottom:8px">
+        <div class="fg"><label>பெயர் *</label><input type="text" id="ms-sup-name" placeholder="தோட்டக்காரர் பெயர்"></div>
+        <div class="fg"><label>ஊர்</label><input type="text" id="ms-sup-town" placeholder="ஊர்"></div>
+      </div>
+      <div class="frow t2" style="margin-bottom:8px">
+        <div class="fg"><label>போன்</label><input type="tel" id="ms-sup-phone" placeholder="9999999999"></div>
+        <div class="fg"><label>கமிஷன்%</label><input type="number" id="ms-sup-comm" placeholder="10" value="10" min="0" max="100" step="0.5"></div>
+      </div>
+      <div class="frow t2" style="margin-bottom:8px">
+        <div class="fg"><label>எடுப்பு%</label><input type="number" id="ms-sup-eduppu" placeholder="0" value="0" min="0" max="100" step="0.5"></div>
+        <div class="fg"><label>முன்பாக்கி</label><input type="number" id="ms-sup-prev" placeholder="0" value="0" min="0"></div>
+      </div>
+      <button class="btn bg" style="width:100%" onclick="saveMasterSup()">💾 Save தோட்டக்காரர்</button>
+    </div>
+    <div class="card">
+      <div class="sec" style="margin-top:0">📋 தோட்டக்காரர்கள் List</div>
+      <input type="text" id="mst-sup-search" placeholder="🔍 பெயர் தேடு..." oninput="renderMaster()" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">
+      <div id="mst-sup-list"></div>
+    </div>
+  </div>
+
+  <!-- வியாபாரிகள் -->
+  <div id="mst-cust-sec" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="sec" style="margin-top:0">➕ புது வியாபாரி</div>
+      <div class="frow t2" style="margin-bottom:8px">
+        <div class="fg"><label>பெயர் *</label><input type="text" id="ms-cust-name" placeholder="வியாபாரி பெயர்"></div>
+        <div class="fg"><label>ஊர்</label><input type="text" id="ms-cust-town" placeholder="ஊர்"></div>
+      </div>
+      <div class="frow t2" style="margin-bottom:8px">
+        <div class="fg"><label>போன்</label><input type="tel" id="ms-cust-phone" placeholder="9999999999"></div>
+        <div class="fg"><label>முன்பாக்கி</label><input type="number" id="ms-cust-prev" placeholder="0" value="0" min="0"></div>
+      </div>
+      <button class="btn bo" style="width:100%" onclick="saveMasterCust()">💾 Save வியாபாரி</button>
+    </div>
+    <div class="card">
+      <div class="sec" style="margin-top:0">📋 வியாபாரிகள் List</div>
+      <input type="text" id="mst-cust-search" placeholder="🔍 பெயர் தேடு..." oninput="renderMaster()" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">
+      <div id="mst-cust-list"></div>
+    </div>
+  </div>
+
+  <!-- பொருட்கள் -->
+  <div id="mst-item-sec" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="sec" style="margin-top:0">➕ புது பொருள்</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="ms-item-name" placeholder="பொருள் பெயர்" style="flex:1;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit">
+        <button class="btn bg" onclick="saveMasterItem()" style="padding:8px 14px">+ சேர்</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec" style="margin-top:0">📋 பொருட்கள் List <span style="font-size:11px;color:#888">(number type பண்ணி Enter = shortcut)</span></div>
+      <div id="mst-item-list"></div>
+    </div>
   </div>
 </div>
 
@@ -496,7 +578,326 @@ tbody td{padding:8px 11px}
 
 <script>
 // ===== DATABASE =====
+
+// ===== MASTER DATA =====
+const MASTER_KEY = 'kpr-master-v1';
+let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'] };
+
+function loadMaster(){
+  try{ const m=localStorage.getItem(MASTER_KEY); if(m) master=JSON.parse(m); }catch(e){}
+}
+function saveMasterLocal(){
+  try{ localStorage.setItem(MASTER_KEY, JSON.stringify(master)); }catch(e){}
+  setTimeout(updateAllDataLists, 100);
+}
+function saveMasterFirebase(){
+  fetch(FIREBASE_URL+'/master.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(master)})
+    .then(r=>r.json()).then(()=>alert2('Firebase-ல் save ஆச்சு ☁️','ok'))
+    .catch(()=>alert2('Local-ல் save ஆச்சு (Firebase offline)','warn'));
+}
+function loadMasterFirebase(){
+  fetch(FIREBASE_URL+'/master.json')
+    .then(r=>r.json()).then(data=>{
+      if(data && (data.suppliers||data.customers||data.items)){
+        master=data;
+        if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
+        saveMasterLocal();
+        renderMaster();
+        alert2('Master data Firebase-ல் இருந்து வந்தது ☁️','ok');
+      }
+    }).catch(()=>{});
+}
+
+function updateAllDataLists(){
+  // Supplier datalists
+  ['sup-dl','rpt-sup-dl'].forEach(id=>{
+    const dl=document.getElementById(id);
+    if(dl) dl.innerHTML=master.suppliers.map(s=>`<option value="${s.name}">`).join('');
+  });
+  // Customer datalists
+  ['par-dl','cust-dl','rpt-party-dl'].forEach(id=>{
+    const dl=document.getElementById(id);
+    if(dl) dl.innerHTML=master.customers.map(c=>`<option value="${c.name}">`).join('');
+  });
+  // Flower datalist — items + number hints
+  const flDl=document.getElementById('flower-dl');
+  if(flDl) flDl.innerHTML=master.items.map((item,i)=>`<option value="${item}" label="${i+1}. ${item}">`).join('');
+}
+
+function mstTab(tab, btn){
+  ['sup','cust','item'].forEach(t=>{
+    document.getElementById('mst-'+t+'-sec').style.display=t===tab?'block':'none';
+    document.getElementById('mst-tab-'+t).classList.toggle('on',t===tab);
+  });
+}
+
+function saveMasterSup(){
+  const name=document.getElementById('ms-sup-name').value.trim();
+  if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  const sup={
+    name,
+    town:document.getElementById('ms-sup-town').value.trim(),
+    phone:document.getElementById('ms-sup-phone').value.trim(),
+    comm:parseFloat(document.getElementById('ms-sup-comm').value)||10,
+    eduppu:parseFloat(document.getElementById('ms-sup-eduppu').value)||0,
+    prev:parseFloat(document.getElementById('ms-sup-prev').value)||0
+  };
+  const idx=master.suppliers.findIndex(s=>s.name===name);
+  if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); }
+  else{ master.suppliers.push(sup); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
+  // Clear form
+  ['ms-sup-name','ms-sup-town','ms-sup-phone'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ms-sup-comm').value='10';
+  document.getElementById('ms-sup-eduppu').value='0';
+  document.getElementById('ms-sup-prev').value='0';
+  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+}
+
+function saveMasterCust(){
+  const name=document.getElementById('ms-cust-name').value.trim();
+  if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  const cust={
+    name,
+    town:document.getElementById('ms-cust-town').value.trim(),
+    phone:document.getElementById('ms-cust-phone').value.trim(),
+    prev:parseFloat(document.getElementById('ms-cust-prev').value)||0
+  };
+  const idx=master.customers.findIndex(c=>c.name===name);
+  if(idx>=0){ master.customers[idx]=cust; alert2(name+' update ஆச்சு ✅','ok'); }
+  else{ master.customers.push(cust); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
+  ['ms-cust-name','ms-cust-town','ms-cust-phone'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ms-cust-prev').value='0';
+  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+}
+
+function saveMasterItem(){
+  const name=document.getElementById('ms-item-name').value.trim();
+  if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  if(master.items.includes(name)) return alert2('Already இருக்கு!','warn');
+  master.items.push(name);
+  document.getElementById('ms-item-name').value='';
+  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  alert2(name+' சேர்க்கப்பட்டது ✅','ok');
+}
+
+function deleteMasterSup(idx){
+  if(!confirm('Delete பண்ணவா?')) return;
+  master.suppliers.splice(idx,1);
+  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+}
+function editMasterCust(idx){
+  const c=master.customers[idx];
+  document.getElementById('ms-cust-name').value=c.name;
+  document.getElementById('ms-cust-town').value=c.town||'';
+  document.getElementById('ms-cust-phone').value=c.phone||'';
+  document.getElementById('ms-cust-prev').value=c.prev||0;
+  mstTab('cust', document.getElementById('mst-tab-cust'));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteMasterCust(idx){
+  if(!confirm('Delete பண்ணவா?')) return;
+  master.customers.splice(idx,1);
+  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+}
+function deleteMasterItem(idx){
+  master.items.splice(idx,1);
+  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+}
+function editMasterSup(idx){
+  const s=master.suppliers[idx];
+  document.getElementById('ms-sup-name').value=s.name;
+  document.getElementById('ms-sup-town').value=s.town||'';
+  document.getElementById('ms-sup-phone').value=s.phone||'';
+  document.getElementById('ms-sup-comm').value=s.comm||10;
+  document.getElementById('ms-sup-eduppu').value=s.eduppu||0;
+  document.getElementById('ms-sup-prev').value=s.prev||0;
+  document.getElementById('ms-sup-name').focus();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderMaster(){
+  // Suppliers
+  const supSearch=(document.getElementById('mst-sup-search')||{value:''}).value.toLowerCase();
+  const filteredSups=master.suppliers.filter(s=>s.name.toLowerCase().includes(supSearch)||(s.town||'').toLowerCase().includes(supSearch));
+  const sl=document.getElementById('mst-sup-list');
+  if(sl) sl.innerHTML=filteredSups.length
+    ? filteredSups.map((s,i)=>`
+      <div style="border:1.5px solid #e0dcd5;border-radius:10px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:700;font-size:14px;color:#1a6b3a">${s.name}</span>
+          <div style="display:flex;gap:6px">
+            <button onclick="editMasterSup(master.suppliers.indexOf(s))" style="background:#e8f5e9;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
+            <button onclick="deleteMasterSup(master.suppliers.indexOf(s))" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#666;line-height:1.8">
+          ${s.town?'📍 '+s.town+' ':''} ${s.phone?'📞 '+s.phone:''}
+          <br>கமிஷன்: <b>${s.comm||10}%</b> | எடுப்பு: <b>${s.eduppu||0}%</b> | முன்பாக்கி: <b>₹${(s.prev||0).toLocaleString('en-IN')}</b>
+        </div>
+      </div>`).join('')
+    : '<div style="color:#aaa;font-size:13px;padding:10px 0;text-align:center">'+(supSearch?'தேடிய பெயர் இல்லை':'இன்னும் சேர்க்கலை')+'</div>';
+
+  // Customers
+  const custSearch=(document.getElementById('mst-cust-search')||{value:''}).value.toLowerCase();
+  const filteredCusts=master.customers.filter(c=>c.name.toLowerCase().includes(custSearch)||(c.town||'').toLowerCase().includes(custSearch));
+  const cl=document.getElementById('mst-cust-list');
+  if(cl) cl.innerHTML=filteredCusts.length
+    ? filteredCusts.map((c,i)=>`
+      <div style="border:1.5px solid #e0dcd5;border-radius:10px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:700;font-size:14px;color:#c8860a">${c.name}</span>
+          <div style="display:flex;gap:6px">
+            <button onclick="editMasterCust(master.customers.indexOf(c))" style="background:#fff8e1;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
+            <button onclick="deleteMasterCust(master.customers.indexOf(c))" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#666;line-height:1.8">
+          ${c.town?'📍 '+c.town+' ':''} ${c.phone?'📞 '+c.phone:''}
+          ${c.prev>0?'<br>முன்பாக்கி: <b>₹'+c.prev.toLocaleString('en-IN')+'</b>':''}
+        </div>
+      </div>`).join('')
+    : '<div style="color:#aaa;font-size:13px;padding:10px 0;text-align:center">'+(supSearch?'தேடிய பெயர் இல்லை':'இன்னும் சேர்க்கலை')+'</div>';
+
+  // Items
+  const il=document.getElementById('mst-item-list');
+  if(il) il.innerHTML=master.items.length
+    ? master.items.map((item,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0ede8">
+        <span style="background:#1a6b3a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</span>
+        <span style="flex:1;font-size:13px">${item}</span>
+        <button onclick="deleteMasterItem(${i})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
+      </div>`).join('')
+    : '<div style="color:#aaa;font-size:13px;padding:10px 0">இன்னும் சேர்க்கலை</div>';
+}
+
 const FIREBASE_URL = 'https://kpr-poo-kadai-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+// ===== SETTINGS =====
+const SETTINGS_KEY = 'kpr-settings-v1';
+let settings = {
+  items: ['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து'],
+  suppliers: [],
+  customers: []
+};
+
+function loadSettings(){
+  try{ const s=localStorage.getItem(SETTINGS_KEY); if(s) settings=JSON.parse(s); }catch(e){}
+}
+function saveSettings(){
+  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){}
+  updateDataLists();
+}
+
+function updateDataLists(){
+  // Update flower datalist
+  const flDl=document.getElementById('flower-dl');
+  if(flDl) flDl.innerHTML=settings.items.map(i=>`<option value="${i}">`).join('');
+  // Update supplier datalist
+  const supDl=document.getElementById('sup-dl');
+  if(supDl) supDl.innerHTML=settings.suppliers.map(s=>`<option value="${s.name}">`).join('');
+  // Update customer datalist
+  const custDl=document.getElementById('cust-dl');
+  if(custDl) custDl.innerHTML=settings.customers.map(c=>`<option value="${c}">`).join('');
+  const parDl=document.getElementById('par-dl');
+  if(parDl) parDl.innerHTML=settings.customers.map(c=>`<option value="${c}">`).join('');
+}
+
+function renderSettings(){
+  // Items list
+  const il=document.getElementById('items-list');
+  if(il) il.innerHTML=settings.items.map((item,idx)=>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0ede8">
+      <span style="background:#1a6b3a;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${idx+1}</span>
+      <span style="flex:1;font-size:13px">${item}</span>
+      <button onclick="removeItem(${idx})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
+    </div>`
+  ).join('');
+
+  // Suppliers list
+  const sl=document.getElementById('suppliers-list');
+  if(sl) sl.innerHTML=settings.suppliers.length
+    ? settings.suppliers.map((s,idx)=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0ede8">
+        <span style="flex:1;font-size:13px">${s.name}</span>
+        <span style="font-size:11px;color:#888">கமிஷன்: ${s.comm||10}%</span>
+        <button onclick="removeSup(${idx})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
+      </div>`
+    ).join('')
+    : '<div style="color:#aaa;font-size:12px;padding:6px 0">இன்னும் சேர்க்கலை</div>';
+
+  // Customers list
+  const cl=document.getElementById('customers-list');
+  if(cl) cl.innerHTML=settings.customers.length
+    ? settings.customers.map((c,idx)=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0ede8">
+        <span style="flex:1;font-size:13px">${c}</span>
+        <button onclick="removeCust(${idx})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
+      </div>`
+    ).join('')
+    : '<div style="color:#aaa;font-size:12px;padding:6px 0">இன்னும் சேர்க்கலை</div>';
+}
+
+function addItemToList(){
+  const inp=document.getElementById('new-item-name');
+  const val=inp.value.trim();
+  if(!val) return alert2('பெயர் enter பண்ணுங்க!','err');
+  if(settings.items.includes(val)) return alert2('Already இருக்கு!','warn');
+  settings.items.push(val);
+  inp.value='';
+  saveSettings(); renderSettings();
+  alert2(val+' சேர்க்கப்பட்டது ✅','ok');
+}
+function removeItem(idx){
+  settings.items.splice(idx,1);
+  saveSettings(); renderSettings();
+}
+function addSupToList(){
+  const name=document.getElementById('new-sup-name').value.trim();
+  const comm=parseFloat(document.getElementById('new-sup-comm').value)||10;
+  if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  if(settings.suppliers.find(s=>s.name===name)) return alert2('Already இருக்கு!','warn');
+  settings.suppliers.push({name,comm});
+  document.getElementById('new-sup-name').value='';
+  document.getElementById('new-sup-comm').value='';
+  saveSettings(); renderSettings();
+  alert2(name+' சேர்க்கப்பட்டது ✅','ok');
+}
+function removeSup(idx){ settings.suppliers.splice(idx,1); saveSettings(); renderSettings(); }
+function addCustToList(){
+  const name=document.getElementById('new-cust-name').value.trim();
+  if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  if(settings.customers.includes(name)) return alert2('Already இருக்கு!','warn');
+  settings.customers.push(name);
+  document.getElementById('new-cust-name').value='';
+  saveSettings(); renderSettings();
+  alert2(name+' சேர்க்கப்பட்டது ✅','ok');
+}
+function removeCust(idx){ settings.customers.splice(idx,1); saveSettings(); renderSettings(); }
+
+// Number shortcut in item fields
+function purItemInput(inp){
+  const val=inp.value.trim();
+  const num=parseInt(val);
+  if(!isNaN(num)&&num>=1&&num<=master.items.length){
+    inp.value=master.items[num-1];
+    calcPT();
+  }
+}
+function salItemInput(inp){
+  const val=inp.value.trim();
+  const num=parseInt(val);
+  if(!isNaN(num)&&num>=1&&num<=master.items.length){
+    inp.value=master.items[num-1];
+    calcST();
+  }
+}
+function resolveItemShortcut(val){
+  const num=parseInt(val);
+  if(!isNaN(num) && num>=1 && num<=settings.items.length){
+    return settings.items[num-1];
+  }
+  return val;
+}
 const LOCAL_KEY = 'kpr-db-v2';
 let db = { purchases:[], sales:[], payments:[], commissions:{} };
 
@@ -556,15 +957,16 @@ window.addEventListener('DOMContentLoaded', function(){
   addPI(); addSI();
 
   // ── STEP 1: Local data இருந்தால் உடனே காட்டு ──
-  loadLocal(); dedupDB();
+  loadSettings(); loadLocal(); setTimeout(updateDataLists, 500); dedupDB();
   const hasLocal = (db.purchases.length + db.sales.length) > 0;
   updateDash(); renderPL(); renderSL(); renderPay();
   updateSupDL(); updateParDL();
 
   // ── STEP 2: Firebase fetch — NO setTimeout, உடனே ──
   showFirebaseLoading(true);
-  fetch(FIREBASE_URL + '/db.json')
-    .then(function(r){ return r.json(); })
+  const fbTimeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),12000));
+  Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout])
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(function(data){
       showFirebaseLoading(false);
       if(data && (data.purchases || data.sales)){
@@ -596,12 +998,15 @@ window.addEventListener('DOMContentLoaded', function(){
     .catch(function(e){
       showFirebaseLoading(false);
       console.log('Firebase offline:', e);
-      if(!hasLocal) alert2('⚠️ Firebase இணைய முடியவில்லை — இணைப்பு சரி பார்க்கவும்','warn');
+      const msg = e.message==='timeout' ? '⚠️ Firebase response தாமதமாகிறது (12s) — Local data பயன்படுத்தப்படுகிறது' : '⚠️ Firebase இணைய முடியவில்லை — இணைப்பு சரி பார்க்கவும்';
+      if(!hasLocal) alert2(msg,'warn');
     });
 });
 
 // ===== PAGE NAV =====
 function goPage(id, btn){
+  if(id==='settings'){ setTimeout(()=>{ renderSettings(); updateAllDataLists(); },50); }
+  if(id==='master'){ setTimeout(()=>{ renderMaster(); },50); }
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('pg-'+id).classList.add('on');
@@ -625,12 +1030,13 @@ function stab(page, tab, btn){
 }
 
 // ===== PURCHASE ITEMS =====
+let purLastEnterTime=0;
 function addPI(){
   piCount++;
   const id='pi-'+piCount;
   const d=document.createElement('div');
   d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள்" list="flower-dl" oninput="calcPT()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcPT()"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcPT()" onkeydown="purTabNext(event,'${id}')"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcPT)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="purItemInput(this);calcPT()" onkeydown="purItemKey(event,'${id}',0)"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcPT)">×</button>`;
   document.getElementById('pe-items').appendChild(d); calcPT();
   const row=document.getElementById(id);
   if(row){
@@ -641,16 +1047,31 @@ function addPI(){
   }
 }
 
-function purTabNext(e, rowId){
-  if(e.key==='Enter'){
-    e.preventDefault();
-    const rows=document.querySelectorAll('#pe-items .irow');
-    const ids=Array.from(rows).map(r=>r.id);
-    const idx=ids.indexOf(rowId);
-    if(idx===ids.length-1){ addPI(); }
-    else{ const nextRow=document.getElementById(ids[idx+1]); if(nextRow) nextRow.querySelector('input').focus(); }
-  } else if(e.key==='Tab' && window.innerWidth>=768){
-    e.preventDefault();
+function purItemKey(e,rowId,colIdx){
+  const isEnter=e.key==='Enter';
+  const isTab=e.key==='Tab';
+  if(!isEnter&&!isTab) return;
+  e.preventDefault();
+  const row=document.getElementById(rowId);
+  const inputs=row.querySelectorAll('input');
+  if(colIdx===0){
+    // Resolve number shortcut
+    const resolved=resolveItemShortcut(inputs[0].value.trim());
+    if(resolved!==inputs[0].value.trim()) inputs[0].value=resolved;
+    inputs[1].focus();
+  }
+  else if(colIdx===1){ inputs[2].focus(); }
+  else if(colIdx===2){
+    calcPT();
+    const now=Date.now();
+    const itemVal=inputs[0].value.trim();
+    const wt=parseFloat(inputs[1].value)||0;
+    const rt=parseFloat(inputs[2].value)||0;
+    if(isEnter&&!itemVal&&!wt&&!rt){
+      if(now-purLastEnterTime<600){ savePur(); return; }
+      purLastEnterTime=now; return;
+    }
+    purLastEnterTime=now;
     const rows=document.querySelectorAll('#pe-items .irow');
     const ids=Array.from(rows).map(r=>r.id);
     const idx=ids.indexOf(rowId);
@@ -658,6 +1079,7 @@ function purTabNext(e, rowId){
     else{ const nextRow=document.getElementById(ids[idx+1]); if(nextRow) nextRow.querySelector('input').focus(); }
   }
 }
+function purTabNext(e,rowId){}
 function calcPT(){
   let t=0;
   document.querySelectorAll('#pe-items .irow').forEach(r=>{
@@ -674,9 +1096,29 @@ function calcPB(){
   const bal=t-prev-p;
   document.getElementById('pe-bal').value=bal.toFixed(2);
 }
+function supEnterJump(e){
+  if(e.key==='Enter'||e.key==='Tab'){
+    e.preventDefault();
+    // Jump to first item's பொருள் field
+    const firstItem=document.querySelector('#pe-items .irow input');
+    if(firstItem) firstItem.focus();
+  }
+}
 function autoFillComm(supName){
   const name=supName.trim();
   if(!name) return;
+  // First check master suppliers
+  const masterSup=master.suppliers.find(s=>s.name===name);
+  if(masterSup){
+    const commEl=document.getElementById('pe-comm');
+    const eduppuEl=document.getElementById('pe-eduppu');
+    const prevEl=document.getElementById('pe-prev');
+    if(commEl) commEl.value=masterSup.comm||10;
+    if(eduppuEl) eduppuEl.value=masterSup.eduppu||0;
+    if(prevEl&&masterSup.prev>0&&(!prevEl.value||prevEl.value==='0')) prevEl.value=masterSup.prev;
+    return;
+  }
+  // Fallback: db.commissions
   const pct=db.commissions[name]||0;
   const commEl=document.getElementById('pe-comm');
   if(commEl&&pct>0) commEl.value=pct;
@@ -736,12 +1178,13 @@ function savePur(){
 }
 
 // ===== SALES ITEMS =====
+let salLastEnterTime=0;
 function addSI(){
   siCount++;
   const id='si-'+siCount;
   const d=document.createElement('div');
   d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள்" list="flower-dl" oninput="calcST()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcST()"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcST()" onkeydown="salTabNext(event,'${id}')"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcST)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="salItemInput(this);calcST()" onkeydown="salItemKey(event,'${id}',0)"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcST()" onkeydown="salItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcST()" onkeydown="salItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcST)">×</button>`;
   document.getElementById('se-items').appendChild(d); calcST();
   const row=document.getElementById(id);
   if(row){
@@ -752,16 +1195,30 @@ function addSI(){
   }
 }
 
-function salTabNext(e, rowId){
-  if(e.key==='Enter'){
-    e.preventDefault();
-    const rows=document.querySelectorAll('#se-items .irow');
-    const ids=Array.from(rows).map(r=>r.id);
-    const idx=ids.indexOf(rowId);
-    if(idx===ids.length-1){ addSI(); }
-    else{ const nextRow=document.getElementById(ids[idx+1]); if(nextRow) nextRow.querySelector('input').focus(); }
-  } else if(e.key==='Tab' && window.innerWidth>=768){
-    e.preventDefault();
+function salItemKey(e,rowId,colIdx){
+  const isEnter=e.key==='Enter';
+  const isTab=e.key==='Tab';
+  if(!isEnter&&!isTab) return;
+  e.preventDefault();
+  const row=document.getElementById(rowId);
+  const inputs=row.querySelectorAll('input');
+  if(colIdx===0){
+    const resolved=resolveItemShortcut(inputs[0].value.trim());
+    if(resolved!==inputs[0].value.trim()) inputs[0].value=resolved;
+    inputs[1].focus();
+  }
+  else if(colIdx===1){ inputs[2].focus(); }
+  else if(colIdx===2){
+    calcST();
+    const now=Date.now();
+    const itemVal=inputs[0].value.trim();
+    const wt=parseFloat(inputs[1].value)||0;
+    const rt=parseFloat(inputs[2].value)||0;
+    if(isEnter&&!itemVal&&!wt&&!rt){
+      if(now-salLastEnterTime<600){ saveSal(); return; }
+      salLastEnterTime=now; return;
+    }
+    salLastEnterTime=now;
     const rows=document.querySelectorAll('#se-items .irow');
     const ids=Array.from(rows).map(r=>r.id);
     const idx=ids.indexOf(rowId);
@@ -769,6 +1226,7 @@ function salTabNext(e, rowId){
     else{ const nextRow=document.getElementById(ids[idx+1]); if(nextRow) nextRow.querySelector('input').focus(); }
   }
 }
+function salTabNext(e,rowId){}
 function calcST(){
   let t=0;
   document.querySelectorAll('#se-items .irow').forEach(r=>{
@@ -906,7 +1364,7 @@ function renderPL(){
   else{
     tb.innerHTML=list.map(p=>{ st+=p.total; sp+=p.paid; sb+=p.balance;
       const istr=(p.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
-      const bc=p.balance>0?'br2':'bg2'; const bt=p.balance>0?'₹'+p.balance.toFixed(2):'Paid ✓';      return`<tr><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${p.total.toFixed(2)}</td><td>₹${p.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${p.balance>0?`<button class="btn bg bsm" onclick="paySupplier('${p.supplier.replace(/'/g,"\\'")}',${p.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
+      const bc=p.balance>0?'br2':(p.balance<0?'bo2':'bg2'); const bt=p.balance>0?'₹'+p.balance.toFixed(2):(p.balance<0?'முன்பாக்கி ₹'+Math.abs(p.balance).toFixed(2):'Paid ✓');      return`<tr><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${p.total.toFixed(2)}</td><td>₹${p.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${p.balance>0?`<button class="btn bg bsm" onclick="paySupplier('${p.supplier.replace(/'/g,"\\'")}',${p.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
     }).join('');
   }
   document.getElementById('pl-tot').textContent=`மொத்தம்: ₹${st.toFixed(2)} | கட்டியது: ₹${sp.toFixed(2)} | நிலுவை: ₹${Math.max(0,sb).toFixed(2)}`;
@@ -921,7 +1379,7 @@ function renderSL(){
   else{
     tb.innerHTML=list.map(s=>{ st+=s.total; sp+=s.paid; sb+=s.balance;
       const istr=(s.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
-      const bc=s.balance>0?'br2':'bg2'; const bt=s.balance>0?'₹'+s.balance.toFixed(2):'Paid ✓';
+      const bc=s.balance>0?'br2':(s.balance<0?'bo2':'bg2'); const bt=s.balance>0?'₹'+s.balance.toFixed(2):(s.balance<0?'முன்பாக்கி ₹'+Math.abs(s.balance).toFixed(2):'Paid ✓');
       return`<tr><td>${fmtDate(s.date)}</td><td><b>${s.party}</b></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${s.total.toFixed(2)}</td><td>₹${s.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${s.balance>0?`<button class="btn bo bsm" onclick="collectCust('${s.party.replace(/'/g,"\\'")}',${s.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('sal','${s.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('sal','${s.id}')">🗑</button></td></tr>`;
     }).join('');
   }
@@ -966,6 +1424,16 @@ function openEdit(type,id){
   document.getElementById('edit-name').value=type==='pur'?entry.supplier:entry.party;
   document.getElementById('edit-paid').value=entry.paid;
   document.getElementById('edit-note').value=entry.note||'';
+  // Purchase-specific fields
+  const purFields=document.getElementById('edit-pur-fields');
+  if(type==='pur'){
+    if(purFields) purFields.style.display='block';
+    document.getElementById('edit-prev').value=entry.prev||entry.advance||0;
+    document.getElementById('edit-comm').value=entry.commPct||0;
+    document.getElementById('edit-eduppu').value=entry.eduppuPct||0;
+  } else {
+    if(purFields) purFields.style.display='none';
+  }
   document.getElementById('edit-items').innerHTML='';
   editItemCount=0;
   (entry.items||[]).forEach(i=>addEditItem(i));
@@ -991,6 +1459,7 @@ function calcEditTot(){
 function calcEditBal(){
   const t=parseFloat(document.getElementById('edit-tot').value)||0;
   const p=parseFloat(document.getElementById('edit-paid').value)||0;
+  const prev=parseFloat((document.getElementById('edit-prev')||{value:'0'}).value)||0;
   document.getElementById('edit-bal').value=(t-p).toFixed(2);
 }
 function saveEdit(){
@@ -1009,7 +1478,14 @@ function saveEdit(){
   const note=document.getElementById('edit-note').value;
   if(type==='pur'){
     const e=db.purchases.find(p=>String(p.id)===String(id));
-    if(e){Object.assign(e,{date,supplier:name,items,total,paid,balance:total-paid,note});}
+    if(e){
+      const prev=parseFloat(document.getElementById('edit-prev').value)||0;
+      const commPct=parseFloat(document.getElementById('edit-comm').value)||0;
+      const eduppuPct=parseFloat(document.getElementById('edit-eduppu').value)||0;
+      const totalCommPct=commPct+eduppuPct;
+      const commission=Math.round(total*totalCommPct/100*100)/100;
+      Object.assign(e,{date,supplier:name,items,total,prev,paid,balance:total-prev-paid,note,commPct,eduppuPct,commission});
+    }
   } else {
     const e=db.sales.find(s=>String(s.id)===String(id));
     if(e){Object.assign(e,{date,party:name,items,total,paid,balance:total-paid,note});}
@@ -1055,23 +1531,35 @@ function collectCust(name,due){
 
 function openPay(type,id,name,due){
   payData={type,id,name,due};
-  document.getElementById('pm-title').textContent=(type==='pur'?'💸 கொடுக்க: ':'💰 வாங்க: ')+name;
+  document.getElementById('pm-title').textContent=(type==='pur'?'💸 கொடுக்க: ':'💰 விற்பனை வரவு: ')+name;
   document.getElementById('pm-amt').value='';
   document.getElementById('pm-date').value=today;
   document.getElementById('payMod').classList.add('on');
   const entries=type==='pur'?db.purchases.filter(p=>p.supplier===name):db.sales.filter(s=>s.party===name);
   const gross=entries.reduce((a,e)=>a+e.total,0);
+  const prev=entries.reduce((a,e)=>a+(e.prev||0),0);
   const alreadyPaid=entries.reduce((a,e)=>a+e.paid,0);
-  const netDue=Math.max(0,due);
+  const netDue=due;
   const summary=document.getElementById('pm-summary'); summary.style.display='block';
+  // Labels based on type
+  const grossLabel=document.getElementById('pm-gross-label');
+  if(grossLabel) grossLabel.textContent=type==='pur'?'மொத்த வரவு':'மொத்த விற்பனை';
+  const paidLabel=document.querySelector('#pm-summary div:nth-child(2) span:first-child');
+  if(paidLabel) paidLabel.textContent=type==='sal'?'முன்பாக்கி':'பற்று';
   document.getElementById('pm-gross').textContent='₹'+gross.toLocaleString('en-IN');
-  document.getElementById('pm-already-paid').textContent='₹'+alreadyPaid.toLocaleString('en-IN');
-  document.getElementById('pm-balance-show').textContent='₹'+netDue.toLocaleString('en-IN');
+  document.getElementById('pm-already-paid').textContent=type==='sal'?'₹'+prev.toLocaleString('en-IN'):'₹'+alreadyPaid.toLocaleString('en-IN');
+  document.getElementById('pm-balance-show').textContent='₹'+Math.abs(netDue).toLocaleString('en-IN');
+  // வரவு input field
+  const varavyRow=document.getElementById('pm-varavy-row');
+  const varavyInput=document.getElementById('pm-varavy-input');
+  const varavyLabel=document.getElementById('pm-varavy-label');
+  if(varavyRow){ varavyRow.style.display='block'; }
+  if(varavyLabel){ varavyLabel.textContent=type==='pur'?'கொடுக்கும் தொகை':'வரவு தொகை'; }
+  if(varavyInput){ varavyInput.value=''; setTimeout(()=>varavyInput.focus(),200); }
   if(!document.getElementById('pm-due')){ const inp=document.createElement('input'); inp.type='hidden'; inp.id='pm-due'; document.querySelector('#payMod .modal').appendChild(inp); }
-  document.getElementById('pm-due').value=netDue.toFixed(2);
-  // Disable confirm if nothing to pay
+  document.getElementById('pm-due').value=Math.abs(netDue).toFixed(2);
   const confirmBtn=document.querySelector('#payMod .btn.bg');
-  if(confirmBtn) confirmBtn.disabled=netDue<=0;
+  if(confirmBtn) confirmBtn.disabled=false;
   const ledgerSection=document.getElementById('pm-ledger-section');
   if(type==='pur'){
     ledgerSection.style.display='block';
@@ -1116,9 +1604,11 @@ function copyLedgerMsg(){
 }
 function closePay(){ document.getElementById('payMod').classList.remove('on'); }
 function confirmPay(){
+  const varavyInput=document.getElementById('pm-varavy-input');
+  const enteredAmt=varavyInput?parseFloat(varavyInput.value)||0:0;
   const due=parseFloat(document.getElementById('pm-due')?document.getElementById('pm-due').value:payData.due)||payData.due;
-  const amt=due;
-  if(amt<=0) return alert2('நிலுவை இல்லை!','err');
+  const amt=enteredAmt>0?enteredAmt:due;
+  if(amt<=0) return alert2('வரவு தொகை enter பண்ணுங்க!','err');
   const{type,name}=payData; let remaining=amt;
   if(type==='pur'){ db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   else{ db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
@@ -1180,7 +1670,7 @@ function updateDash(){
   document.getElementById('d-pur').textContent='₹'+tpa.toFixed(2);
   document.getElementById('d-pur-c').textContent=tp.length+' entries';
   const rs=[...db.sales].sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
-  document.getElementById('d-stbl').innerHTML=rs.length?rs.map(s=>`<tr><td>${fmtDate(s.date)}</td><td>${s.party}</td><td>₹${s.total.toFixed(2)}</td><td><span class="bdg ${s.balance>0?'br2':'bg2'}">${s.balance>0?'₹'+s.balance.toFixed(2):'Paid ✓'}</span></td></tr>`).join(''):'<tr><td colspan="4" class="empty">No sales</td></tr>';
+  document.getElementById('d-stbl').innerHTML=rs.length?rs.map(s=>`<tr><td>${fmtDate(s.date)}</td><td>${s.party}</td><td>₹${s.total.toFixed(2)}</td><td><span class="bdg ${s.balance>0?'br2':(s.balance<0?'bo2':'bg2')}">${s.balance>0?'₹'+s.balance.toFixed(2):(s.balance<0?'முன்பாக்கி':'Paid ✓')}</span></td></tr>`).join(''):'<tr><td colspan="4" class="empty">No sales</td></tr>';
   const rp=[...db.purchases].sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
   document.getElementById('d-ptbl').innerHTML=rp.length?rp.map(p=>`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td>${p.items.map(i=>i.name).join(', ')}</td><td>₹${p.total.toFixed(2)}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No purchases</td></tr>';
 }
@@ -1277,16 +1767,16 @@ function renderSalMessages(){
       const prevLine=info.prev>0?`\nமுன் பாக்கி: ₹${info.prev.toLocaleString('en-IN')}`:'';
       const grandTotal=info.total+info.prev;
       const bal=grandTotal-info.paid;
-      const pattruLine=info.paid>0?`\nபற்று: ₹${info.paid.toLocaleString('en-IN')}\nநிலுவை: ₹${bal.toLocaleString('en-IN')}`:
+      const pattruLine=info.paid>0?`\nவரவு: ₹${info.paid.toLocaleString('en-IN')}\nநிலுவை: ₹${bal.toLocaleString('en-IN')}`:
         (info.prev>0?`\nநிலுவை: ₹${bal.toLocaleString('en-IN')}`:'');
-      const totalLine=info.prev>0?`இன்றைய மொத்தம்: ₹${info.total.toLocaleString('en-IN')}${prevLine}\nமொத்த நிலுவை: ₹${grandTotal.toLocaleString('en-IN')}${pattruLine}`:`மொத்தம்: ₹${info.total.toLocaleString('en-IN')}${pattruLine}`;
+      const totalLine=info.prev>0?`இன்றைய விற்பனை: ₹${info.total.toLocaleString('en-IN')}${prevLine}\nமொத்த நிலுவை: ₹${grandTotal.toLocaleString('en-IN')}${pattruLine}`:`விற்பனை: ₹${info.total.toLocaleString('en-IN')}${pattruLine}`;
       msgBody=`KPR பூக்கடை\n${dd}\n\n${party} அவர்கள்,\n\n${lines}\n\n${totalLine}`;
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
       let rows=''; let gt=0,gpr=0,gp=0;
       dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[party][d]; info.items.forEach(i=>{ rows+=`${dd}  ${i.name}  ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}\n`; }); gt+=info.total; gpr+=(info.prev||0); if(info.prev>0){ rows+=`${dd}  முன் பாக்கி = ₹${info.prev.toLocaleString('en-IN')}\n`; } if(info.paid>0){ rows+=`${dd}  பற்று = ₹${info.paid.toLocaleString('en-IN')}\n`; gp+=info.paid; } });
       const bal=gt+gpr-gp;
-      msgBody=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${party} அவர்கள்,\n\n${rows}\nமொத்த வரவு:  ₹${gt.toLocaleString('en-IN')}${gpr>0?'\nமுன் பாக்கி:   ₹'+gpr.toLocaleString('en-IN'):''}\nமொத்த பற்று: ₹${gp.toLocaleString('en-IN')}\nநிலுவை:      ₹${bal.toLocaleString('en-IN')}`;
+      msgBody=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${party} அவர்கள்,\n\n${rows}\nமொத்த விற்பனை: ₹${gt.toLocaleString('en-IN')}${gpr>0?'\nமுன் பாக்கி:    ₹'+gpr.toLocaleString('en-IN'):''}\nவரவு:          ₹${gp.toLocaleString('en-IN')}\nநிலுவை:        ₹${bal.toLocaleString('en-IN')}`;
     }
     const safeId='smsg_'+Math.random().toString(36).slice(2);
     return{safeId,party,msgBody};
@@ -1322,7 +1812,8 @@ function setFullMonth(val){
   document.getElementById('rpt-full-from').value=from;
   document.getElementById('rpt-full-to').value=d.toISOString().split('T')[0];
 }
-function genFullReport(){
+function genFullReport(mode){
+  mode=mode||'both';
   const out=document.getElementById('rpt-out');
   const month=document.getElementById('rpt-full-month').value;
   let from,to;
@@ -1339,9 +1830,17 @@ function genFullReport(){
   const tdStyle='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
   const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
 
-  let html=`<div class="card" style="border:2px solid #1a6b3a;margin-bottom:12px"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:8px">📊 ${dl}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div></div><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:6px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:20px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div></div>`;
+  const modeTitle = mode==='purchase'?'🌿 Purchase Statement':mode==='sales'?'🛒 Sales Statement':'📊 Full Report';
+  const summaryCards = mode==='purchase'
+    ? `<div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div>`
+    : mode==='sales'
+    ? `<div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div>`
+    : `<div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div>`;
+  const profitBox = mode==='both' ? `<div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:6px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:20px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div>` : '';
+  let html=`<div class="card" style="border:2px solid #1a6b3a;margin-bottom:12px"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:8px">${modeTitle} | ${dl}</div><div style="display:grid;grid-template-columns:${mode==='both'?'1fr 1fr':'1fr'};gap:8px;margin-bottom:8px">${summaryCards}</div>${profitBox}</div>`;
 
   // ===== PURCHASE STATEMENT =====
+  if(mode!=='sales'){
   const sups=[...new Set(purs.map(p=>p.supplier))].sort();
   if(sups.length){
     html+=`<div style="font-size:14px;font-weight:700;color:#1a6b3a;margin:10px 0 6px;text-align:center">Purchase Statement</div>`;
@@ -1355,17 +1854,22 @@ function genFullReport(){
         const patru=x.advance||x.prev||0;
         const entryCommPct=(x.commPct||0)+(x.eduppuPct||0);
         if(x.items && x.items.length>0){
+          // Calculate total commission for this entry
+          // commPct+eduppuPct இருந்தால் அதை use பண்ணு, இல்லன்னா commission amount பயன்படுத்து
+          const entryTotalComm = entryCommPct>0
+            ? Math.round(x.total * entryCommPct / 100 * 100) / 100
+            : (x.commission || 0);
+          const entryTotalVaravu = x.items.reduce((sum,i)=>(i.amount||0)+sum, 0) || x.total || 1;
+
           x.items.forEach((item,idx)=>{
             nirCount++;
             const edai=item.qty||0;
             const vilai=item.price||0;
             const varavu=item.amount||0;
-            // Per-item commission
+            // Per-item commission = proportion of total commission based on item amount
             let itemViyapar=0;
-            if(entryCommPct>0 && varavu>0){
-              itemViyapar=Math.round(varavu*entryCommPct/100*100)/100;
-            } else if(x.total>0 && x.commission>0 && varavu>0){
-              itemViyapar=Math.round(varavu/x.total*(x.commission||0)*100)/100;
+            if(entryTotalComm>0 && varavu>0 && entryTotalVaravu>0){
+              itemViyapar=Math.round(varavu/entryTotalVaravu*entryTotalComm*100)/100;
             }
             supEdai+=edai; supVaravu+=varavu; supViyapar+=itemViyapar;
             if(idx===0) supPatru+=patru;
@@ -1385,7 +1889,9 @@ function genFullReport(){
     html+=`<div style="background:#1a6b3a;color:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>வரவு மொத்தம்: ₹${grandVaravu.toFixed(2)}</span><span>பற்று: ₹${grandPatru.toFixed(2)}</span><span>விபாரசெலவு: ₹${grandViyapar.toFixed(2)}</span></div>`;
   }
 
+  } // end purchase if
   // ===== SALES STATEMENT =====
+  if(mode==='purchase'){ document.getElementById('rpt-print-btn-row').style.display='block'; out.innerHTML=html; return; }
   const parties=[...new Set(sals.map(s=>s.party))].sort();
   if(parties.length){
     html+=`<div style="font-size:14px;font-weight:700;color:#c8952a;margin:10px 0 6px;text-align:center">Sales Statement</div>`;
@@ -1451,17 +1957,87 @@ function genReport(){
       ?db.purchases.filter(p=>p.supplier&&p.supplier.trim()===normName&&p.date>=from&&p.date<=to)
       :db.sales.filter(s=>s.party&&s.party.trim()===normName&&s.date>=from&&s.date<=to);
     if(!entries.length){ out.innerHTML='<div class="empty"><div class="eico">📋</div>Data இல்லை</div>'; return; }
-    const total=entries.reduce((a,e)=>a+e.total,0),paid=entries.reduce((a,e)=>a+e.paid,0),bal=entries.reduce((a,e)=>a+e.balance,0);
     const printBtn=document.getElementById('rpt-print-btn-row');
     if(printBtn) printBtn.style.display='block';
-    let rowsHtml='';
-    entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
-      const bal=e.balance>0?'<span class="bdg br2">₹'+e.balance.toFixed(2)+'</span>':'<span class="bdg bg2">Paid ✓</span>';
-      rowsHtml+='<tr><td>'+fmtDate(e.date)+'</td><td>'+e.items.map(i=>i.name).join(', ')+'</td><td>₹'+e.total.toFixed(2)+'</td><td>₹'+e.paid.toFixed(2)+'</td><td>'+bal+'</td></tr>';
-    });
-    out.innerHTML='<div class="card"><div class="sec" style="margin-top:0">'+(rptPartyType==='sup'?'🌿':'🛒')+' '+normName+'</div>'
-      +'<div class="totbar" style="margin-bottom:12px">மொத்தம்: ₹'+total.toFixed(2)+' | கட்டியது: ₹'+paid.toFixed(2)+' | நிலுவை: ₹'+bal.toFixed(2)+'</div>'
-      +'<div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>கட்டியது</th><th>நிலுவை</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div></div>';
+
+    if(rptPartyType==='sup'){
+      // ===== SUPPLIER RECEIPT FORMAT (like KPR slip) =====
+      entries.sort((a,b)=>a.date.localeCompare(b.date));
+      const munPakki=entries[0]?(entries[0].prev||entries[0].advance||0):0;
+      const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
+      const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
+      const totalPatru=entries.reduce((a,e)=>a+e.paid,0);
+      // net = பூ வரவு - கமிசன் + முன் பாக்கி - பற்று
+      const grandTotal=pooVaravu-totalComm+munPakki;
+      const netBal=grandTotal-totalPatru;
+      const d1=from.split('-').reverse().join('/');
+      const d2=to.split('-').reverse().join('/');
+      const thS='padding:5px 6px;font-size:11px;text-align:left;white-space:nowrap';
+      const tdS='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
+      const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
+      let rowsHtml='';
+      entries.forEach(e=>{
+        if(e.items&&e.items.length>0){
+          e.items.forEach((item,idx)=>{
+            rowsHtml+=`<tr><td style="${tdS}">${idx===0?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+          });
+        }
+      });
+      out.innerHTML=`
+        <div style="background:#fff;border:2px solid #1a6b3a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
+          <div style="text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:12px">
+            <div style="font-size:15px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தார் புதுமலரகம்</div>
+            <div style="font-size:11px;color:#555;margin-top:2px">புஷ்ப கமிஷன் வியாபாரம்</div>
+            <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட்</div>
+            <div style="font-size:10px;color:#888">செல்: 9787267300, 9944894147</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px">
+            <span>தேதி: <b>${d1} -- ${d2}</b></span>
+          </div>
+          <div style="font-size:12px;margin-bottom:4px">விவ.பெயர்: <b>${normName}</b></div>
+          ${munPakki>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span>முன் பாக்கி</span><span><b>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</b></span></div>`:''}
+          <div style="overflow-x:auto;margin-bottom:10px">
+            <table style="width:100%;border-collapse:collapse">
+              <thead style="background:#1a6b3a;color:#fff">
+                <tr>
+                  <th style="${thS}">தேதி</th>
+                  <th style="${thS}">பொருள்</th>
+                  <th style="${thS};text-align:right">அளவு</th>
+                  <th style="${thS};text-align:right">விலை</th>
+                  <th style="${thS};text-align:right">வரவு</th>
+                  <th style="${thS};text-align:right">பற்று</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+          <div style="border-top:1px solid #ddd;padding-top:8px;font-size:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>பூ வரவு :</span><span>${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span>${totalPatru>0?totalPatru.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</span></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>கமிசன் :</span><span></span><span>${totalComm.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
+            ${munPakki>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
+              <span></span>
+              <span style="font-weight:700">${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(totalComm+munPakki+totalPatru).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#fdecea':'#e6f7ed'};padding:8px 10px;border-radius:8px">
+              <span>${netBal>0?'நிலுவை :':'அதிக பற்று :'}</span>
+              <span style="color:${netBal>0?'#c0392b':'#1a6b3a'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      // Customer report
+      const total=entries.reduce((a,e)=>a+e.total,0),paid=entries.reduce((a,e)=>a+e.paid,0),bal=entries.reduce((a,e)=>a+e.balance,0);
+      let rowsHtml='';
+      entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
+        const balBdg=e.balance>0?'<span class="bdg br2">₹'+e.balance.toFixed(2)+'</span>':'<span class="bdg bg2">Paid ✓</span>';
+        rowsHtml+='<tr><td>'+fmtDate(e.date)+'</td><td>'+e.items.map(i=>i.name).join(', ')+'</td><td>₹'+e.total.toFixed(2)+'</td><td>₹'+e.paid.toFixed(2)+'</td><td>'+balBdg+'</td></tr>';
+      });
+      out.innerHTML='<div class="card"><div class="sec" style="margin-top:0">🛒 '+normName+'</div>'
+        +'<div class="totbar" style="margin-bottom:12px">மொத்தம்: ₹'+total.toFixed(2)+' | கட்டியது: ₹'+paid.toFixed(2)+' | நிலுவை: ₹'+bal.toFixed(2)+'</div>'
+        +'<div class="twrap"><table><thead><tr><th>தேதி</th><th>பொருட்கள்</th><th>மொத்தம்</th><th>கட்டியது</th><th>நிலுவை</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div></div>';
+    }
     return;
   }
   const purs=db.purchases.filter(p=>p.date>=from&&p.date<=to);
@@ -1486,8 +2062,9 @@ function updateParDL(){ try{ const s=new Set(db.sales.map(p=>p.party)); const dl
 
 function refreshFromFirebase(){
   showFirebaseLoading(true);
-  fetch(FIREBASE_URL + '/db.json')
-    .then(r=>r.json())
+  const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),12000));
+  Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2])
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(data=>{
       showFirebaseLoading(false);
       if(data && (data.purchases || data.sales)){
@@ -1506,7 +2083,7 @@ function refreshFromFirebase(){
     })
     .catch(e=>{
       showFirebaseLoading(false);
-      alert2('❌ Firebase connect ஆகல — internet பாருங்க','err');
+      alert2('❌ Firebase connect ஆகல — ' + (e.message==='timeout'?'12sec timeout ஆச்சு':'internet பாருங்க'),'err');
     });
 }
 
