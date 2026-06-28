@@ -1706,12 +1706,12 @@ function generateMonthSlips(){
 function renderPay(){
   if(!db.commissions) db.commissions={};
   const sm={};
-  db.purchases.forEach(p=>{ if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0}; sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; });
+  db.purchases.forEach(p=>{ if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0}; sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0); });
   const sdiv=document.getElementById('sup-due-list');
   const slist=Object.entries(sm).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
-    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div><button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${v.total-v.paid})">💸 Pay</button></div>`;
+    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div><button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${v.total-v.comm-v.paid})">💸 Pay</button></div>`;
   }).join(''):'<div class="empty"><div class="eico">✅</div>Supplier data இல்லை</div>';
   const cm={};
   db.sales.forEach(s=>{ if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
@@ -2089,7 +2089,7 @@ function genFullReport(mode){
       let supVaravu=0, supPatru=0, supViyapar=0, supEdai=0;
       let rows='';
       entries.forEach(x=>{
-        const patru=x.advance||x.prev||0;
+        const patru=x.paid||0;
         const entryCommPct=(x.commPct||0)+(x.eduppuPct||0);
         if(x.items && x.items.length>0){
           // Calculate total commission for this entry
@@ -2115,7 +2115,7 @@ function genFullReport(mode){
           });
         } else {
           nirCount++;
-          const patruOnly=x.advance||x.prev||0;
+          const patruOnly=x.paid||0;
           supPatru+=patruOnly;
           rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">பற்று</td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}">${patruOnly>0?patruOnly.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
         }
