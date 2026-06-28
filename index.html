@@ -953,20 +953,12 @@ function removeCust(idx){ settings.customers.splice(idx,1); saveSettings(); rend
 
 // Number shortcut in item fields
 function purItemInput(inp){
-  const val=inp.value.trim();
-  const num=parseInt(val);
-  if(!isNaN(num)&&num>=1&&num<=master.items.length){
-    inp.value=master.items[num-1];
-    calcPT();
-  }
+  // Number resolve only on Enter/Tab — not while typing
+  calcPT();
 }
 function salItemInput(inp){
-  const val=inp.value.trim();
-  const num=parseInt(val);
-  if(!isNaN(num)&&num>=1&&num<=master.items.length){
-    inp.value=master.items[num-1];
-    calcST();
-  }
+  // Number resolve only on Enter/Tab — not while typing
+  calcST();
 }
 function resolveItemShortcut(val){
   const num=parseInt(val);
