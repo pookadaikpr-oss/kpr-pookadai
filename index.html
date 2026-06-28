@@ -649,6 +649,7 @@ function loadMasterFirebase(){
         if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
         saveMasterLocal();
         renderMaster();
+        renderPurMessages(); renderSalMessages(); // phone numbers updated
         alert2('Master data Firebase-ல் இருந்து வந்தது ☁️','ok');
       }
     }).catch(()=>{});
@@ -1144,7 +1145,8 @@ function purItemKey(e,rowId,colIdx){
     // Resolve number shortcut
     const resolved=resolveItemShortcut(inputs[0].value.trim());
     if(resolved!==inputs[0].value.trim()) inputs[0].value=resolved;
-    inputs[1].focus();
+    inputs[0].blur(); // dismiss datalist dropdown
+    setTimeout(()=>inputs[1].focus(),30);
   }
   else if(colIdx===1){ inputs[2].focus(); }
   else if(colIdx===2){
@@ -1292,7 +1294,8 @@ function salItemKey(e,rowId,colIdx){
   if(colIdx===0){
     const resolved=resolveItemShortcut(inputs[0].value.trim());
     if(resolved!==inputs[0].value.trim()) inputs[0].value=resolved;
-    inputs[1].focus();
+    inputs[0].blur();
+    setTimeout(()=>inputs[1].focus(),30);
   }
   else if(colIdx===1){ inputs[2].focus(); }
   else if(colIdx===2){
@@ -1346,7 +1349,7 @@ function saveSal(){
   const prev=parseFloat(document.getElementById('se-prev').value)||0;
   const total=parseFloat(document.getElementById('se-tot').value)||0;
   if(!par) return alert2('Party பெயர் எழுது!','err');
-  if(!total && !prev) return alert2('பொருட்கள் அல்லது முன் பாக்கி enter பண்ணவும்!','err');
+  if(!total && !prev && !paid) return alert2('பொருட்கள், முன்பாக்கி அல்லது வரவு enter பண்ணவும்!','err');
   const items=[];
   document.querySelectorAll('#se-items .irow').forEach(r=>{
     const ins=r.querySelectorAll('input');
