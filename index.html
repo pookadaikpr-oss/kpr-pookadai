@@ -1927,15 +1927,14 @@ function renderPurMessages(){
       const lines=(info.items||[]).map(i=>'• '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')).join('\n');
       const itemsStr=lines?lines+'\n':'';
       const totalLine=info.total>0?'\nமொத்தம்: ₹'+info.total.toLocaleString('en-IN'):'';
-      const prevLine=info.prev>0?'\nபற்று: ₹'+info.prev.toLocaleString('en-IN'):'';
       const pattruLine=info.paid>0?'\nபற்று: ₹'+info.paid.toLocaleString('en-IN'):'';
-      msgBody='KPR பூக்கடை\n'+dd+'\n\n'+supplier+' அவர்கள்,\n\n'+itemsStr+totalLine+prevLine+pattruLine;
+      msgBody='KPR பூக்கடை\n'+dd+'\n\n'+supplier+' அவர்கள்,\n\n'+itemsStr+totalLine+pattruLine;
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
       let rows=''; let grandTotal=0,grandPrev=0,grandPaid=0;
       dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; grandPrev+=info.prev; if(info.paid>0){ rows+=dd+'  பற்று = ₹'+info.paid.toLocaleString('en-IN')+'\n'; grandPaid+=info.paid; } });
       const bal=Math.max(0, grandTotal-grandPrev-grandPaid);
-      msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(grandPrev>0?'\nபற்று:        ₹'+grandPrev.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
+      msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
     }
     const safeId='pmsg_'+Math.random().toString(36).slice(2);
     const supMaster=(master.suppliers||[]).find(s=>s.name&&s.name.toLowerCase()===supplier.toLowerCase());
