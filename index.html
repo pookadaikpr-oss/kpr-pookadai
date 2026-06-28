@@ -1943,7 +1943,9 @@ function renderPurMessages(){
       msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(grandPrev>0?'\nபற்று:        ₹'+grandPrev.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
     }
     const safeId='pmsg_'+Math.random().toString(36).slice(2);
-    return{safeId,supplier,msgBody};
+    const supMaster=(master.suppliers||[]).find(s=>s.name&&s.name.toLowerCase()===supplier.toLowerCase());
+    const phone=supMaster?supMaster.phone:'';
+    return{safeId,supplier,msgBody,phone};
   });
   div.innerHTML=dateLabel+cards.map(({safeId,supplier,msgBody,phone})=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌸 ${supplier}</div><div style="display:flex;gap:6px"><button data-msgid="${safeId}" style="background:#f0faf4;border:1.5px solid var(--green);color:var(--green);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="copyMsgById(this)">📋 Copy</button>${phone?`<button style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer" onclick="sendSMS('${phone}','${safeId}')">📱 SMS</button>`:''}</div></div><div style="background:#f8f8f8;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif" id="${safeId}">${msgBody}</div></div>`).join('');
 }
