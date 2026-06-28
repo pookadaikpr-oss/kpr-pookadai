@@ -2216,7 +2216,10 @@ function genReport(){
       const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
-      const totalPatru=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      // பற்று = purchase entries paid + db.payments (both sources)
+      const purEntryPaid=entries.reduce((a,e)=>a+(e.paid||0),0);
+      const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      const totalPatru=purEntryPaid+paymentsPaid;
       // net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
       const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
       const d1=from.split('-').reverse().join('/');
@@ -2234,6 +2237,11 @@ function genReport(){
         }
       });
       // Payment rows — by payment date from db.payments
+      // பற்று rows — from purchase entries paid field
+      entries.filter(e=>e.paid>0).forEach(e=>{
+        rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${fmtDate(e.date)}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${e.paid.toFixed(2)}</td></tr>`;
+      });
+      // பற்று rows — from db.payments
       const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
       supPayments.sort((a,b)=>a.date.localeCompare(b.date));
       supPayments.forEach(p=>{
