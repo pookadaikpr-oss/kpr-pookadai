@@ -224,7 +224,7 @@ tbody td{padding:8px 11px}
       <div class="fg" style="margin-bottom:10px"><label>மொத்தம்</label><input type="number" id="pe-tot" readonly></div>
       <div class="frow" style="margin-bottom:10px">
         <div class="fg"><label>பற்று</label><input type="number" id="pe-paid" placeholder="0" oninput="calcPB()"></div>
-        <div class="fg"><label>நிலுவை</label><input type="number" id="pe-bal" readonly></div>
+        <!-- நிலுவை box removed -->
       </div>
       <div class="btn-row">
         <button id="pur-save-btn" class="btn bg" onclick="savePur()">💾 Save</button>
@@ -1224,7 +1224,7 @@ function clearPur(){
 }
 function savePur(){
   const btn=document.getElementById('pur-save-btn');
-  if(btn&&btn.disabled) return;
+  if(btn) btn.disabled=true; // prevent double click
   const sup=document.getElementById('pe-sup').value.trim();
   const date=document.getElementById('pe-date').value;
   const supType=document.getElementById('pe-type').value;
@@ -1255,13 +1255,12 @@ function savePur(){
   if(purListDiv) purListDiv.style.display='block';
   if(listBtn2){ document.querySelectorAll('#pg-purchase .stab').forEach(b=>b.classList.remove('on')); listBtn2.classList.add('on'); }
   clearPur();
-  if(btn) btn.disabled=false;
   renderPL();
   saveDB().then(()=>{
     alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
   }).catch(()=>{
     alert2('⚠️ '+sup+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல!','warn');
-  });
+  }).finally(()=>{ if(btn) btn.disabled=false; });
 }
 
 // ===== SALES ITEMS =====
