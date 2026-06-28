@@ -637,8 +637,12 @@ function saveMasterLocal(){
   setTimeout(updateAllDataLists, 100);
 }
 function saveMasterFirebase(){
-  fetch(FIREBASE_URL+'/master.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(master)})
-    .then(r=>r.json()).then(()=>alert2('Firebase-ல் save ஆச்சு ☁️','ok'))
+  const snapshot=JSON.stringify(master); // save current state
+  fetch(FIREBASE_URL+'/master.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:snapshot})
+    .then(r=>r.json()).then(()=>{
+      alert2('Firebase-ல் save ஆச்சு ☁️','ok');
+      // Don't reload from Firebase — local master is authoritative after save
+    })
     .catch(()=>alert2('Local-ல் save ஆச்சு (Firebase offline)','warn'));
 }
 function loadMasterFirebase(){
