@@ -211,7 +211,7 @@ tbody td{padding:8px 11px}
       </div>
       <div class="frow t3">
         <div class="fg"><label>முன்பாக்கி</label><input type="number" id="pe-prev" placeholder="0" oninput="calcPB()"></div>
-        <div class="fg"><label>கமிஷன்%</label><input type="number" id="pe-comm" placeholder="10" step="0.5" min="0" max="100" oninput="calcPB()"></div>
+        <div class="fg"><label>கமிஷன்%</label><input type="number" id="pe-comm" placeholder="கமிஷன்%" step="0.5" min="0" max="100" oninput="calcPB()"></div>
         <div class="fg"><label>எடுப்பு%</label><input type="number" id="pe-eduppu" placeholder="0" step="0.5" min="0" max="100" oninput="calcPB()"></div>
       </div>
       <div class="frow">
@@ -390,6 +390,7 @@ tbody td{padding:8px 11px}
   <div class="stabs">
     <button class="stab on" onclick="stab('pay','sup',this)">💸 Payable</button>
     <button class="stab" onclick="stab('pay','cust',this)">💰 Receivable</button>
+
   </div>
   <div style="margin-bottom:12px">
     <button class="btn boo" style="width:100%;padding:10px;font-size:13px" onclick="stab('pay','ledger',document.getElementById('ledger-toggle-btn'));renderLedger()" id="ledger-toggle-btn">📋 Ledger காண்க</button>
@@ -558,13 +559,14 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>ஊர்</label><input type="text" id="ms-sup-town" placeholder="ஊர்"></div>
       </div>
       <div class="frow t2" style="margin-bottom:8px">
-        <div class="fg"><label>போன்</label><input type="tel" id="ms-sup-phone" placeholder="9999999999"></div>
-        <div class="fg"><label>கமிஷன்%</label><input type="number" id="ms-sup-comm" placeholder="10" value="10" min="0" max="100" step="0.5"></div>
+        <div class="fg"><label>போன்</label><div style="display:flex;gap:6px"><input type="tel" id="ms-sup-phone" placeholder="போன் எண்" style="flex:1"><button type="button" onclick="pickContact('ms-sup-phone')" style="background:#e8f5e9;border:1.5px solid var(--green);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px">📞</button></div></div>
+        <div class="fg"><label>கமிஷன்%</label><input type="number" id="ms-sup-comm" placeholder="கமிஷன்%" min="0" max="100" step="0.5"></div>
       </div>
       <div class="frow t2" style="margin-bottom:8px">
-        <div class="fg"><label>எடுப்பு%</label><input type="number" id="ms-sup-eduppu" placeholder="0" value="0" min="0" max="100" step="0.5"></div>
-        <div class="fg"><label>முன்பாக்கி</label><input type="number" id="ms-sup-prev" placeholder="0" value="0" min="0"></div>
+        <div class="fg"><label>எடுப்பு%</label><input type="number" id="ms-sup-eduppu" placeholder="எடுப்பு%" min="0" max="100" step="0.5"></div>
+        <div class="fg"><label>முன்பாக்கி ₹</label><input type="number" id="ms-sup-prev" placeholder="0" value="0" min="0"></div>
       </div>
+      <div class="fg" style="margin-bottom:8px"><label>முன்பாக்கி தேதி (இந்த தேதி முதல் report-ல் வரும்)</label><input type="date" id="ms-sup-prev-date"></div>
       <button class="btn bg" style="width:100%" onclick="saveMasterSup()">💾 Save தோட்டக்காரர்</button>
     </div>
     <div class="card">
@@ -583,7 +585,7 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>ஊர்</label><input type="text" id="ms-cust-town" placeholder="ஊர்"></div>
       </div>
       <div class="frow t2" style="margin-bottom:8px">
-        <div class="fg"><label>போன்</label><input type="tel" id="ms-cust-phone" placeholder="9999999999"></div>
+        <div class="fg"><label>போன்</label><div style="display:flex;gap:6px"><input type="tel" id="ms-cust-phone" placeholder="போன் எண்" style="flex:1"><button type="button" onclick="pickContact('ms-cust-phone')" style="background:#fff8e1;border:1.5px solid var(--gold);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px">📞</button></div></div>
         <div class="fg"><label>முன்பாக்கி</label><input type="number" id="ms-cust-prev" placeholder="0" value="0" min="0"></div>
       </div>
       <button class="btn bo" style="width:100%" onclick="saveMasterCust()">💾 Save வியாபாரி</button>
@@ -684,13 +686,14 @@ function saveMasterSup(){
     phone:document.getElementById('ms-sup-phone').value.trim(),
     comm:parseFloat(document.getElementById('ms-sup-comm').value)||10,
     eduppu:parseFloat(document.getElementById('ms-sup-eduppu').value)||0,
-    prev:parseFloat(document.getElementById('ms-sup-prev').value)||0
+    prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
+    prevDate:document.getElementById('ms-sup-prev-date').value||''
   };
   const idx=master.suppliers.findIndex(s=>s.name===name);
   if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); }
   else{ master.suppliers.push(sup); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
   // Clear form
-  ['ms-sup-name','ms-sup-town','ms-sup-phone'].forEach(id=>document.getElementById(id).value='');
+  ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-sup-comm').value='10';
   document.getElementById('ms-sup-eduppu').value='0';
   document.getElementById('ms-sup-prev').value='0';
@@ -780,6 +783,7 @@ function editMasterSup(idx){
     document.getElementById('ms-sup-comm').value=s.comm||10;
     document.getElementById('ms-sup-eduppu').value=s.eduppu||0;
     document.getElementById('ms-sup-prev').value=s.prev||0;
+    document.getElementById('ms-sup-prev-date').value=s.prevDate||'';
     // Scroll to top of page
     window.scrollTo({top:0,behavior:'smooth'});
     document.getElementById('ms-sup-name').focus();
@@ -804,7 +808,7 @@ function renderMaster(){
         </div>
         <div style="font-size:11px;color:#666;line-height:1.8">
           ${s.town?'📍 '+s.town+' ':''} ${s.phone?'📞 '+s.phone:''}
-          <br>கமிஷன்: <b>${s.comm||10}%</b> | எடுப்பு: <b>${s.eduppu||0}%</b> | முன்பாக்கி: <b>₹${(s.prev||0).toLocaleString('en-IN')}</b>
+          <br>கமிஷன்: <b>${s.comm||10}%</b> | எடுப்பு: <b>${s.eduppu||0}%</b> | முன்பாக்கி: <b>₹${(s.prev||0).toLocaleString('en-IN')}</b>${s.prevDate?` | <span style="color:#888;font-size:10px">${s.prevDate.split('-').reverse().join('/')} முதல்</span>`:''}
         </div>
       </div>`).join('')
     : '<div style="color:#aaa;font-size:13px;padding:10px 0;text-align:center">'+(supSearch?'தேடிய பெயர் இல்லை':'இன்னும் சேர்க்கலை')+'</div>';
@@ -1034,46 +1038,55 @@ window.addEventListener('DOMContentLoaded', function(){
   syncMasterFromDB(); updateDash(); renderPL(); renderSL(); renderPay();
   updateSupDL(); updateParDL();
 
-  // ── STEP 2: Firebase fetch — NO setTimeout, உடனே ──
+  // ── STEP 2: Firebase fetch with retry ──
   showFirebaseLoading(true);
-  const fbTimeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),12000));
-  Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout])
-    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(function(data){
-      showFirebaseLoading(false);
-      if(data && (data.purchases || data.sales)){
-        const fbPur = toArr(data.purchases);
-        const fbSal = toArr(data.sales||[]);
-        const fbPay = toArr(data.payments||[]);
-        const fbComm = data.commissions||{};
-        const fbCount = fbPur.length + fbSal.length;
-        const lcCount = db.purchases.length + db.sales.length;
-        // Firebase data இருந்தால் எப்போதும் use பண்ணு (fresh browser-ல் important)
-        if(fbCount > 0){
-          // Merge: local new entries + firebase data
-          const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
-          const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
-          const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
-          db = {
-            purchases:[...fbPur,...localPur],
-            sales:[...fbSal,...localSal],
-            payments:[...fbPay,...localPay],
-            commissions:Object.assign({},fbComm,db.commissions||{})
-          };
-          dedupDB(); saveLocal();
-          syncMasterFromDB();
-          updateDash(); renderPL(); renderSL(); renderPay();
-          updateSupDL(); updateParDL();
-          if(!hasLocal) alert2('✅ Firebase data loaded! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
+  function doFbFetch(attempt){
+    const timeoutMs = 30000; // 30 seconds
+    const fbTimeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),timeoutMs));
+    Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout])
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(data){
+        showFirebaseLoading(false);
+        if(data && (data.purchases || data.sales)){
+          const fbPur = toArr(data.purchases);
+          const fbSal = toArr(data.sales||[]);
+          const fbPay = toArr(data.payments||[]);
+          const fbComm = data.commissions||{};
+          const fbCount = fbPur.length + fbSal.length;
+          if(fbCount > 0){
+            const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
+            const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
+            const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
+            db = {
+              purchases:[...fbPur,...localPur],
+              sales:[...fbSal,...localSal],
+              payments:[...fbPay,...localPay],
+              commissions:Object.assign({},fbComm,db.commissions||{})
+            };
+            dedupDB(); saveLocal();
+            syncMasterFromDB();
+            updateDash(); renderPL(); renderSL(); renderPay();
+            updateSupDL(); updateParDL();
+            if(!hasLocal) alert2('✅ Firebase data loaded! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
+          }
         }
-      }
-    })
-    .catch(function(e){
-      showFirebaseLoading(false);
-      console.log('Firebase offline:', e);
-      const msg = e.message==='timeout' ? '⚠️ Firebase response தாமதமாகிறது (12s) — Local data பயன்படுத்தப்படுகிறது' : '⚠️ Firebase இணைய முடியவில்லை — இணைப்பு சரி பார்க்கவும்';
-      if(!hasLocal) alert2(msg,'warn');
-    });
+      })
+      .catch(function(e){
+        console.log('Firebase attempt '+attempt+' failed:', e.message);
+        if(attempt < 3){
+          // Auto retry — 5 seconds கழிச்சு
+          setTimeout(()=>{ doFbFetch(attempt+1); }, 5000);
+          if(attempt===1) alert2('🔄 Firebase connecting... (retry '+attempt+'/3)','warn');
+        } else {
+          showFirebaseLoading(false);
+          const msg = e.message==='timeout'
+            ? '❌ Firebase connect ஆகல (30s × 3 tries) — Refresh பண்ணுங்க'
+            : '❌ Firebase connect ஆகல — internet பாருங்க';
+          alert2(msg,'err');
+        }
+      });
+  }
+  doFbFetch(1);
 });
 
 // ===== PAGE NAV =====
@@ -1195,6 +1208,7 @@ function autoFillComm(supName){
   const pct=db.commissions[name]||0;
   const commEl=document.getElementById('pe-comm');
   if(commEl&&pct>0) commEl.value=pct;
+  else if(commEl) commEl.value='';
 }
 
 function clearPur(){
@@ -1573,6 +1587,122 @@ function saveEdit(){
 function closeEdit(){ document.getElementById('editMod').classList.remove('on'); }
 
 // ===== PAYMENTS =====
+function monthClose(){
+  if(!confirm('மாதம் முடி — எல்லா Suppliers & Customers-க்கும் இருப்பு calculate பண்ணி முன்பாக்கி update ஆகும். சரியா?')) return;
+  
+  // Calculate supplier balance for each supplier
+  const supNames=[...new Set(db.purchases.map(p=>p.supplier).filter(Boolean))];
+  supNames.forEach(name=>{
+    const entries=db.purchases.filter(p=>p.supplier===name);
+    const masterSup=master.suppliers.find(s=>s.name===name);
+    const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
+    const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
+    const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
+    const totalPatru=entries.reduce((a,e)=>a+e.paid,0);
+    // இருப்பு = முன்பாக்கி - பூவரவு + கமிஷன் - பற்று
+    const iruppu=munPakki - pooVaravu + totalComm - totalPatru;
+    // Update master
+    if(masterSup){ masterSup.prev=Math.round(iruppu*100)/100; }
+    else{ master.suppliers.push({name,town:'',phone:'',comm:10,eduppu:0,prev:Math.round(iruppu*100)/100}); }
+  });
+
+  // Calculate customer balance
+  const custNames=[...new Set(db.sales.map(s=>s.party).filter(Boolean))];
+  custNames.forEach(name=>{
+    const entries=db.sales.filter(s=>s.party===name);
+    const masterCust=master.customers.find(c=>c.name===name);
+    const munPakki=masterCust&&masterCust.prev>0?masterCust.prev:0;
+    const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
+    const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
+    const iruppu=munPakki + mottaVirpanai - totalVaravu;
+    if(masterCust){ masterCust.prev=Math.round(iruppu*100)/100; }
+    else{ master.customers.push({name,town:'',phone:'',prev:Math.round(iruppu*100)/100}); }
+  });
+
+  saveMasterLocal();
+  saveMasterFirebase();
+  
+  // Generate சிட்டை for all suppliers
+  generateMonthSlips();
+  alert2('மாதம் முடிந்தது! முன்பாக்கி update ஆச்சு ✅','ok');
+}
+
+function generateMonthSlips(){
+  const pw=window.open('','_blank');
+  const today2=new Date().toLocaleDateString('ta-IN');
+  const d1=new Date(); d1.setDate(1);
+  const from=d1.toISOString().split('T')[0];
+  const to=new Date().toISOString().split('T')[0];
+  const thS='padding:4px 6px;font-size:10px;text-align:left;border-bottom:1px solid #ccc';
+  const tdS='padding:3px 6px;font-size:10px;border-bottom:1px solid #eee';
+  const tdR='padding:3px 6px;font-size:10px;border-bottom:1px solid #eee;text-align:right';
+  
+  let allSlips='';
+  const supNames=[...new Set(db.purchases.map(p=>p.supplier).filter(Boolean))].sort();
+  
+  supNames.forEach((name,si)=>{
+    const entries=db.purchases.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
+    const masterSup=master.suppliers.find(s=>s.name===name);
+    const oldPrev=masterSup?masterSup.prev:0;
+    const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
+    const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
+    const totalPatru=entries.reduce((a,e)=>a+e.paid,0);
+    // Get previous prev (before month close)
+    const munPakki=oldPrev + pooVaravu - totalComm; // reverse calculate
+    const iruppu=masterSup?masterSup.prev:0;
+    
+    let rows='';
+    entries.forEach(e=>{
+      if(e.items&&e.items.length>0){
+        e.items.forEach((item,idx)=>{
+          rows+=`<tr><td style="${tdS}">${idx===0?e.date.split('-').reverse().slice(0,2).join('/'):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+        });
+      }
+    });
+    
+    allSlips+=`
+    <div style="page-break-after:${si<supNames.length-1?'always':'auto'};padding:10mm;font-family:'Noto Sans Tamil',sans-serif">
+      <div style="text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:8px;margin-bottom:10px">
+        <div style="font-size:16px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தார் புதுமலரகம்</div>
+        <div style="font-size:11px;color:#555">புஷ்ப கமிஷன் வியாபாரம்</div>
+        <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட் | செல்: 9787267300, 9944894147</div>
+      </div>
+      <div style="font-size:11px;margin-bottom:6px">தேதி: <b>${from.split('-').reverse().join('/')} -- ${to.split('-').reverse().join('/')}</b></div>
+      <div style="font-size:11px;margin-bottom:8px">விவ.பெயர்: <b>${name}</b></div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
+        <thead><tr style="background:#1a6b3a;color:#fff">
+          <th style="${thS}">தேதி</th><th style="${thS}">பொருள்</th>
+          <th style="${thS};text-align:right">அளவு</th><th style="${thS};text-align:right">விலை</th>
+          <th style="${thS};text-align:right">வரவு</th><th style="${thS};text-align:right">பற்று</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="font-size:11px;border-top:1px solid #ddd;padding-top:6px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>பூ வரவு :</span><span>${pooVaravu.toFixed(2)}</span><span>${totalPatru>0?totalPatru.toFixed(2):''}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>கமிசன் :</span><span></span><span>${totalComm.toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:4px;font-weight:700">
+          <span></span><span>${pooVaravu.toFixed(2)}</span><span>${(totalComm+totalPatru).toFixed(2)}</span>
+        </div>
+        <div style="background:#fdecea;padding:6px 10px;border-radius:6px;margin-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:12px">
+          <span>இருப்பு :</span><span style="color:#c0392b">${iruppu.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>`;
+  });
+  
+  pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>மாத சிட்டை</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>body{font-family:'Noto Sans Tamil',sans-serif;margin:0;padding:0}@media print{.no-print{display:none}}</style>
+  </head><body>
+    <div class="no-print" style="padding:10px;background:#1a6b3a;color:#fff;text-align:center">
+      <button onclick="window.print()" style="padding:8px 20px;background:#fff;color:#1a6b3a;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer">🖨️ அனைவருக்கும் Print பண்ணுங்க</button>
+    </div>
+    ${allSlips}
+  </body></html>`);
+  pw.document.close();
+}
+
 function renderPay(){
   if(!db.commissions) db.commissions={};
   const sm={};
@@ -1581,7 +1711,7 @@ function renderPay(){
   const slist=Object.entries(sm).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
-    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted)">கமிசன்%</span><input type="number" value="${commPct}" min="0" max="100" step="0.5" style="width:55px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;text-align:center" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="setCommission('${n.replace(/'/g,"\\'")}',this.value)"></div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div><button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${v.total-v.paid})">💸 Pay</button></div>`;
+    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div><button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${v.total-v.paid})">💸 Pay</button></div>`;
   }).join(''):'<div class="empty"><div class="eico">✅</div>Supplier data இல்லை</div>';
   const cm={};
   db.sales.forEach(s=>{ if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
@@ -1726,7 +1856,7 @@ function renderLedger(){
       let rows=''; let gt=0,gp=0;
       dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=byDate[d]; info.items.forEach(i=>{ rows+=`${dd}  ${i.name}  ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}\n`; }); gt+=info.total; if(info.paid>0){ rows+=`${dd}  பற்று = ₹${info.paid.toLocaleString('en-IN')}\n`; gp+=info.paid; } });
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
-      const msg=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${n} அவர்கள்,\n\n${rows}\nமொத்த வரவு:  ₹${gt.toLocaleString('en-IN')}\nமொத்த பற்று: ₹${gp.toLocaleString('en-IN')}\nநிலுவை:      ₹${(gt-gp).toLocaleString('en-IN')}`;
+      const msg=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${n} அவர்கள்,\n\n${rows}\nமொத்த விற்பனை: ₹${gt.toLocaleString('en-IN')}${gpr>0?'\nமுன் பாக்கி:    ₹'+gpr.toLocaleString('en-IN'):''}\nவரவு:          ₹${gp.toLocaleString('en-IN')}\nமொத்த நிலுவை:  ₹${bal.toLocaleString('en-IN')}`;
       const safeId='led_'+Math.random().toString(36).slice(2);
       return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--gold)">🛒 ${n}</div><button data-msgid="${safeId}" style="background:#fef8e8;border:1.5px solid var(--gold);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="copyMsgById(this)">📋 Copy</button></div><div style="background:#f8f8f8;border-radius:8px;padding:12px;font-size:11px;line-height:1.8;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif" id="${safeId}">${msg}</div></div>`;
     }).join('')||'<div class="empty">Data இல்லை</div>';
@@ -1807,14 +1937,14 @@ function renderPurMessages(){
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
       let rows=''; let grandTotal=0,grandPrev=0,grandPaid=0;
-      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; grandPrev+=info.prev; if(info.prev>0){ rows+=dd+'  Advance = ₹'+info.prev.toLocaleString('en-IN')+'\n'; } if(info.paid>0){ rows+=dd+'  பற்று = ₹'+info.paid.toLocaleString('en-IN')+'\n'; grandPaid+=info.paid; } });
+      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; grandPrev+=info.prev; if(info.paid>0){ rows+=dd+'  பற்று = ₹'+info.paid.toLocaleString('en-IN')+'\n'; grandPaid+=info.paid; } });
       const bal=Math.max(0, grandTotal-grandPrev-grandPaid);
       msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(grandPrev>0?'\nபற்று:        ₹'+grandPrev.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
     }
     const safeId='pmsg_'+Math.random().toString(36).slice(2);
     return{safeId,supplier,msgBody};
   });
-  div.innerHTML=dateLabel+cards.map(({safeId,supplier,msgBody})=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌸 ${supplier}</div><button data-msgid="${safeId}" style="background:#f0faf4;border:1.5px solid var(--green);color:var(--green);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="copyMsgById(this)">📋 Copy</button></div><div style="background:#f8f8f8;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif" id="${safeId}">${msgBody}</div></div>`).join('');
+  div.innerHTML=dateLabel+cards.map(({safeId,supplier,msgBody,phone})=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌸 ${supplier}</div><div style="display:flex;gap:6px"><button data-msgid="${safeId}" style="background:#f0faf4;border:1.5px solid var(--green);color:var(--green);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="copyMsgById(this)">📋 Copy</button>${phone?`<button style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer" onclick="sendSMS('${phone}','${safeId}')">📱 SMS</button>`:''}</div></div><div style="background:#f8f8f8;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif" id="${safeId}">${msgBody}</div></div>`).join('');
 }
 
 function renderSalMessages(){
@@ -1856,12 +1986,42 @@ function renderSalMessages(){
       msgBody=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${party} அவர்கள்,\n\n${rows}\nமொத்த விற்பனை: ₹${gt.toLocaleString('en-IN')}${gpr>0?'\nமுன் பாக்கி:    ₹'+gpr.toLocaleString('en-IN'):''}\nவரவு:          ₹${gp.toLocaleString('en-IN')}\nநிலுவை:        ₹${bal.toLocaleString('en-IN')}`;
     }
     const safeId='smsg_'+Math.random().toString(36).slice(2);
-    return{safeId,party,msgBody};
+    const phone=master.customers.find(c=>c.name===party)?.phone||'';
+  return{safeId,party,msgBody,phone};
   });
   const dateLabel=!isRange?'<div style="text-align:center;font-size:12px;color:#888;margin-bottom:8px">📅 '+fromDate.split('-').reverse().join('/')+' data</div>':'';
-  div.innerHTML=dateLabel+cards.map(({safeId,party,msgBody})=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--gold)">🌸 ${party}</div><button data-msgid="${safeId}" style="background:#fef8e8;border:1.5px solid var(--gold);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="copyMsgById(this)">📋 Copy</button></div><div style="background:#f8f8f8;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif" id="${safeId}">${msgBody}</div></div>`).join('');
+  div.innerHTML=dateLabel+cards.map(({safeId,party,msgBody,phone})=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--gold)">🌸 ${party}</div><div style="display:flex;gap:6px"><button data-msgid="${safeId}" style="background:#fef8e8;border:1.5px solid var(--gold);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" onclick="copyMsgById(this)">📋 Copy</button>${phone?`<button style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer" onclick="sendSMS('${phone}','${safeId}')">📱 SMS</button>`:''}</div></div><div style="background:#f8f8f8;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif" id="${safeId}">${msgBody}</div></div>`).join('');
 }
 
+async function pickContact(fieldId){
+  try{
+    if('contacts' in navigator && 'ContactsManager' in window){
+      const contacts=await navigator.contacts.select(['name','tel'],{multiple:false});
+      if(contacts&&contacts.length>0){
+        const c=contacts[0];
+        const phone=c.tel&&c.tel[0]?c.tel[0].replace(/[^0-9]/g,''):'';
+        if(phone) document.getElementById(fieldId).value=phone;
+        // Also fill name if supplier/customer name is empty
+        if(c.name&&c.name[0]){
+          const nameId=fieldId==='ms-sup-phone'?'ms-sup-name':'ms-cust-name';
+          const nameEl=document.getElementById(nameId);
+          if(nameEl&&!nameEl.value) nameEl.value=c.name[0];
+        }
+      }
+    } else {
+      alert2('இந்த browser-ல் Contact access support இல்லை — manually type பண்ணுங்க','warn');
+    }
+  } catch(e){
+    alert2('Contact access கிடைக்கலை — manually type பண்ணுங்க','warn');
+  }
+}
+function sendSMS(phone, msgId){
+  const el=document.getElementById(msgId);
+  if(!el) return;
+  const msg=el.innerText||el.textContent;
+  const cleaned=phone.replace(/[^0-9]/g,'');
+  window.open(`sms:${cleaned}?body=${encodeURIComponent(msg)}`,'_self');
+}
 function copyMsgById(btn){
   const id=btn.getAttribute('data-msgid');
   const el=document.getElementById(id);
@@ -1961,9 +2121,9 @@ function genFullReport(mode){
       });
       grandVaravu+=supVaravu; grandPatru+=supPatru; grandViyapar+=supViyapar; grandEdai+=supEdai;
       rows+=`<tr style="background:#e8f5e9;font-weight:700"><td colspan="4" style="${tdStyle}"></td><td style="${tdR}">${supEdai>0?supEdai.toFixed(2):''}</td><td style="${tdR}"></td><td style="${tdR}">${supVaravu>0?supVaravu.toFixed(2):''}</td><td style="${tdR}">${supPatru>0?supPatru.toFixed(2):''}</td><td style="${tdR}">${supViyapar>0?supViyapar.toFixed(2):''}</td></tr>`;
-      html+=`<div style="margin-bottom:14px"><div style="background:#1a6b3a;color:#fff;padding:4px 8px;font-weight:700;font-size:12px"><b>${name}</b></div><div class="twrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#2d8a50;color:#fff"><th style="${thStyle}">நிர்</th><th style="${thStyle}">தேதி</th><th style="${thStyle}">பெயர்</th><th style="${thStyle}">பொருட்கள்</th><th style="${thStyle};text-align:right">எடை</th><th style="${thStyle};text-align:right">விலை</th><th style="${thStyle};text-align:right">வரவு</th><th style="${thStyle};text-align:right">பற்று</th><th style="${thStyle};text-align:right">விபாரசெலவு</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+      html+=`<div style="margin-bottom:14px"><div style="background:#1a6b3a;color:#fff;padding:4px 8px;font-weight:700;font-size:12px"><b>${name}</b></div><div class="twrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#2d8a50;color:#fff"><th style="${thStyle}">நிர்</th><th style="${thStyle}">தேதி</th><th style="${thStyle}">பெயர்</th><th style="${thStyle}">பொருட்கள்</th><th style="${thStyle};text-align:right">எடை</th><th style="${thStyle};text-align:right">விலை</th><th style="${thStyle};text-align:right">வரவு</th><th style="${thStyle};text-align:right">பற்று</th><th style="${thStyle};text-align:right">வியாபாரசெலவு</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
     });
-    html+=`<div style="background:#1a6b3a;color:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>வரவு மொத்தம்: ₹${grandVaravu.toFixed(2)}</span><span>பற்று: ₹${grandPatru.toFixed(2)}</span><span>விபாரசெலவு: ₹${grandViyapar.toFixed(2)}</span></div>`;
+    html+=`<div style="background:#1a6b3a;color:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>வரவு மொத்தம்: ₹${grandVaravu.toFixed(2)}</span><span>பற்று: ₹${grandPatru.toFixed(2)}</span><span>வியாபாரசெலவு: ₹${grandViyapar.toFixed(2)}</span></div>`;
   }
 
   } // end purchase if
@@ -1978,6 +2138,14 @@ function genFullReport(mode){
       const entries=sals.filter(s=>s.party===name).sort((a,b)=>a.date.localeCompare(b.date));
       let partyTotal=0, partyPaid=0, partyBal=0;
       let rows='';
+      // முன்பாக்கி from master
+      const masterCustSal=master.customers.find(c=>c.name===name);
+      const salMunPakki=masterCustSal&&masterCustSal.prev>0?masterCustSal.prev:0;
+      if(salMunPakki>0){
+        rows+=`<tr style="background:#fff8e1"><td colspan="4" style="${tdStyle}"><b>முன் பாக்கி</b></td><td style="${tdR}" colspan="4"><b>${salMunPakki.toFixed(2)}</b></td></tr>`;
+        partyBal+=salMunPakki;
+        grandBal+=salMunPakki;
+      }
       entries.forEach(x=>{
         nirCount++;
         partyTotal+=x.total; partyPaid+=x.paid||0; partyBal+=x.balance||0;
@@ -2001,7 +2169,7 @@ function printReport(){
   const out=document.getElementById('rpt-out');
   if(!out||!out.innerHTML.trim()){ alert2('முதல்ல Generate பண்ணுங்க!','err'); return; }
   const pw=window.open('','_blank');
-  pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPR Report</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet"><style>body{font-family:'Noto Sans Tamil',sans-serif;padding:16px;font-size:12px;color:#111}.print-top{text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:14px}.print-top h2{color:#1a6b3a;font-size:18px;margin:0}.print-top p{margin:4px 0;font-size:11px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}thead{background:#1a6b3a;color:#fff}thead th{padding:5px 7px;text-align:left}tbody td{padding:4px 7px;border-bottom:1px solid #eee}.card{margin-bottom:12px;border:1px solid #ddd;border-radius:8px;padding:10px}.sec{font-size:13px;font-weight:700;color:#1a6b3a;margin-bottom:8px}.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}.bg2{background:#e6f7ed;color:#1a6b3a}.br2{background:#fdecea;color:#c0392b}.totbar{background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}.profit-box{text-align:center;padding:10px;border-radius:8px;margin-bottom:10px}.ppos{background:#e6f7ed;color:#1a6b3a}.pneg{background:#fdecea;color:#c0392b}.pval{font-size:24px;font-weight:700}.plbl{font-size:11px}.dash-card{padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px}.lbl{font-size:10px;color:#777}.val{font-size:16px;font-weight:700;color:#1a6b3a}.gold .val{color:#c8952a}.sub{font-size:10px;color:#999}@media print{button{display:none}}</style></head><body><div class="print-top"><h2>🌸 KPR பூக்கடை</h2><p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p><p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p></div><button onclick="window.print()" style="margin-bottom:14px;padding:8px 20px;background:#1a6b3a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨️ Print பண்ணுங்க</button>${out.innerHTML}</body></html>`);
+  pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPR Report</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet"><style>body{font-family:'Noto Sans Tamil',sans-serif;padding:16px;font-size:12px;color:#111}.print-top{text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:14px}.print-top h2{color:#1a6b3a;font-size:18px;margin:0}.print-top p{margin:4px 0;font-size:11px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}thead{background:#1a6b3a;color:#fff}thead th{padding:5px 7px;text-align:left}tbody td{padding:4px 7px;border-bottom:1px solid #eee}.card{margin-bottom:12px;border:1px solid #ddd;border-radius:8px;padding:10px}.sec{font-size:13px;font-weight:700;color:#1a6b3a;margin-bottom:8px}.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}.bg2{background:#e6f7ed;color:#1a6b3a}.br2{background:#fdecea;color:#c0392b}.totbar{background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}.profit-box{text-align:center;padding:10px;border-radius:8px;margin-bottom:10px}.ppos{background:#e6f7ed;color:#1a6b3a}.pneg{background:#fdecea;color:#c0392b}.pval{font-size:24px;font-weight:700}.plbl{font-size:11px}.dash-card{padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px}.lbl{font-size:10px;color:#777}.val{font-size:16px;font-weight:700;color:#1a6b3a}.gold .val{color:#c8952a}.sub{font-size:10px;color:#999}@media print{button{display:none}}</style></head><body><div class="print-top"><h2>🌸 KPR பூக்கடை</h2><p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p><p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p></div><button onclick="window.print()" style="margin-bottom:8px;margin-right:8px;padding:8px 20px;background:#1a6b3a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨️ Print பண்ணுங்க</button><button onclick="window.print()" style="margin-bottom:14px;padding:8px 20px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">📥 PDF Download</button>${out.innerHTML}</body></html>`);
   pw.document.close();
 }
 function setRptPartyType(t){
@@ -2042,25 +2210,33 @@ function genReport(){
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு
       const masterSup=master.suppliers.find(s=>s.name===normName);
-      const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:(entries[0]?(entries[0].prev||entries[0].advance||0):0);
+      // முன்பாக்கி தேதி check — from date-க்கு முன்னாடி இருந்தா மட்டும் காட்டு
+      const prevDateOk=!masterSup?.prevDate || (masterSup.prevDate <= from);
+      const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
-      const totalPatru=entries.reduce((a,e)=>a+e.paid,0);
-      // net = பூ வரவு - கமிசன் + முன் பாக்கி - பற்று
-      const grandTotal=pooVaravu-totalComm+munPakki;
-      const netBal=grandTotal-totalPatru;
+      const totalPatru=db.payments.filter(p=>p.type==='pur'&&p.name===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      // net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
+      const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
       const thS='padding:5px 6px;font-size:11px;text-align:left;white-space:nowrap';
       const tdS='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
       const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
       let rowsHtml='';
+      // Collect all rows: purchase items + payments by their own date
       entries.forEach(e=>{
         if(e.items&&e.items.length>0){
           e.items.forEach((item,idx)=>{
-            rowsHtml+=`<tr><td style="${tdS}">${idx===0?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+            rowsHtml+=`<tr><td style="${tdS}">${idx===0?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
           });
         }
+      });
+      // Payment rows — by payment date from db.payments
+      const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name===normName&&p.date>=from&&p.date<=to);
+      supPayments.sort((a,b)=>a.date.localeCompare(b.date));
+      supPayments.forEach(p=>{
+        rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${fmtDate(p.date)}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${p.amount.toFixed(2)}</td></tr>`;
       });
       out.innerHTML=`
         <div style="background:#fff;border:2px solid #1a6b3a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
@@ -2099,10 +2275,11 @@ function genReport(){
               <span style="font-weight:700">${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
               <span style="font-weight:700">${(totalComm+munPakki+totalPatru).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
-            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#fdecea':'#e6f7ed'};padding:8px 10px;border-radius:8px">
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
               <span>${netBal>0?'இருப்பு :':'அதிக பற்று :'}</span>
-              <span style="color:${netBal>0?'#c0392b':'#1a6b3a'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
+            ${netBal>0?`<button onclick="paySupplier('${normName}',${netBal})" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
           </div>
         </div>`;
     } else {
@@ -2110,7 +2287,7 @@ function genReport(){
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு, இல்லன்னா entries-ல் பார்
       const masterCust=master.customers.find(c=>c.name===normName);
-      const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:(entries[0]?(entries[0].prev||0):0);
+      const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:0;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
       const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
       const grandTotalCust=mottaVirpanai+munPakkiCust;
@@ -2222,7 +2399,7 @@ function syncMasterFromDB(){
 
 function refreshFromFirebase(){
   showFirebaseLoading(true);
-  const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),12000));
+  const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000));
   Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2])
     .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(data=>{
@@ -2243,7 +2420,7 @@ function refreshFromFirebase(){
     })
     .catch(e=>{
       showFirebaseLoading(false);
-      alert2('❌ Firebase connect ஆகல — ' + (e.message==='timeout'?'12sec timeout ஆச்சு':'internet பாருங்க'),'err');
+      alert2('❌ Firebase connect ஆகல — ' + (e.message==='timeout'?'30sec timeout ஆச்சு':'internet பாருங்க'),'err');
     });
 }
 
