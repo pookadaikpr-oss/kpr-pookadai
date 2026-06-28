@@ -1180,7 +1180,8 @@ function calcPB(){
   const p=parseFloat(document.getElementById('pe-paid').value)||0;
   const prev=parseFloat(document.getElementById('pe-prev').value)||0;
   const bal=t-prev-p;
-  document.getElementById('pe-bal').value=bal.toFixed(2);
+  const balEl=document.getElementById('pe-bal');
+  if(balEl) balEl.value=bal.toFixed(2); // element removed — safe check
 }
 function supEnterJump(e){
   if(e.key==='Enter'||e.key==='Tab'){
