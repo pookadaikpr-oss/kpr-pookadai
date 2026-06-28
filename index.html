@@ -19,7 +19,7 @@ const iconData512 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAA
 const manifest = {
   name: "KPR பூக்கடை",
   short_name: "KPR பூகடை",
-  description: "KPR வன்னிசெந்தார் புதுமலரகம் - பூ கமிஷன் வியாபாரம்",
+  description: "KPR வன்னிசெந்தூர் புதுமலரகம் - பூ கமிஷன் வியாபாரம்",
   start_url: "./",
   display: "standalone",
   background_color: "#1a6b3a",
@@ -1663,7 +1663,7 @@ function generateMonthSlips(){
     allSlips+=`
     <div style="page-break-after:${si<supNames.length-1?'always':'auto'};padding:10mm;font-family:'Noto Sans Tamil',sans-serif">
       <div style="text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:8px;margin-bottom:10px">
-        <div style="font-size:16px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தார் புதுமலரகம்</div>
+        <div style="font-size:16px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தூர் புதுமலரகம்</div>
         <div style="font-size:11px;color:#555">புஷ்ப கமிஷன் வியாபாரம்</div>
         <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட் | செல்: 9787267300, 9944894147</div>
       </div>
@@ -2216,7 +2216,7 @@ function genReport(){
       const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
-      const totalPatru=db.payments.filter(p=>p.type==='pur'&&p.name===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      const totalPatru=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
       // net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
       const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
       const d1=from.split('-').reverse().join('/');
@@ -2234,7 +2234,7 @@ function genReport(){
         }
       });
       // Payment rows — by payment date from db.payments
-      const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name===normName&&p.date>=from&&p.date<=to);
+      const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
       supPayments.sort((a,b)=>a.date.localeCompare(b.date));
       supPayments.forEach(p=>{
         rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${fmtDate(p.date)}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${p.amount.toFixed(2)}</td></tr>`;
@@ -2242,7 +2242,7 @@ function genReport(){
       out.innerHTML=`
         <div style="background:#fff;border:2px solid #1a6b3a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
           <div style="text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:12px">
-            <div style="font-size:15px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தார் புதுமலரகம்</div>
+            <div style="font-size:15px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தூர் புதுமலரகம்</div>
             <div style="font-size:11px;color:#555;margin-top:2px">புஷ்ப கமிஷன் வியாபாரம்</div>
             <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட்</div>
             <div style="font-size:10px;color:#888">செல்: 9787267300, 9944894147</div>
@@ -2311,7 +2311,7 @@ function genReport(){
       out.innerHTML=`
         <div style="background:#fff;border:2px solid #c8860a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
           <div style="text-align:center;border-bottom:2px solid #c8860a;padding-bottom:10px;margin-bottom:12px">
-            <div style="font-size:15px;font-weight:700;color:#c8860a">KPR வன்னிசெந்தார் புதுமலரகம்</div>
+            <div style="font-size:15px;font-weight:700;color:#c8860a">KPR வன்னிசெந்தூர் புதுமலரகம்</div>
             <div style="font-size:11px;color:#555;margin-top:2px">புஷ்ப கமிஷன் வியாபாரம்</div>
             <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட்</div>
             <div style="font-size:10px;color:#888">செல்: 9787267300, 9944894147</div>
