@@ -2626,6 +2626,7 @@ loadPasswords();
 setTimeout(()=>{
   if(checkSavedRole()){
     doFbFetch(1); // load data if already logged in
+    loadMasterFirebase(); // load master data too
   }
 }, 500);
 
