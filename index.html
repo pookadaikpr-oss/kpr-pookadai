@@ -144,6 +144,14 @@ tbody td{padding:8px 11px}
     td{ padding:2px 4px !important; border-bottom:0.5px solid #ccc !important; }
     button,input,select,label{ display:none !important; }
   }
+
+/* LOGIN */
+#login-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#login-box{background:#fff;border-radius:16px;padding:32px 24px;width:90%;max-width:360px;text-align:center;}
+#login-box h2{color:#1a6b3a;margin-bottom:20px;font-size:20px;}
+#login-box input{width:100%;padding:12px;border:1.5px solid #ccc;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box;}
+#login-box button{width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit;}
+#login-box .err{color:#c0392b;font-size:13px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -154,7 +162,10 @@ tbody td{padding:8px 11px}
       <span class="logo-icon">🌸</span>
       <div><div class="logo-name">KPR பூ கடை</div><div class="logo-sub">Punnaivanam</div></div>
     </div>
-    <div class="hdr-date" id="hdrDate"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="hdr-date" id="hdrDate"></div>
+      <button id="logout-btn" onclick="doLogout()" style="display:none;background:none;border:1px solid #fff;color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🔓 Logout</button>
+    </div>
   </div>
   <div class="nav">
     <button class="nav-btn on" onclick="goPage('dash',this)">📊 Dashboard</button>
@@ -167,6 +178,15 @@ tbody td{padding:8px 11px}
 </div>
 
 <!-- DASHBOARD -->
+<div id="login-overlay">
+  <div id="login-box">
+    <div style="font-size:40px;margin-bottom:8px">🌸</div>
+    <h2>KPR பூ கடை</h2>
+    <input type="password" id="login-pwd" placeholder="Password உள்ளிடுங்க" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">உள்நுழை</button>
+    <div class="err" id="login-err"></div>
+  </div>
+</div>
 <div class="pg on" id="pg-dash">
   <div id="alertBox"></div>
   <!-- FIREBASE LOADING BANNER -->
@@ -197,7 +217,7 @@ tbody td{padding:8px 11px}
     <div class="card">
       <div class="sec" style="margin-top:0">🌿 Purchase Entry</div>
       <div class="frow">
-        <div class="fg"><label>தேதி</label><input type="date" id="pe-date"></div>
+        <div class="fg"><label>தேதி</label><input type="date" id="pe-date" onchange="localStorage.setItem('kpr-pur-date',this.value)"></div>
         <div class="fg"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" oninput="autoFillComm(this.value)" onkeydown="supEnterJump(event)"><datalist id="sup-dl"></datalist><datalist id="cust-dl"></datalist></div>
       </div>
       <div class="frow">
@@ -304,7 +324,7 @@ tbody td{padding:8px 11px}
     <div class="card">
       <div class="sec" style="margin-top:0">🛒 Sales Entry</div>
       <div class="frow">
-        <div class="fg"><label>தேதி</label><input type="date" id="se-date"></div>
+        <div class="fg"><label>தேதி</label><input type="date" id="se-date" onchange="localStorage.setItem('kpr-sal-date',this.value)"></div>
         <div class="fg"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" list="par-dl"><datalist id="par-dl"></datalist></div>
       </div>
       <div class="ihdr"><span>பொருள்</span><span>qty</span><span>விலை</span><span>மொத்தம்</span><span></span></div>
@@ -872,7 +892,7 @@ function saveSettings(){
 function updateDataLists(){
   // Update flower datalist
   const flDl=document.getElementById('flower-dl');
-  if(flDl) flDl.innerHTML=settings.items.map(i=>`<option value="${i}">`).join('');
+  if(flDl) flDl.innerHTML=(master.items||settings.items||[]).map((i,idx)=>`<option value="${i}" label="${idx+1}. ${i}">`).join('');
   // Update supplier datalist
   const supDl=document.getElementById('sup-dl');
   if(supDl) supDl.innerHTML=settings.suppliers.map(s=>`<option value="${s.name}">`).join('');
@@ -1219,7 +1239,10 @@ function clearPur(){
   document.getElementById('pe-paid').value='';
   document.getElementById('pe-note').value='';
   document.getElementById('pe-items').innerHTML='';
-  piCount=0; addPI(); document.getElementById('pe-date').value=today;
+  piCount=0; addPI();
+  // Restore device-specific date
+  const savedPurDate=localStorage.getItem('kpr-pur-date');
+  document.getElementById('pe-date').value=savedPurDate||today;
 }
 function savePur(){
   const btn=document.getElementById('pur-save-btn');
@@ -1334,7 +1357,9 @@ function clearSal(){
   document.getElementById('se-paid').value='';
   document.getElementById('se-note').value='';
   document.getElementById('se-items').innerHTML='';
-  siCount=0; addSI(); document.getElementById('se-date').value=today;
+  siCount=0; addSI();
+  const savedSalDate=localStorage.getItem('kpr-sal-date');
+  document.getElementById('se-date').value=savedSalDate||today;
 }
 function saveSal(){
   const btn=document.getElementById('sal-save-btn');
@@ -2228,24 +2253,29 @@ function genReport(){
       const tdS='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
       const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
       let rowsHtml='';
-      // Collect all rows: purchase items + payments by their own date
+      // Collect all rows — items + paid, merge & sort by date
+      const allRows=[];
       entries.forEach(e=>{
         if(e.items&&e.items.length>0){
-          e.items.forEach((item,idx)=>{
-            rowsHtml+=`<tr><td style="${tdS}">${idx===0?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
+          e.items.forEach(item=>{
+            allRows.push({date:e.date,type:'item',item});
           });
         }
+        if(e.paid>0) allRows.push({date:e.date,type:'paid',amount:e.paid});
       });
-      // Payment rows — by payment date from db.payments
-      // பற்று rows — from purchase entries paid field
-      entries.filter(e=>e.paid>0).forEach(e=>{
-        rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${fmtDate(e.date)}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${e.paid.toFixed(2)}</td></tr>`;
-      });
-      // பற்று rows — from db.payments
+      // db.payments பற்று rows
       const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
-      supPayments.sort((a,b)=>a.date.localeCompare(b.date));
-      supPayments.forEach(p=>{
-        rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${fmtDate(p.date)}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${p.amount.toFixed(2)}</td></tr>`;
+      supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount}); });
+      // Sort by date
+      allRows.sort((a,b)=>a.date.localeCompare(b.date));
+      let lastDate='';
+      allRows.forEach(r=>{
+        const showDate=r.date!==lastDate; lastDate=r.date;
+        if(r.type==='item'){
+          rowsHtml+=`<tr><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}">${r.item.name}</td><td style="${tdR}">${r.item.qty||''}</td><td style="${tdR}">${r.item.price||''}</td><td style="${tdR}">${r.item.amount>0?r.item.amount.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
+        } else {
+          rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${r.amount.toFixed(2)}</td></tr>`;
+        }
       });
       out.innerHTML=`
         <div style="background:#fff;border:2px solid #1a6b3a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
@@ -2424,7 +2454,11 @@ function refreshFromFirebase(){
         updateSupDL(); updateParDL();
         alert2('✅ Data refreshed! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
       } else {
-        alert2('⚠️ Firebase-ல் data இல்லை','warn');
+        // Firebase empty — local-ஐயும் clear பண்று
+        db={purchases:[],sales:[],payments:[],commissions:{}};
+        saveLocal();
+        updateDash(); renderPL(); renderSL(); renderPay();
+        alert2('⚠️ Firebase-ல் data இல்லை — Local data-உம் clear ஆச்சு','warn');
       }
     })
     .catch(e=>{
@@ -2485,6 +2519,116 @@ if('serviceWorker' in navigator){
   const swURL = URL.createObjectURL(swBlob);
   navigator.serviceWorker.register(swURL).then(()=>console.log('SW registered'));
 }
+
+// ===== LOGIN SYSTEM =====
+function doLogout(){
+  if(!confirm('Logout பண்ணணுமா?')) return;
+  try{ localStorage.removeItem('kpr-role'); }catch(e){}
+  currentRole = null;
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('login-pwd').value='';
+  document.getElementById('login-err').textContent='';
+  // Reset nav buttons
+  document.querySelectorAll('.nav-btn').forEach(btn=>btn.style.display='');
+}
+const ROLE_PASSWORDS = {
+  admin: null,   // loaded from Firebase
+  staff: null,
+  view: null
+};
+let currentRole = null;
+
+function loadPasswords(){
+  fetch(FIREBASE_URL+'/settings/passwords.json')
+    .then(r=>r.json()).then(data=>{
+      if(data){
+        ROLE_PASSWORDS.admin = data.admin || 'admin123';
+        ROLE_PASSWORDS.staff = data.staff || 'staff123';
+        ROLE_PASSWORDS.view = data.view || 'view123';
+      } else {
+        ROLE_PASSWORDS.admin = 'admin123';
+        ROLE_PASSWORDS.staff = 'staff123';
+        ROLE_PASSWORDS.view = 'view123';
+      }
+    }).catch(()=>{
+      ROLE_PASSWORDS.admin = 'admin123';
+      ROLE_PASSWORDS.staff = 'staff123';
+      ROLE_PASSWORDS.view = 'view123';
+    });
+}
+
+function doLogin(){
+  const pwd = document.getElementById('login-pwd').value.trim();
+  const err = document.getElementById('login-err');
+  if(pwd === ROLE_PASSWORDS.admin){ currentRole='admin'; }
+  else if(pwd === ROLE_PASSWORDS.staff){ currentRole='staff'; }
+  else if(pwd === ROLE_PASSWORDS.view){ currentRole='view'; }
+  else { err.textContent='தவறான password!'; return; }
+  
+  // Device-ல் role save பண்றோம்
+  try{ localStorage.setItem('kpr-role', currentRole); }catch(e){}
+  
+  document.getElementById('login-overlay').style.display='none';
+  document.getElementById('logout-btn').style.display='block';
+  applyRoleRestrictions();
+  loadMasterFirebase();
+}
+
+function checkSavedRole(){
+  try{
+    const saved = localStorage.getItem('kpr-role');
+    if(saved && ['admin','staff','view'].includes(saved)){
+      currentRole = saved;
+      document.getElementById('login-overlay').style.display='none';
+      document.getElementById('logout-btn').style.display='block';
+      applyRoleRestrictions();
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+function applyRoleRestrictions(){
+  if(currentRole==='view'){
+    // View — Report tab மட்டும்
+    document.querySelectorAll('.nav-btn').forEach(btn=>{
+      const page = btn.getAttribute('onclick');
+      if(page && !page.includes('report')){
+        btn.style.display='none';
+      }
+    });
+    // Go to report page
+    const reportBtn = document.querySelector('[onclick*="report"]');
+    if(reportBtn) reportBtn.click();
+  } else if(currentRole==='staff'){
+    // Staff — Master tab இல்லை, Master delete இல்லை, Clear All Data இல்லை
+    document.querySelectorAll('.nav-btn').forEach(btn=>{
+      const page = btn.getAttribute('onclick');
+      if(page && page.includes('master')){
+        btn.style.display='none';
+      }
+    });
+    // Master delete buttons hide
+    document.querySelectorAll('[onclick*="delSup"], [onclick*="delCust"]').forEach(el=>{
+      el.style.display='none';
+    });
+    // Clear All Data hide
+    document.querySelectorAll('[onclick*="clearAll"], [onclick*="clearData"]').forEach(el=>{
+      el.style.display='none';
+    });
+  }
+  // Admin — எல்லாமே
+}
+
+// Load passwords on start
+loadPasswords();
+// Check if role already saved on this device
+setTimeout(()=>{
+  if(checkSavedRole()){
+    doFbFetch(1); // load data if already logged in
+  }
+}, 500);
+
 </script>
 </body>
 </html>
