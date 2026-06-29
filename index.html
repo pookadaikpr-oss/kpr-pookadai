@@ -1692,7 +1692,7 @@ function generateMonthSlips(){
         <div style="font-size:10px;color:#888">கடை எண்: 6, காமராஜர் பூ மார்க்கெட் | செல்: 9787267300, 9944894147</div>
       </div>
       <div style="font-size:11px;margin-bottom:6px">தேதி: <b>${from.split('-').reverse().join('/')} -- ${to.split('-').reverse().join('/')}</b></div>
-      <div style="font-size:11px;margin-bottom:8px">விவ.பெயர்: <b>${name}</b></div>
+      <div style="font-size:11px;margin-bottom:8px">பெயர்: <b>${name} அவர்கள்</b></div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
         <thead><tr style="background:#1a6b3a;color:#fff">
           <th style="${thS}">தேதி</th><th style="${thS}">பொருள்</th>
@@ -2288,7 +2288,7 @@ function genReport(){
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px">
             <span>தேதி: <b>${d1} -- ${d2}</b></span>
           </div>
-          <div style="font-size:12px;margin-bottom:4px">விவ.பெயர்: <b>${normName}</b></div>
+          <div style="font-size:12px;margin-bottom:4px">பெயர்: <b>${normName} அவர்கள்</b></div>
           ${munPakki>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span>முன் பாக்கி</span><span><b>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</b></span></div>`:''}
           <div style="overflow-x:auto;margin-bottom:10px">
             <table style="width:100%;border-collapse:collapse">
@@ -2357,7 +2357,7 @@ function genReport(){
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px">
             <span>தேதி: <b>${d1} -- ${d2}</b></span>
           </div>
-          <div style="font-size:12px;margin-bottom:4px">விவ.பெயர்: <b>${normName}</b></div>
+          <div style="font-size:12px;margin-bottom:4px">பெயர்: <b>${normName} அவர்கள்</b></div>
           ${munPakkiCust>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span>முன் பாக்கி</span><span><b>${munPakkiCust.toLocaleString('en-IN',{minimumFractionDigits:2})}</b></span></div>`:''}
           <div style="overflow-x:auto;margin-bottom:10px">
             <table style="width:100%;border-collapse:collapse">
@@ -2437,6 +2437,7 @@ function syncMasterFromDB(){
 }
 
 function refreshFromFirebase(){
+  loadMasterFirebase(); // master data-வும் reload
   showFirebaseLoading(true);
   const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000));
   Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2])
@@ -2622,6 +2623,22 @@ function applyRoleRestrictions(){
 
 // Load passwords on start
 loadPasswords();
+
+// Auto-refresh master data every 30 seconds silently
+setInterval(()=>{
+  if(currentRole){
+    fetch(FIREBASE_URL+'/master.json')
+      .then(r=>r.json()).then(data=>{
+        if(data&&(data.suppliers||data.customers||data.items)){
+          master=data;
+          if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
+          saveMasterLocal();
+          renderMaster();
+          updateAllDataLists();
+        }
+      }).catch(()=>{});
+  }
+}, 30000);
 // Check if role already saved on this device
 setTimeout(()=>{
   if(checkSavedRole()){
