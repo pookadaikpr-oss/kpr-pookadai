@@ -707,6 +707,7 @@ function mstTab(tab, btn){
 }
 
 function saveMasterSup(){
+ try{
   const name=document.getElementById('ms-sup-name').value.trim();
   if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
   const sup={
@@ -718,6 +719,7 @@ function saveMasterSup(){
     prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
     prevDate:document.getElementById('ms-sup-prev-date').value||''
   };
+  if(!master.suppliers) master.suppliers=[];
   const idx=editingSupIdx>=0?editingSupIdx:master.suppliers.findIndex(s=>s.name===name);
   if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); editingSupIdx=-1; }
   else{ master.suppliers.push(sup); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
@@ -727,6 +729,7 @@ function saveMasterSup(){
   document.getElementById('ms-sup-eduppu').value='0';
   document.getElementById('ms-sup-prev').value='0';
   saveMasterLocal(); saveMasterFirebase(); renderMaster();
+ }catch(err){ alert2('Save error: '+err.message,'err'); }
 }
 
 function saveMasterCust(){
