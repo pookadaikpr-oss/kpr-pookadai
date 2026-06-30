@@ -715,7 +715,20 @@ function saveMasterSup(){
     prevDate:document.getElementById('ms-sup-prev-date').value||''
   };
   const idx=editingSupIdx>=0?editingSupIdx:master.suppliers.findIndex(s=>s.name===name);
-  if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); editingSupIdx=-1; }
+  if(idx>=0){
+    const oldName=master.suppliers[idx].name;
+    master.suppliers[idx]=sup;
+    if(oldName && oldName!==name){
+      // Update all purchase entries with old name
+      db.purchases.forEach(p=>{ if(p.supplier===oldName) p.supplier=name; });
+      db.payments.forEach(p=>{ if(p.type==='pur'&&p.name===oldName) p.name=name; });
+      saveLocal(); saveDB();
+      alert2(oldName+' → '+name+' (எல்லா entries-லும் update ஆச்சு) ✅','ok');
+    } else {
+      alert2(name+' update ஆச்சு ✅','ok');
+    }
+    editingSupIdx=-1;
+  }
   else{ master.suppliers.push(sup); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
   // Clear form
   ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date'].forEach(id=>document.getElementById(id).value='');
@@ -735,7 +748,19 @@ function saveMasterCust(){
     prev:parseFloat(document.getElementById('ms-cust-prev').value)||0
   };
   const idx=editingCustIdx>=0?editingCustIdx:master.customers.findIndex(c=>c.name===name);
-  if(idx>=0){ master.customers[idx]=cust; alert2(name+' update ஆச்சு ✅','ok'); editingCustIdx=-1; }
+  if(idx>=0){
+    const oldName=master.customers[idx].name;
+    master.customers[idx]=cust;
+    if(oldName && oldName!==name){
+      db.sales.forEach(s=>{ if(s.party===oldName) s.party=name; });
+      db.payments.forEach(p=>{ if(p.type==='sal'&&p.name===oldName) p.name=name; });
+      saveLocal(); saveDB();
+      alert2(oldName+' → '+name+' (எல்லா entries-லும் update ஆச்சு) ✅','ok');
+    } else {
+      alert2(name+' update ஆச்சு ✅','ok');
+    }
+    editingCustIdx=-1;
+  }
   else{ master.customers.push(cust); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
   ['ms-cust-name','ms-cust-town','ms-cust-phone'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-cust-prev').value='0';
