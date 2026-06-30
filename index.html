@@ -674,9 +674,11 @@ function loadMasterFirebase(){
         saveMasterLocal();
         renderMaster();
         renderPurMessages(); renderSalMessages(); // phone numbers updated
-        alert2('Master data Firebase-ல் இருந்து வந்தது ☁️','ok');
+        alert2('Master data Firebase-ல் இருந்து வந்தது ('+master.items.length+' items) ☁️','ok');
+      } else {
+        alert2('Firebase-ல் master data காலியா இருக்கு','warn');
       }
-    }).catch(()=>{});
+    }).catch((err)=>{ alert2('Firebase fetch error: '+err.message,'err'); });
 }
 
 function updateAllDataLists(){
