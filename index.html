@@ -853,6 +853,7 @@ function deleteMasterCustByName(name){
 function editMasterSup(idx){
   const s=master.suppliers[idx];
   if(!s){ alert2('Error: supplier not found','err'); return; }
+  editingSupIdx=idx;
   // Switch to sup tab first
   mstTab('sup', document.getElementById('mst-tab-sup'));
   // Fill form
@@ -860,11 +861,10 @@ function editMasterSup(idx){
     document.getElementById('ms-sup-name').value=s.name;
     document.getElementById('ms-sup-town').value=s.town||'';
     document.getElementById('ms-sup-phone').value=s.phone||'';
-    document.getElementById('ms-sup-comm').value=s.comm||10;
-    document.getElementById('ms-sup-eduppu').value=s.eduppu||0;
+    document.getElementById('ms-sup-comm').value=s.comm!=null?s.comm:10;
+    document.getElementById('ms-sup-eduppu').value=s.eduppu!=null?s.eduppu:0;
     document.getElementById('ms-sup-prev').value=s.prev||0;
     document.getElementById('ms-sup-prev-date').value=s.prevDate||'';
-    // Scroll to top of page
     window.scrollTo({top:0,behavior:'smooth'});
     document.getElementById('ms-sup-name').focus();
     alert2(s.name+' — edit பண்ணலாம்! Save பண்ணினா update ஆகும்','ok');
