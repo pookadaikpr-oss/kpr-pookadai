@@ -717,8 +717,8 @@ function saveMasterSup(){
     name,
     town:document.getElementById('ms-sup-town').value.trim(),
     phone:document.getElementById('ms-sup-phone').value.trim(),
-    comm:parseFloat(document.getElementById('ms-sup-comm').value)||10,
-    eduppu:parseFloat(document.getElementById('ms-sup-eduppu').value)||0,
+    comm:document.getElementById('ms-sup-comm').value!==''?parseFloat(document.getElementById('ms-sup-comm').value):10,
+    eduppu:document.getElementById('ms-sup-eduppu').value!==''?parseFloat(document.getElementById('ms-sup-eduppu').value):0,
     prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
     prevDate:document.getElementById('ms-sup-prev-date').value||''
   };
