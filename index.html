@@ -714,8 +714,8 @@ function saveMasterSup(){
     prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
     prevDate:document.getElementById('ms-sup-prev-date').value||''
   };
-  const idx=master.suppliers.findIndex(s=>s.name===name);
-  if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); }
+  const idx=editingSupIdx>=0?editingSupIdx:master.suppliers.findIndex(s=>s.name===name);
+  if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); editingSupIdx=-1; }
   else{ master.suppliers.push(sup); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
   // Clear form
   ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date'].forEach(id=>document.getElementById(id).value='');
@@ -734,8 +734,8 @@ function saveMasterCust(){
     phone:document.getElementById('ms-cust-phone').value.trim(),
     prev:parseFloat(document.getElementById('ms-cust-prev').value)||0
   };
-  const idx=master.customers.findIndex(c=>c.name===name);
-  if(idx>=0){ master.customers[idx]=cust; alert2(name+' update ஆச்சு ✅','ok'); }
+  const idx=editingCustIdx>=0?editingCustIdx:master.customers.findIndex(c=>c.name===name);
+  if(idx>=0){ master.customers[idx]=cust; alert2(name+' update ஆச்சு ✅','ok'); editingCustIdx=-1; }
   else{ master.customers.push(cust); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
   ['ms-cust-name','ms-cust-town','ms-cust-phone'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-cust-prev').value='0';
@@ -757,9 +757,11 @@ function deleteMasterSup(idx){
   master.suppliers.splice(idx,1);
   saveMasterLocal(); saveMasterFirebase(); renderMaster();
 }
+let editingCustIdx=-1;
 function editMasterCust(idx){
   const c=master.customers[idx];
   if(!c){ alert2('Error: customer not found','err'); return; }
+  editingCustIdx=idx;
   mstTab('cust', document.getElementById('mst-tab-cust'));
   setTimeout(()=>{
     document.getElementById('ms-cust-name').value=c.name;
@@ -2221,8 +2223,12 @@ function genReport(){
     const rawFrom=document.getElementById('rpt-party-from').value||'';
     const rawTo=document.getElementById('rpt-party-to').value||'';
     function p2d(v){ if(!v) return null; v=v.trim(); if(v.length===10&&v[4]==='-') return v; const p=v.split('/'); if(p.length===3) return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); return null; }
-    from=p2d(rawFrom)||'2000-01-01';
-    to=p2d(rawTo)||'2099-12-31';
+    const _now=new Date();
+    const _y=_now.getFullYear();
+    const _m=String(_now.getMonth()+1).padStart(2,'0');
+    const _lastDay=new Date(_y,_now.getMonth()+1,0).getDate();
+    from=p2d(rawFrom)||(_y+'-'+_m+'-01');
+    to=p2d(rawTo)||(_y+'-'+_m+'-'+String(_lastDay).padStart(2,'0'));
     const normName=name.trim();
     const entries=rptPartyType==='sup'
       ?db.purchases.filter(p=>p.supplier&&p.supplier.trim()===normName&&p.date>=from&&p.date<=to)
@@ -2624,21 +2630,7 @@ function applyRoleRestrictions(){
 // Load passwords on start
 loadPasswords();
 
-// Auto-refresh master data every 30 seconds silently
-setInterval(()=>{
-  if(currentRole){
-    fetch(FIREBASE_URL+'/master.json')
-      .then(r=>r.json()).then(data=>{
-        if(data&&(data.suppliers||data.customers||data.items)){
-          master=data;
-          if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
-          saveMasterLocal();
-          renderMaster();
-          updateAllDataLists();
-        }
-      }).catch(()=>{});
-  }
-}, 30000);
+
 // Check if role already saved on this device
 setTimeout(()=>{
   if(checkSavedRole()){
