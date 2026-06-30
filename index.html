@@ -656,9 +656,11 @@ function saveMasterLocal(){
   try{ localStorage.setItem(MASTER_KEY, JSON.stringify(master)); }catch(e){}
   setTimeout(updateAllDataLists, 100);
 }
-function saveMasterFirebase(){
-  const snapshot=JSON.stringify(master); // save current state
-  fetch(FIREBASE_URL+'/master.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:snapshot})
+function saveMasterFirebase(field){
+  // field: 'suppliers' | 'customers' | 'items' | undefined(=all, used rarely)
+  const body = field ? JSON.stringify(master[field]) : JSON.stringify(master);
+  const url = field ? (FIREBASE_URL+'/master/'+field+'.json') : (FIREBASE_URL+'/master.json');
+  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body})
     .then(r=>r.json()).then(()=>{
       alert2('Firebase-ல் save ஆச்சு ☁️','ok');
       // Don't reload from Firebase — local master is authoritative after save
@@ -729,7 +731,7 @@ function saveMasterSup(){
   document.getElementById('ms-sup-comm').value='10';
   document.getElementById('ms-sup-eduppu').value='0';
   document.getElementById('ms-sup-prev').value='0';
-  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  saveMasterLocal(); saveMasterFirebase('suppliers'); renderMaster();
  }catch(err){ alert2('Save error: '+err.message,'err'); }
 }
 
@@ -747,7 +749,7 @@ function saveMasterCust(){
   else{ master.customers.push(cust); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
   ['ms-cust-name','ms-cust-town','ms-cust-phone'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-cust-prev').value='0';
-  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  saveMasterLocal(); saveMasterFirebase('customers'); renderMaster();
 }
 
 function saveMasterItem(){
@@ -756,14 +758,14 @@ function saveMasterItem(){
   if(master.items.includes(name)) return alert2('Already இருக்கு!','warn');
   master.items.push(name);
   document.getElementById('ms-item-name').value='';
-  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  saveMasterLocal(); saveMasterFirebase('items'); renderMaster();
   alert2(name+' சேர்க்கப்பட்டது ✅','ok');
 }
 
 function deleteMasterSup(idx){
   if(!confirm('Delete பண்ணவா?')) return;
   master.suppliers.splice(idx,1);
-  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  saveMasterLocal(); saveMasterFirebase('suppliers'); renderMaster();
 }
 let editingCustIdx=-1;
 function editMasterCust(idx){
@@ -783,11 +785,11 @@ function editMasterCust(idx){
 function deleteMasterCust(idx){
   if(!confirm('Delete பண்ணவா?')) return;
   master.customers.splice(idx,1);
-  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  saveMasterLocal(); saveMasterFirebase('customers'); renderMaster();
 }
 function deleteMasterItem(idx){
   master.items.splice(idx,1);
-  saveMasterLocal(); saveMasterFirebase(); renderMaster();
+  saveMasterLocal(); saveMasterFirebase('items'); renderMaster();
 }
 function editMasterSupByName(name){
   const idx=master.suppliers.findIndex(s=>s.name===name);
@@ -1654,7 +1656,8 @@ function monthClose(){
   });
 
   saveMasterLocal();
-  saveMasterFirebase();
+  saveMasterFirebase('suppliers');
+  saveMasterFirebase('customers');
   
   // Generate சிட்டை for all suppliers
   generateMonthSlips();
