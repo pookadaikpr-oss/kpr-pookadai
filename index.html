@@ -722,16 +722,30 @@ function saveMasterSup(){
     prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
     prevDate:document.getElementById('ms-sup-prev-date').value||''
   };
-  if(!master.suppliers) master.suppliers=[];
-  const idx=editingSupIdx>=0?editingSupIdx:master.suppliers.findIndex(s=>s.name===name);
-  if(idx>=0){ master.suppliers[idx]=sup; alert2(name+' update ஆச்சு ✅','ok'); editingSupIdx=-1; }
-  else{ master.suppliers.push(sup); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
-  // Clear form
+  const wasEditing = editingSupIdx;
+  editingSupIdx=-1;
+  // Clear form immediately
   ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-sup-comm').value='10';
   document.getElementById('ms-sup-eduppu').value='0';
   document.getElementById('ms-sup-prev').value='0';
-  saveMasterLocal(); saveMasterFirebase('suppliers'); renderMaster();
+  alert2('சேமிக்கிறோம்...','ok');
+  fetch(FIREBASE_URL+'/master/suppliers.json').then(r=>r.json()).then(fresh=>{
+    let list = Array.isArray(fresh) && fresh.length ? fresh : (master.suppliers||[]);
+    const idx = wasEditing>=0 ? wasEditing : list.findIndex(s=>s.name===name);
+    if(idx>=0){ list[idx]=sup; } else { list.push(sup); }
+    master.suppliers=list;
+    saveMasterLocal();
+    fetch(FIREBASE_URL+'/master/suppliers.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(list)})
+      .then(()=>{ alert2(name+' சேமிக்கப்பட்டது ✅','ok'); renderMaster(); })
+      .catch(()=>alert2('Firebase save தோல்வி','err'));
+  }).catch(()=>{
+    if(!master.suppliers) master.suppliers=[];
+    const idx=wasEditing>=0?wasEditing:master.suppliers.findIndex(s=>s.name===name);
+    if(idx>=0){ master.suppliers[idx]=sup; } else { master.suppliers.push(sup); }
+    saveMasterLocal(); saveMasterFirebase('suppliers'); renderMaster();
+    alert2(name+' local-ல் சேமிக்கப்பட்டது (Firebase offline)','warn');
+  });
  }catch(err){ alert2('Save error: '+err.message,'err'); }
 }
 
@@ -744,22 +758,51 @@ function saveMasterCust(){
     phone:document.getElementById('ms-cust-phone').value.trim(),
     prev:parseFloat(document.getElementById('ms-cust-prev').value)||0
   };
-  const idx=editingCustIdx>=0?editingCustIdx:master.customers.findIndex(c=>c.name===name);
-  if(idx>=0){ master.customers[idx]=cust; alert2(name+' update ஆச்சு ✅','ok'); editingCustIdx=-1; }
-  else{ master.customers.push(cust); alert2(name+' சேர்க்கப்பட்டது ✅','ok'); }
+  const wasEditing = editingCustIdx;
+  editingCustIdx=-1;
   ['ms-cust-name','ms-cust-town','ms-cust-phone'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-cust-prev').value='0';
-  saveMasterLocal(); saveMasterFirebase('customers'); renderMaster();
+  alert2('சேமிக்கிறோம்...','ok');
+  fetch(FIREBASE_URL+'/master/customers.json').then(r=>r.json()).then(fresh=>{
+    let list = Array.isArray(fresh) && fresh.length ? fresh : (master.customers||[]);
+    const idx = wasEditing>=0 ? wasEditing : list.findIndex(c=>c.name===name);
+    if(idx>=0){ list[idx]=cust; } else { list.push(cust); }
+    master.customers=list;
+    saveMasterLocal();
+    fetch(FIREBASE_URL+'/master/customers.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(list)})
+      .then(()=>{ alert2(name+' சேமிக்கப்பட்டது ✅','ok'); renderMaster(); })
+      .catch(()=>alert2('Firebase save தோல்வி','err'));
+  }).catch(()=>{
+    if(!master.customers) master.customers=[];
+    const idx=wasEditing>=0?wasEditing:master.customers.findIndex(c=>c.name===name);
+    if(idx>=0){ master.customers[idx]=cust; } else { master.customers.push(cust); }
+    saveMasterLocal(); saveMasterFirebase('customers'); renderMaster();
+    alert2(name+' local-ல் சேமிக்கப்பட்டது (Firebase offline)','warn');
+  });
 }
 
 function saveMasterItem(){
   const name=document.getElementById('ms-item-name').value.trim();
   if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
-  if(master.items.includes(name)) return alert2('Already இருக்கு!','warn');
-  master.items.push(name);
   document.getElementById('ms-item-name').value='';
-  saveMasterLocal(); saveMasterFirebase('items'); renderMaster();
-  alert2(name+' சேர்க்கப்பட்டது ✅','ok');
+  alert2('சேர்க்கிறோம்...','ok');
+  // Fetch latest items from Firebase first, merge, then save — avoids stale overwrite
+  fetch(FIREBASE_URL+'/master/items.json').then(r=>r.json()).then(freshItems=>{
+    let list = Array.isArray(freshItems) && freshItems.length ? freshItems : (master.items||[]);
+    if(list.includes(name)){ alert2('Already இருக்கு!','warn'); master.items=list; renderMaster(); return; }
+    list.push(name);
+    master.items=list;
+    saveMasterLocal();
+    fetch(FIREBASE_URL+'/master/items.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(list)})
+      .then(()=>{ alert2(name+' சேர்க்கப்பட்டது ✅ ('+list.length+' total)','ok'); renderMaster(); })
+      .catch(()=>alert2('Firebase save தோல்வி','err'));
+  }).catch(()=>{
+    // Fallback: Firebase unreachable, use local state
+    if(master.items.includes(name)) return alert2('Already இருக்கு!','warn');
+    master.items.push(name);
+    saveMasterLocal(); saveMasterFirebase('items'); renderMaster();
+    alert2(name+' local-ல் சேர்க்கப்பட்டது (Firebase offline)','warn');
+  });
 }
 
 function deleteMasterSup(idx){
