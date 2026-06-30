@@ -1164,7 +1164,7 @@ window.addEventListener('DOMContentLoaded', function(){
 // ===== PAGE NAV =====
 function goPage(id, btn){
   if(id==='settings'){ setTimeout(()=>{ renderSettings(); updateAllDataLists(); },50); }
-  if(id==='master'){ setTimeout(()=>{ renderMaster(); },50); }
+  if(id==='master'){ loadMasterFirebase(); setTimeout(()=>{ renderMaster(); },50); }
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('pg-'+id).classList.add('on');
