@@ -670,6 +670,8 @@ function loadMasterFirebase(){
     .then(r=>r.json()).then(data=>{
       if(data && (data.suppliers||data.customers||data.items)){
         master=data;
+        if(!master.suppliers) master.suppliers=[];
+        if(!master.customers) master.customers=[];
         if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
         saveMasterLocal();
         renderMaster();
