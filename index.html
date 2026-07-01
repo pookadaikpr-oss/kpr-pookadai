@@ -889,7 +889,7 @@ function renderMaster(){
         </div>
         <div style="font-size:11px;color:#666;line-height:1.8">
           ${s.town?'📍 '+s.town+' ':''} ${s.phone?'📞 '+s.phone:''}
-          <br>கமிஷன்: <b>${s.comm||10}%</b> | எடுப்பு: <b>${s.eduppu||0}%</b> | முன்பாக்கி: <b>₹${(s.prev||0).toLocaleString('en-IN')}</b>${s.prevDate?` | <span style="color:#888;font-size:10px">${s.prevDate.split('-').reverse().join('/')} முதல்</span>`:''}
+          <br>கமிஷன்: <b>${s.comm!=null?s.comm:10}%</b> | எடுப்பு: <b>${s.eduppu||0}%</b> | முன்பாக்கி: <b>₹${(s.prev||0).toLocaleString('en-IN')}</b>${s.prevDate?` | <span style="color:#888;font-size:10px">${s.prevDate.split('-').reverse().join('/')} முதல்</span>`:''}
         </div>
       </div>`).join('')
     : '<div style="color:#aaa;font-size:13px;padding:10px 0;text-align:center">'+(supSearch?'தேடிய பெயர் இல்லை':'இன்னும் சேர்க்கலை')+'</div>';
@@ -976,7 +976,7 @@ function renderSettings(){
     ? settings.suppliers.map((s,idx)=>
       `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0ede8">
         <span style="flex:1;font-size:13px">${s.name}</span>
-        <span style="font-size:11px;color:#888">கமிஷன்: ${s.comm||10}%</span>
+        <span style="font-size:11px;color:#888">கமிஷன்: ${s.comm!=null?s.comm:10}%</span>
         <button onclick="removeSup(${idx})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
       </div>`
     ).join('')
@@ -1285,7 +1285,7 @@ function autoFillComm(supName){
     const commEl=document.getElementById('pe-comm');
     const eduppuEl=document.getElementById('pe-eduppu');
     const prevEl=document.getElementById('pe-prev');
-    if(commEl) commEl.value=masterSup.comm||10;
+    if(commEl) commEl.value=masterSup.comm!=null?masterSup.comm:10;
     if(eduppuEl) eduppuEl.value=masterSup.eduppu||0;
     if(prevEl&&masterSup.prev>0&&(!prevEl.value||prevEl.value==='0')) prevEl.value=masterSup.prev;
     return;
