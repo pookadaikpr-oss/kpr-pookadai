@@ -732,7 +732,8 @@ function saveMasterSup(){
   alert2('சேமிக்கிறோம்...','ok');
   fetch(FIREBASE_URL+'/master/suppliers.json').then(r=>r.json()).then(fresh=>{
     let list = Array.isArray(fresh) && fresh.length ? fresh : (master.suppliers||[]);
-    const idx = wasEditing>=0 ? wasEditing : list.findIndex(s=>s.name===name);
+    const originalName = wasEditing>=0 && master.suppliers[wasEditing] ? master.suppliers[wasEditing].name : name;
+    const idx = list.findIndex(s=>s.name===originalName);
     if(idx>=0){ list[idx]=sup; } else { list.push(sup); }
     master.suppliers=list;
     saveMasterLocal();
