@@ -2278,6 +2278,19 @@ function updateRptPartyDL(){
   if(dl){ dl.innerHTML=''; names.sort().forEach(n=>{ const o=document.createElement('option'); o.value=n; dl.appendChild(o); }); }
 }
 function genReport(){
+  // Fresh master data fetch பண்ணிட்டு report generate பண்றோம்
+  Promise.all([
+    fetch(FIREBASE_URL+'/master/suppliers.json').then(r=>r.json()).catch(()=>null),
+    fetch(FIREBASE_URL+'/master/customers.json').then(r=>r.json()).catch(()=>null)
+  ]).then(([supData, custData])=>{
+    if(Array.isArray(supData) && supData.length) master.suppliers=supData;
+    if(Array.isArray(custData) && custData.length) master.customers=custData;
+    saveMasterLocal();
+    _genReport();
+  }).catch(()=>_genReport());
+}
+
+function _genReport(){
   const out=document.getElementById('rpt-out');
 
   let from,to;
