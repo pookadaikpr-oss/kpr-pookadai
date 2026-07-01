@@ -5,6 +5,24 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<script>
+// ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
+(function(){
+  var APP_BUILD = '20260701-2317';
+  try{
+    var stored = localStorage.getItem('kpr-app-build');
+    if(stored !== APP_BUILD){
+      localStorage.setItem('kpr-app-build', APP_BUILD);
+      var cleanup = [];
+      if('caches' in window){ cleanup.push(caches.keys().then(function(names){ return Promise.all(names.map(function(n){ return caches.delete(n); })); })); }
+      if('serviceWorker' in navigator){ cleanup.push(navigator.serviceWorker.getRegistrations().then(function(regs){ return Promise.all(regs.map(function(r){ return r.unregister(); })); })); }
+      if(stored){ // stored இருந்தா மட்டும் reload (முதல் தடவை load-ல reload தேவையில்ல)
+        Promise.all(cleanup).finally(function(){ location.reload(); });
+      }
+    }
+  }catch(e){}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KPR பூ கடை</title>
 <link rel="manifest" id="pwa-manifest">
