@@ -229,12 +229,12 @@ tbody td{padding:8px 11px}
           </select>
         </div>
       </div>
-      <div class="frow t3">
+      <div class="frow t3" style="display:none">
         <div class="fg"><label>முன்பாக்கி</label><input type="number" id="pe-prev" placeholder="0" oninput="calcPB()"></div>
         <div class="fg"><label>கமிஷன்%</label><input type="number" id="pe-comm" placeholder="கமிஷன்%" step="0.5" min="0" max="100" oninput="calcPB()"></div>
         <div class="fg"><label>எடுப்பு%</label><input type="number" id="pe-eduppu" placeholder="0" step="0.5" min="0" max="100" oninput="calcPB()"></div>
       </div>
-      <div class="frow">
+      <div class="frow" style="display:none">
         <div class="fg"><label>குறிப்பு</label><input type="text" id="pe-note" placeholder="Optional"></div>
         <div class="fg"></div>
       </div>
@@ -325,7 +325,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🛒 Sales Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="se-date" onchange="localStorage.setItem('kpr-sal-date',this.value)"></div>
-        <div class="fg"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" list="par-dl"><datalist id="par-dl"></datalist></div>
+        <div class="fg"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" list="par-dl" oninput="autoFillCustPrev(this.value)"><datalist id="par-dl"></datalist></div>
       </div>
       <div class="ihdr"><span>பொருள்</span><span>qty</span><span>விலை</span><span>மொத்தம்</span><span></span></div>
       <div id="se-items"></div>
@@ -335,7 +335,7 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>முன் பாக்கி</label><input type="number" id="se-prev" placeholder="0" oninput="calcSB()"></div>
       </div>
       <div class="frow">
-        <div class="fg"><label>வரவு</label><input type="number" id="se-paid" placeholder="0" oninput="calcSB()"></div>
+        <div class="fg" style="display:none"><label>வரவு</label><input type="number" id="se-paid" placeholder="0" oninput="calcSB()" value="0"></div>
         <div class="fg"><label>நிலுவை</label><input type="number" id="se-bal" readonly></div>
       </div>
       <div class="fg" style="margin-bottom:10px"><label>குறிப்பு</label><input type="text" id="se-note" placeholder="Optional"></div>
@@ -2062,15 +2062,18 @@ function renderSalMessages(){
   const cards=parties.map(party=>{
     const dates=Object.keys(map[party]).sort();
     let msgBody='';
+    // Master-ல இருந்து customer முன்பாக்கி எடு
+    const masterCustMsg=master.customers.find(c=>c.name===party);
+    const custMunPakki=masterCustMsg&&masterCustMsg.prev>0?masterCustMsg.prev:0;
     if(!isRange){
       const d=dates[0]; const dd=d.split('-').reverse().join('/'); const info=map[party][d];
       const lines=info.items.map(i=>`• ${i.name} - ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}`).join('\n');
-      const prevLine=info.prev>0?`\nமுன் பாக்கி: ₹${info.prev.toLocaleString('en-IN')}`:'';
-      const grandTotal=info.total+info.prev;
+      const prevLine=custMunPakki>0?`\nமுன் பாக்கி: ₹${custMunPakki.toLocaleString('en-IN')}`:'';
+      const grandTotal=info.total+custMunPakki;
       const bal=grandTotal-info.paid;
       const pattruLine=info.paid>0?`\nவரவு: ₹${info.paid.toLocaleString('en-IN')}\nநிலுவை: ₹${bal.toLocaleString('en-IN')}`:
-        (info.prev>0?`\nநிலுவை: ₹${bal.toLocaleString('en-IN')}`:'');
-      const totalLine=info.prev>0?`இன்றைய விற்பனை: ₹${info.total.toLocaleString('en-IN')}${prevLine}\nமொத்த நிலுவை: ₹${grandTotal.toLocaleString('en-IN')}${pattruLine}`:`விற்பனை: ₹${info.total.toLocaleString('en-IN')}${pattruLine}`;
+        (custMunPakki>0?`\nநிலுவை: ₹${bal.toLocaleString('en-IN')}`:'');
+      const totalLine=custMunPakki>0?`இன்றைய விற்பனை: ₹${info.total.toLocaleString('en-IN')}${prevLine}\nமொத்த நிலுவை: ₹${grandTotal.toLocaleString('en-IN')}${pattruLine}`:`விற்பனை: ₹${info.total.toLocaleString('en-IN')}${pattruLine}`;
       msgBody=`KPR பூக்கடை\n${dd}\n\n${party} அவர்கள்,\n\n${lines}\n\n${totalLine}`;
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
@@ -2493,8 +2496,19 @@ function alert2(msg,type='ok'){
   setTimeout(()=>{ div.style.opacity='0'; setTimeout(()=>div.remove(),400); },4000);
 }
 
-function updateSupDL(){ try{ const s=new Set(db.purchases.map(p=>p.supplier)); const dl=document.getElementById('sup-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
-function updateParDL(){ try{ const s=new Set(db.sales.map(p=>p.party)); const dl=document.getElementById('par-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
+function updateSupDL(){ try{ const s=new Set([...(master.suppliers||[]).map(x=>x.name), ...db.purchases.map(p=>p.supplier)]); const dl=document.getElementById('sup-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ if(!v) return; const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
+function autoFillCustPrev(name){
+  if(!name) return;
+  const cust=master.customers.find(c=>c.name===name.trim());
+  if(cust && cust.prev>0){
+    document.getElementById('se-prev').value=cust.prev;
+    calcSB();
+  } else {
+    document.getElementById('se-prev').value='';
+    calcSB();
+  }
+}
+function updateParDL(){ try{ const s=new Set([...(master.customers||[]).map(x=>x.name), ...db.sales.map(p=>p.party)]); const dl=document.getElementById('par-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ if(!v) return; const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
 
 function syncMasterFromDB(){
   // Auto-add suppliers from purchases to master
