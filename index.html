@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260701-2317';
+  var APP_BUILD = '20260701-v10';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1904,7 +1904,8 @@ function renderPay(){
     const mc=findMasterCustomer(n);
     const openingPrev=mc&&mc.prev>0?mc.prev:0;
     const grandTotal=v.total+openingPrev;
-    return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px">🛒 ${n}</div><div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த பாக்கி</span><span>₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>வரவு</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700"><span>நிலுவை</span><span style="color:${v.balance>0?'var(--red)':'var(--green)'}">₹${v.balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div>${v.balance>0?`<button class="btn bo bsm" style="width:100%" onclick="collectCust('${n.replace(/'/g,"\\'")}',${v.balance})">💰 Receive</button>`:'<div style="text-align:center;font-size:12px;color:var(--green)">✅ தீர்ந்தது</div>'}</div>`;
+    const dueBal=grandTotal-v.paid;
+    return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px">🛒 ${n}</div><div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த பாக்கி</span><span>₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>வரவு</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700"><span>நிலுவை</span><span style="color:${dueBal>0?'var(--red)':'var(--green)'}">₹${dueBal.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div>${dueBal>0?`<button class="btn bo bsm" style="width:100%" onclick="collectCust('${n.replace(/'/g,"\\'")}',${dueBal})">💰 Receive</button>`:'<div style="text-align:center;font-size:12px;color:var(--green)">✅ தீர்ந்தது</div>'}</div>`;
   }).join(''):'<div class="empty"><div class="eico">✅</div>Customer data இல்லை</div>';
 }
 
@@ -1920,8 +1921,7 @@ function paySupplier(name,netPay){
 }
 function collectCust(name,due){
   const entries=db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-  const totalDue=db.sales.filter(s=>s.party===name).reduce((a,s)=>a+s.balance,0);
-  openPay('sal',entries[0]?entries[0].id:null,name,totalDue);
+  openPay('sal',entries[0]?entries[0].id:null,name,due);
 }
 
 function openPay(type,id,name,due){
@@ -1932,7 +1932,14 @@ function openPay(type,id,name,due){
   document.getElementById('payMod').classList.add('on');
   const entries=type==='pur'?db.purchases.filter(p=>p.supplier===name):db.sales.filter(s=>s.party===name);
   const gross=entries.reduce((a,e)=>a+e.total,0);
-  const prev=entries.reduce((a,e)=>a+(e.prev||0),0);
+  let prev;
+  if(type==='sal'){
+    const mc=findMasterCustomer(name);
+    prev=mc&&mc.prev>0?mc.prev:0;
+  } else {
+    const ms=findMasterSupplier(name);
+    prev=ms&&ms.prev>0?ms.prev:0;
+  }
   const alreadyPaid=entries.reduce((a,e)=>a+e.paid,0);
   const netDue=due;
   const summary=document.getElementById('pm-summary'); summary.style.display='block';
