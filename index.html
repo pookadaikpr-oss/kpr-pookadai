@@ -1165,7 +1165,18 @@ window.addEventListener('DOMContentLoaded', function(){
 // ===== PAGE NAV =====
 function goPage(id, btn){
   if(id==='settings'){ setTimeout(()=>{ renderSettings(); updateAllDataLists(); },50); }
-  if(id==='master'){ loadMasterFirebase(); setTimeout(()=>{ renderMaster(); },50); }
+  if(id==='master'){ 
+    fetch(FIREBASE_URL+'/master/suppliers.json').then(r=>r.json()).then(data=>{
+      if(Array.isArray(data) && data.length) master.suppliers=data;
+      fetch(FIREBASE_URL+'/master/customers.json').then(r=>r.json()).then(cdata=>{
+        if(Array.isArray(cdata) && cdata.length) master.customers=cdata;
+        fetch(FIREBASE_URL+'/master/items.json').then(r=>r.json()).then(idata=>{
+          if(Array.isArray(idata) && idata.length) master.items=idata;
+          saveMasterLocal(); renderMaster();
+        }).catch(()=>renderMaster());
+      }).catch(()=>renderMaster());
+    }).catch(()=>renderMaster());
+  }
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('pg-'+id).classList.add('on');
