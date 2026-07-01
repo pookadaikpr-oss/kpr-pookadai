@@ -344,7 +344,7 @@ tbody td{padding:8px 11px}
         <div class="fg" style="display:none"><label>வரவு</label><input type="number" id="se-paid" placeholder="0" oninput="calcSB()" value="0"></div>
         <div class="fg" style="display:none"><label>நிலுவை</label><input type="number" id="se-bal" readonly></div>
       </div>
-      <div class="fg" style="margin-bottom:10px"><label>குறிப்பு</label><input type="text" id="se-note" placeholder="Optional"></div>
+      <div class="fg" style="margin-bottom:10px"><label>மொத்த பாக்கி</label><input type="number" id="se-grandtot" readonly style="background:#f0f0f0;color:#555;font-weight:700"></div>
       <div class="btn-row">
         <button id="sal-save-btn" class="btn bo" onclick="saveSal()">💾 Save</button>
         <button class="btn boo" onclick="clearSal()">🔄 Clear</button>
@@ -1488,12 +1488,14 @@ function calcSB(){
   const p=parseFloat(document.getElementById('se-paid').value)||0;
   const prev=parseFloat(document.getElementById('se-prev').value)||0;
   document.getElementById('se-bal').value=(t+prev-p).toFixed(2);
+  const gtEl=document.getElementById('se-grandtot');
+  if(gtEl) gtEl.value=(t+prev).toFixed(2);
 }
 function clearSal(){
   document.getElementById('se-par').value='';
   document.getElementById('se-prev').value='';
   document.getElementById('se-paid').value='';
-  document.getElementById('se-note').value='';
+  const gtEl0=document.getElementById('se-grandtot'); if(gtEl0) gtEl0.value='';
   document.getElementById('se-items').innerHTML='';
   siCount=0; addSI();
   const savedSalDate=localStorage.getItem('kpr-sal-date');
@@ -1516,7 +1518,7 @@ function saveSal(){
     if(name&&qty>0) items.push({name,qty,price,amount:qty*price});
     else if(!name&&!qty&&!price) r.remove(); // empty row remove
   });
-  const newSal={id:'sal_'+Date.now(),date,party:par,items,total,prev,paid,balance:total+prev-paid,src:'manual',note:document.getElementById('se-note').value};
+  const newSal={id:'sal_'+Date.now(),date,party:par,items,total,prev,paid,balance:total+prev-paid,src:'manual',note:''};
   db.sales.push(newSal);
   saveLocal();
   updateParDL(); updateDash();
