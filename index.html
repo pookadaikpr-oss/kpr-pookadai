@@ -1044,9 +1044,11 @@ function salItemInput(inp){
   calcST();
 }
 function resolveItemShortcut(val){
-  const num=parseInt(val);
-  if(!isNaN(num) && num>=1 && num<=settings.items.length){
-    return settings.items[num-1];
+  const trimmed=(val||'').trim();
+  const num=parseInt(trimmed);
+  if(!isNaN(num) && String(num)===trimmed && num>=1){
+    const list=(master.items&&master.items.length)?master.items:settings.items;
+    if(num<=list.length) return list[num-1];
   }
   return val;
 }
@@ -1109,10 +1111,21 @@ window.addEventListener('DOMContentLoaded', function(){
   addPI(); addSI();
 
   // ── STEP 1: Local data இருந்தால் உடனே காட்டு ──
-  loadSettings(); loadLocal(); setTimeout(updateDataLists, 500); dedupDB();
+  loadMaster(); loadSettings(); loadLocal(); setTimeout(updateDataLists, 500); dedupDB();
   const hasLocal = (db.purchases.length + db.sales.length) > 0;
   syncMasterFromDB(); updateDash(); renderPL(); renderSL(); renderPay();
-  updateSupDL(); updateParDL();
+  updateSupDL(); updateParDL(); updateAllDataLists();
+
+  // ── Master data (suppliers/customers/items) Firebase-ல் இருந்து background-ல் refresh ──
+  fetch(FIREBASE_URL+'/master/suppliers.json').then(r=>r.json()).then(data=>{
+    if(Array.isArray(data) && data.length){ master.suppliers=data; saveMasterLocal(); updateSupDL(); updateAllDataLists(); }
+  }).catch(()=>{});
+  fetch(FIREBASE_URL+'/master/customers.json').then(r=>r.json()).then(data=>{
+    if(Array.isArray(data) && data.length){ master.customers=data; saveMasterLocal(); updateParDL(); updateAllDataLists(); }
+  }).catch(()=>{});
+  fetch(FIREBASE_URL+'/master/items.json').then(r=>r.json()).then(data=>{
+    if(Array.isArray(data) && data.length){ master.items=data; saveMasterLocal(); updateAllDataLists(); }
+  }).catch(()=>{});
 
   // ── STEP 2: Firebase fetch with retry ──
   showFirebaseLoading(true);
@@ -1209,7 +1222,7 @@ function addPI(){
   const id='pi-'+piCount;
   const d=document.createElement('div');
   d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="purItemInput(this);calcPT()" onkeydown="purItemKey(event,'${id}',0)"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcPT)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="purItemInput(this);calcPT()" onkeydown="purItemKey(event,'${id}',0)" onblur="this.value=resolveItemShortcut(this.value.trim());calcPT()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcPT)">×</button>`;
   document.getElementById('pe-items').appendChild(d); calcPT();
   const row=document.getElementById(id);
   if(row){
@@ -1414,7 +1427,7 @@ function addSI(){
   const id='si-'+siCount;
   const d=document.createElement('div');
   d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="salItemInput(this);calcST()" onkeydown="salItemKey(event,'${id}',0)"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcST()" onkeydown="salItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcST()" onkeydown="salItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcST)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="salItemInput(this);calcST()" onkeydown="salItemKey(event,'${id}',0)" onblur="this.value=resolveItemShortcut(this.value.trim());calcST()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcST()" onkeydown="salItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcST()" onkeydown="salItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcST)">×</button>`;
   document.getElementById('se-items').appendChild(d); calcST();
   const row=document.getElementById(id);
   if(row){
