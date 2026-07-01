@@ -151,7 +151,9 @@ tbody td{padding:8px 11px}
 #login-box h2{color:#1a6b3a;margin-bottom:20px;font-size:20px;}
 #login-box input{width:100%;padding:12px;border:1.5px solid #ccc;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box;}
 #login-box button{width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit;}
-#login-box .err{color:#c0392b;font-size:13px;margin-top:8px;}
+#login-box .err{color:#c0392b;font-size:13px;margin-top:8px;}.suggest-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border,#ddd);border-radius:10px;max-height:220px;overflow-y:auto;z-index:100;box-shadow:0 6px 16px rgba(0,0,0,.18);display:none;margin-top:2px}
+.suggest-item{padding:10px 14px;font-size:13px;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.suggest-item:active,.suggest-item:hover{background:#f0faf4}
 </style>
 </head>
 <body>
@@ -193,6 +195,7 @@ tbody td{padding:8px 11px}
   <div id="fb-loading"><span class="spinner"></span>Firebase இணைகிறது... தரவு வருகிறது</div>
   <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
     <button class="btn bsm" onclick="refreshFromFirebase()" style="font-size:12px;background:#e6f7ed;color:#1a6b3a;border:1.5px solid #27ae60;font-weight:700">🔄 Refresh</button>
+    <button class="btn bsm" onclick="fixMissingCommission()" style="font-size:11px;background:#fff8e6;color:#b8860b;border:1.5px solid #d4af37;font-weight:700">🔧 கமிஷன் Fix</button>
     <button class="btn bsm" onclick="clearAllData()" style="font-size:10px;background:#f5f0ea;color:#aaa;border:1px solid #ddd">🗑 Clear All Data</button>
   </div>
   <div class="dash-grid">
@@ -218,7 +221,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🌿 Purchase Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="pe-date" onchange="localStorage.setItem('kpr-pur-date',this.value)"></div>
-        <div class="fg"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" oninput="autoFillComm(this.value)" onkeydown="supEnterJump(event)"><datalist id="sup-dl"></datalist><datalist id="cust-dl"></datalist></div>
+        <div class="fg" style="position:relative"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" autocomplete="off" oninput="onSupInput(this.value)" onkeydown="supEnterJump(event)" onblur="setTimeout(()=>hideSuggest('pe-sup-list'),200)" onfocus="onSupInput(this.value)"><datalist id="sup-dl"></datalist><datalist id="cust-dl"></datalist><div id="pe-sup-list" class="suggest-list"></div></div>
       </div>
       <div class="frow">
         <div class="fg"><label>வகை</label>
@@ -325,7 +328,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🛒 Sales Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="se-date" onchange="localStorage.setItem('kpr-sal-date',this.value)"></div>
-        <div class="fg"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" list="par-dl" oninput="autoFillCustPrev(this.value)"><datalist id="par-dl"></datalist></div>
+        <div class="fg" style="position:relative"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" list="par-dl" autocomplete="off" oninput="onParInput(this.value)" onblur="setTimeout(()=>hideSuggest('se-par-list'),200)" onfocus="onParInput(this.value)"><datalist id="par-dl"></datalist><div id="se-par-list" class="suggest-list"></div></div>
       </div>
       <div class="ihdr"><span>பொருள்</span><span>qty</span><span>விலை</span><span>மொத்தம்</span><span></span></div>
       <div id="se-items"></div>
@@ -1276,11 +1279,52 @@ function supEnterJump(e){
     if(firstItem) firstItem.focus();
   }
 }
+function normName_(s){ return (s||'').normalize('NFC').trim().toLowerCase().replace(/\s+/g,' '); }
+function hideSuggest(id){ const el=document.getElementById(id); if(el){ el.style.display='none'; el.innerHTML=''; } }
+function renderSuggestList(listEl, names, onPick){
+  listEl.innerHTML='';
+  if(!names.length){ listEl.style.display='none'; return; }
+  names.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='suggest-item';
+    d.textContent=n;
+    d.onmousedown=(e)=>{ e.preventDefault(); onPick(n); listEl.style.display='none'; listEl.innerHTML=''; };
+    listEl.appendChild(d);
+  });
+  listEl.style.display='block';
+}
+function onSupInput(val){
+  autoFillComm(val);
+  const listEl=document.getElementById('pe-sup-list');
+  if(!listEl) return;
+  const n=normName_(val);
+  const names=[...new Set(master.suppliers.map(s=>s.name))].filter(nm=>!n||normName_(nm).includes(n)).sort().slice(0,50);
+  renderSuggestList(listEl, names, (picked)=>{
+    document.getElementById('pe-sup').value=picked;
+    autoFillComm(picked);
+  });
+}
+function onParInput(val){
+  autoFillCustPrev(val);
+  const listEl=document.getElementById('se-par-list');
+  if(!listEl) return;
+  const n=normName_(val);
+  const names=[...new Set((master.customers||[]).map(c=>c.name))].filter(nm=>!n||normName_(nm).includes(n)).sort().slice(0,50);
+  renderSuggestList(listEl, names, (picked)=>{
+    document.getElementById('se-par').value=picked;
+    autoFillCustPrev(picked);
+  });
+}
+function findMasterSupplier(name){
+  const n=normName_(name);
+  if(!n) return null;
+  return master.suppliers.find(s=>normName_(s.name)===n) || null;
+}
 function autoFillComm(supName){
   const name=supName.trim();
   if(!name) return;
-  // First check master suppliers
-  const masterSup=master.suppliers.find(s=>s.name===name);
+  // First check master suppliers (normalized match)
+  const masterSup=findMasterSupplier(name);
   if(masterSup){
     const commEl=document.getElementById('pe-comm');
     const eduppuEl=document.getElementById('pe-eduppu');
@@ -1329,8 +1373,19 @@ function savePur(){
     if(name&&qty>0) items.push({name,qty,price,amount:qty*price});
     else if(!name&&!qty&&!price) r.remove(); // empty row remove
   });
-  const commPct=parseFloat(document.getElementById('pe-comm').value)||0;
-  const eduppuPct=parseFloat(document.getElementById('pe-eduppu').value)||0;
+  // Commission/எடுப்பு — master data-ல் இருந்து authoritative-ஆ எடு (typing/dropdown timing issue வந்தாலும் தப்பாம)
+  const masterSupAtSave=findMasterSupplier(sup);
+  let commPct, eduppuPct;
+  if(masterSupAtSave){
+    commPct=masterSupAtSave.comm!=null?masterSupAtSave.comm:10;
+    eduppuPct=masterSupAtSave.eduppu||0;
+  } else {
+    // Master-ல் இல்லன்னா, form-ல் (hidden) இருக்கிற மதிப்பை பயன்படுத்து, இல்லன்னா வகை default
+    const formComm=parseFloat(document.getElementById('pe-comm').value);
+    const formEduppu=parseFloat(document.getElementById('pe-eduppu').value);
+    commPct=!isNaN(formComm)?formComm:(supType==='வெளிகடை'?0:10);
+    eduppuPct=!isNaN(formEduppu)?formEduppu:0;
+  }
   const totalCommPct=commPct+eduppuPct;
   const commission=Math.round(total*totalCommPct/100*100)/100;
   const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission};
@@ -1685,7 +1740,7 @@ function monthClose(){
   const supNames=[...new Set(db.purchases.map(p=>p.supplier).filter(Boolean))];
   supNames.forEach(name=>{
     const entries=db.purchases.filter(p=>p.supplier===name);
-    const masterSup=master.suppliers.find(s=>s.name===name);
+    const masterSup=findMasterSupplier(name);
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
@@ -1701,7 +1756,7 @@ function monthClose(){
   const custNames=[...new Set(db.sales.map(s=>s.party).filter(Boolean))];
   custNames.forEach(name=>{
     const entries=db.sales.filter(s=>s.party===name);
-    const masterCust=master.customers.find(c=>c.name===name);
+    const masterCust=findMasterCustomer(name);
     const munPakki=masterCust&&masterCust.prev>0?masterCust.prev:0;
     const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
     const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
@@ -1734,7 +1789,7 @@ function generateMonthSlips(){
   
   supNames.forEach((name,si)=>{
     const entries=db.purchases.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
-    const masterSup=master.suppliers.find(s=>s.name===name);
+    const masterSup=findMasterSupplier(name);
     const oldPrev=masterSup?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
@@ -2063,7 +2118,7 @@ function renderSalMessages(){
     const dates=Object.keys(map[party]).sort();
     let msgBody='';
     // Master-ல இருந்து customer முன்பாக்கி எடு
-    const masterCustMsg=master.customers.find(c=>c.name===party);
+    const masterCustMsg=findMasterCustomer(party);
     const custMunPakki=masterCustMsg&&masterCustMsg.prev>0?masterCustMsg.prev:0;
     if(!isRange){
       const d=dates[0]; const dd=d.split('-').reverse().join('/'); const info=map[party][d];
@@ -2083,7 +2138,7 @@ function renderSalMessages(){
       msgBody=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${party} அவர்கள்,\n\n${rows}\nமொத்த விற்பனை: ₹${gt.toLocaleString('en-IN')}${gpr>0?'\nமுன் பாக்கி:    ₹'+gpr.toLocaleString('en-IN'):''}\nவரவு:          ₹${gp.toLocaleString('en-IN')}\nநிலுவை:        ₹${bal.toLocaleString('en-IN')}`;
     }
     const safeId='smsg_'+Math.random().toString(36).slice(2);
-    const phone=master.customers.find(c=>c.name===party)?.phone||'';
+    const phone=findMasterCustomer(party)?.phone||'';
   return{safeId,party,msgBody,phone};
   });
   const dateLabel=!isRange?'<div style="text-align:center;font-size:12px;color:#888;margin-bottom:8px">📅 '+fromDate.split('-').reverse().join('/')+' data</div>':'';
@@ -2236,7 +2291,7 @@ function genFullReport(mode){
       let partyTotal=0, partyPaid=0, partyBal=0;
       let rows='';
       // முன்பாக்கி from master
-      const masterCustSal=master.customers.find(c=>c.name===name);
+      const masterCustSal=findMasterCustomer(name);
       const salMunPakki=masterCustSal&&masterCustSal.prev>0?masterCustSal.prev:0;
       if(salMunPakki>0){
         rows+=`<tr style="background:#fff8e1"><td colspan="4" style="${tdStyle}"><b>முன் பாக்கி</b></td><td style="${tdR}" colspan="4"><b>${salMunPakki.toFixed(2)}</b></td></tr>`;
@@ -2323,7 +2378,7 @@ function _genReport(){
       // ===== SUPPLIER RECEIPT FORMAT (like KPR slip) =====
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு
-      const masterSup=master.suppliers.find(s=>s.name===normName);
+      const masterSup=findMasterSupplier(normName);
       // முன்பாக்கி தேதி check — from date-க்கு முன்னாடி இருந்தா மட்டும் காட்டு
       const prevDateOk=!masterSup?.prevDate || (masterSup.prevDate <= from);
       const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
@@ -2413,7 +2468,7 @@ function _genReport(){
       // ===== CUSTOMER RECEIPT FORMAT =====
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு, இல்லன்னா entries-ல் பார்
-      const masterCust=master.customers.find(c=>c.name===normName);
+      const masterCust=findMasterCustomer(normName);
       const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:0;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
       const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
@@ -2497,9 +2552,14 @@ function alert2(msg,type='ok'){
 }
 
 function updateSupDL(){ try{ const s=new Set([...(master.suppliers||[]).map(x=>x.name), ...db.purchases.map(p=>p.supplier)]); const dl=document.getElementById('sup-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ if(!v) return; const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
+function findMasterCustomer(name){
+  const n=normName_(name);
+  if(!n) return null;
+  return (master.customers||[]).find(c=>normName_(c.name)===n) || null;
+}
 function autoFillCustPrev(name){
   if(!name) return;
-  const cust=master.customers.find(c=>c.name===name.trim());
+  const cust=findMasterCustomer(name);
   if(cust && cust.prev>0){
     document.getElementById('se-prev').value=cust.prev;
     calcSB();
@@ -2514,7 +2574,7 @@ function syncMasterFromDB(){
   // Auto-add suppliers from purchases to master
   let changed=false;
   db.purchases.forEach(p=>{
-    if(p.supplier && !master.suppliers.find(s=>s.name===p.supplier)){
+    if(p.supplier && !findMasterSupplier(p.supplier)){
       master.suppliers.push({
         name:p.supplier,
         town:'',phone:'',
@@ -2527,7 +2587,7 @@ function syncMasterFromDB(){
   });
   // Auto-add customers from sales to master
   db.sales.forEach(s=>{
-    if(s.party && !master.customers.find(c=>c.name===s.party)){
+    if(s.party && !findMasterCustomer(s.party)){
       master.customers.push({name:s.party,town:'',phone:'',prev:s.prev||0});
       changed=true;
     }
@@ -2535,6 +2595,32 @@ function syncMasterFromDB(){
   if(changed){ saveMasterLocal(); updateAllDataLists(); }
 }
 
+function fixMissingCommission(){
+  const affected=(db.purchases||[]).filter(p=>{
+    const ms=findMasterSupplier(p.supplier);
+    const shouldComm=ms?(ms.comm!=null?ms.comm:10):(p.supType==='வெளிகடை'?0:10);
+    const shouldEduppu=ms?(ms.eduppu||0):0;
+    const shouldTotalPct=shouldComm+shouldEduppu;
+    const currentPct=(p.commPct||0)+(p.eduppuPct||0);
+    return currentPct===0 && shouldTotalPct>0 && p.total>0;
+  });
+  if(!affected.length){ alert2('கமிஷன் missing entries எதுவும் இல்லை ✅','ok'); return; }
+  if(!confirm(affected.length+' purchase entries-ல் கமிஷன் காணாம இருக்கு. Master data-ல் இருந்து சரியா recalculate பண்ணி Firebase-ல் update பண்ணலாமா?')) return;
+  affected.forEach(p=>{
+    const ms=findMasterSupplier(p.supplier);
+    const commPct=ms?(ms.comm!=null?ms.comm:10):(p.supType==='வெளிகடை'?0:10);
+    const eduppuPct=ms?(ms.eduppu||0):0;
+    const totalPct=commPct+eduppuPct;
+    p.commPct=commPct; p.eduppuPct=eduppuPct;
+    p.commission=Math.round(p.total*totalPct/100*100)/100;
+  });
+  saveLocal(); updateDash(); renderPL();
+  saveDB().then(()=>{
+    alert2('✅ '+affected.length+' entries கமிஷன் Fix ஆயிடுச்சு! ☁️','ok');
+  }).catch(()=>{
+    alert2('⚠️ Local-ல் Fix ஆச்சு, Firebase sync ஆகல!','warn');
+  });
+}
 function refreshFromFirebase(){
   loadMasterFirebase(); // master data-வும் reload
   showFirebaseLoading(true);
