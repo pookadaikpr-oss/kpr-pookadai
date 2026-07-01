@@ -2,6 +2,9 @@
 <html lang="ta">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KPR பூ கடை</title>
 <link rel="manifest" id="pwa-manifest">
@@ -2683,7 +2686,7 @@ if('serviceWorker' in navigator){
   const swCode = `
     self.addEventListener('install', e => self.skipWaiting());
     self.addEventListener('activate', e => clients.claim());
-    self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(()=>new Response(''))));
+    self.addEventListener('fetch', e => e.respondWith(fetch(e.request, {cache:'no-store'}).catch(()=>fetch(e.request).catch(()=>new Response('')))));
   `;
   const swBlob = new Blob([swCode], {type:'text/javascript'});
   const swURL = URL.createObjectURL(swBlob);
