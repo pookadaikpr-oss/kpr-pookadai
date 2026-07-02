@@ -1535,14 +1535,9 @@ function savePur(){
   db.purchases.push(newPur);
   saveLocal();
   updateSupDL(); updateDash();
-  const listBtn2=document.querySelector('#pg-purchase .stab:nth-child(3)');
-  const purListDiv=document.getElementById('pur-list');
-  const purEntryDiv=document.getElementById('pur-entry');
-  if(purEntryDiv) purEntryDiv.style.display='none';
-  if(purListDiv) purListDiv.style.display='block';
-  if(listBtn2){ document.querySelectorAll('#pg-purchase .stab').forEach(b=>b.classList.remove('on')); listBtn2.classList.add('on'); }
   clearPur();
-  renderPL();
+  const supField=document.getElementById('pe-sup');
+  if(supField) supField.focus();
   saveDB().then(()=>{
     alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
   }).catch(()=>{
@@ -1649,16 +1644,10 @@ function saveSal(){
   db.sales.push(newSal);
   saveLocal();
   updateParDL(); updateDash();
-  // Switch to list tab first, then render
-  const listBtn=document.querySelector('#pg-sales .stab:nth-child(3)');
-  const salListDiv=document.getElementById('sal-list');
-  const salEntryDiv=document.getElementById('sal-entry');
-  if(salEntryDiv) salEntryDiv.style.display='none';
-  if(salListDiv) salListDiv.style.display='block';
-  if(listBtn){ document.querySelectorAll('#pg-sales .stab').forEach(b=>b.classList.remove('on')); listBtn.classList.add('on'); }
   clearSal();
+  const parField=document.getElementById('se-par');
+  if(parField) parField.focus();
   if(btn) btn.disabled=false;
-  renderSL();
   saveDB().then(()=>{
     alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
   }).catch(()=>{
