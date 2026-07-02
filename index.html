@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260702-v21';
+  var APP_BUILD = '20260702-v22';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -536,6 +536,7 @@ tbody td{padding:8px 11px}
       <button class="stab" id="rpt-range-btn" onclick="setRptMode('range')">📆 Date Range</button>
       <button class="stab" id="rpt-party-btn" onclick="setRptMode('party')">👤 தனியார்</button>
       <button class="stab" id="rpt-full-btn" onclick="setRptMode('full')" style="font-size:11px">📋 Full</button>
+      <button class="stab" id="rpt-kilo-btn" onclick="setRptMode('kilo')" style="font-size:11px">🌸 பூ கிலோ</button>
     </div>
     <div id="rpt-month-filter">
       <div class="frow">
@@ -581,6 +582,12 @@ tbody td{padding:8px 11px}
         <button class="btn bg" style="padding:10px 4px;font-size:12px" onclick="genFullReport('purchase')">🌿 Purchase</button>
         <button class="btn bo" style="padding:10px 4px;font-size:12px" onclick="genFullReport('sales')">🛒 Sales</button>
         <button class="btn" style="padding:10px 4px;font-size:12px;background:#555;color:#fff" onclick="genFullReport('both')">📊 Full</button>
+      </div>
+    </div>
+    <div id="rpt-kilo-filter" style="display:none">
+      <div class="frow">
+        <div class="fg"><label>தேதி</label><input type="date" id="rpt-kilo-date"></div>
+        <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn bg" onclick="genKiloReport()">📊 Generate</button></div>
       </div>
     </div>
   </div>
@@ -2316,13 +2323,43 @@ function copyMsgById(btn){
 let rptMode='month', rptPartyType='sup';
 function setRptMode(m){
   rptMode=m;
-  ['month','range','party','full'].forEach(x=>{
+  ['month','range','party','full','kilo'].forEach(x=>{
     const f=document.getElementById('rpt-'+x+'-filter');
     const b=document.getElementById('rpt-'+x+'-btn');
     if(f) f.style.display=x===m?'block':'none';
     if(b) b.classList.toggle('on',x===m);
   });
   if(m==='party') updateRptPartyDL();
+}
+function genKiloReport(){
+  const date=document.getElementById('rpt-kilo-date').value;
+  if(!date) return alert2('தேதி தேர்வு பண்ணுங்க!','err');
+  const DIRECT_KG=['பச்சை','கஞ்சா','துளசி','செவ்வந்தி','கோழி','நந்தி','அருகு'];
+  const map={};
+  db.purchases.filter(p=>p.date===date).forEach(p=>{
+    (p.items||[]).forEach(it=>{
+      if(!it.name) return;
+      const isDirect=DIRECT_KG.some(k=>it.name.includes(k));
+      const kg=isDirect?(it.qty||0):(it.qty||0)/10;
+      map[it.name]=(map[it.name]||0)+kg;
+    });
+  });
+  const rows=Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const out=document.getElementById('rpt-out');
+  const printRow=document.getElementById('rpt-print-btn-row');
+  if(!rows.length){
+    out.innerHTML='<div class="empty"><div class="eico">🌸</div>இந்த தேதிக்கு entries இல்லை</div>';
+    if(printRow) printRow.style.display='none';
+    return;
+  }
+  const totalKg=rows.reduce((a,r)=>a+r[1],0);
+  out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">🌸 பூ கிலோ Report — ${fmtDate(date)}</div>
+    <table><thead><tr><th>பூ</th><th>மொத்த கிலோ</th></tr></thead><tbody>
+    ${rows.map(([name,kg])=>`<tr><td>${name}</td><td><b>${kg.toFixed(2)} கிலோ</b></td></tr>`).join('')}
+    </tbody></table>
+    <div class="totbar" style="margin-top:10px"><span>மொத்தம்</span><span>${totalKg.toFixed(2)} கிலோ</span></div>
+  </div>`;
+  if(printRow) printRow.style.display='block';
 }
 function setFullMonth(val){
   if(!val) return;
