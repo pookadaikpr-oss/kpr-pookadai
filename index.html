@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260702-v18';
+  var APP_BUILD = '20260702-v19';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2814,7 +2814,15 @@ function delMisc(id){
   saveLocal(); renderMisc();
   saveDB().catch(()=>{});
 }
+function updateMiscCatDL(){
+  const base=['பெட்ரோல்','Carry Bag','சாக்கு','கூலி','மின்சாரம்','வாடகை','பராமரிப்பு'];
+  const used=(db.misc||[]).map(m=>m.cat).filter(Boolean);
+  const all=[...new Set([...base,...used])].sort();
+  const dl=document.getElementById('mx-cat-dl');
+  if(dl) dl.innerHTML=all.map(c=>`<option value="${c}">`).join('');
+}
 function renderMisc(){
+  updateMiscCatDL();
   const list=(db.misc||[]).slice().sort((a,b)=>String(b.id).localeCompare(String(a.id)));
   const from=document.getElementById('mx-from')?document.getElementById('mx-from').value:'';
   const to=document.getElementById('mx-to')?document.getElementById('mx-to').value:'';
