@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260702-v19';
+  var APP_BUILD = '20260702-v20';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -687,12 +687,18 @@ tbody td{padding:8px 11px}
     <div class="dash-card gold" style="text-align:center"><div class="lbl">இந்த வருஷம்</div><div class="val" id="mx-year-tot">₹0</div></div>
   </div>
 
-  <div class="card">
-    <div class="sec" style="margin-top:0">📋 இதர செலவு List</div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="sec" style="margin-top:0">📊 வகை வாரியா சுருக்கம்</div>
     <div class="frow t2" style="margin-bottom:10px">
       <div class="fg"><label style="font-size:11px">From</label><input type="date" id="mx-from" oninput="renderMisc()"></div>
       <div class="fg"><label style="font-size:11px">To</label><input type="date" id="mx-to" oninput="renderMisc()"></div>
     </div>
+    <div id="mx-cat-summary"></div>
+  </div>
+
+  <div class="card">
+    <div class="sec" style="margin-top:0">📋 இதர செலவு List</div>
+    <div class="fg" style="margin-bottom:10px"><label style="font-size:11px">வகை Filter</label><select id="mx-cat-filter" onchange="renderMisc()"><option value="">எல்லா வகையும்</option></select></div>
     <div style="overflow-x:auto"><table>
       <thead><tr><th>தேதி</th><th>வகை</th><th>பற்று</th><th>வரவு</th><th></th></tr></thead>
       <tbody id="mx-list"></tbody>
@@ -2826,11 +2832,42 @@ function renderMisc(){
   const list=(db.misc||[]).slice().sort((a,b)=>String(b.id).localeCompare(String(a.id)));
   const from=document.getElementById('mx-from')?document.getElementById('mx-from').value:'';
   const to=document.getElementById('mx-to')?document.getElementById('mx-to').value:'';
-  const filtered=list.filter(m=>(!from||m.date>=from)&&(!to||m.date<=to));
+  const dateFiltered=list.filter(m=>(!from||m.date>=from)&&(!to||m.date<=to));
+
+  // வகை filter dropdown populate (dateFiltered-ல் இருக்கிற categories)
+  const catSel=document.getElementById('mx-cat-filter');
+  if(catSel){
+    const cats=[...new Set(dateFiltered.map(m=>m.cat))].sort();
+    const curVal=catSel.value;
+    catSel.innerHTML='<option value="">எல்லா வகையும்</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+    if(cats.includes(curVal)) catSel.value=curVal;
+  }
+  const catFilterVal=catSel?catSel.value:'';
+  const filtered=dateFiltered.filter(m=>!catFilterVal||m.cat===catFilterVal);
+
   const tbody=document.getElementById('mx-list');
   if(tbody){
     tbody.innerHTML=filtered.length?filtered.map(m=>`<tr><td>${fmtDate(m.date)}</td><td>${m.cat}${m.note?'<br><span style="font-size:10px;color:#888">'+m.note+'</span>':''}</td><td>${m.paid>0?'₹'+m.paid.toFixed(2):''}</td><td>${m.in>0?'₹'+m.in.toFixed(2):''}</td><td><button class="btn br bsm" onclick="delMisc('${m.id}')">🗑</button></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Entries இல்லை</td></tr>';
   }
+
+  // வகை வாரியா சுருக்கம் (date range-க்குள் உள்ள அனைத்தும், cat filter தவிர்த்து)
+  const summaryDiv=document.getElementById('mx-cat-summary');
+  if(summaryDiv){
+    const catMap={};
+    dateFiltered.forEach(m=>{
+      if(!catMap[m.cat]) catMap[m.cat]={paid:0,in:0};
+      catMap[m.cat].paid+=(m.paid||0);
+      catMap[m.cat].in+=(m.in||0);
+    });
+    const rows=Object.entries(catMap).sort((a,b)=>(b[1].paid-b[1].in)-(a[1].paid-a[1].in));
+    if(rows.length){
+      const grandTot=rows.reduce((a,r)=>a+r[1].paid-r[1].in,0);
+      summaryDiv.innerHTML=rows.map(([cat,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px"><span>${cat}</span><span style="font-weight:700;color:#c0392b">₹${(v.paid-v.in).toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-weight:700;font-size:13px;color:var(--green)"><span>மொத்தம்</span><span>₹${grandTot.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`;
+    } else {
+      summaryDiv.innerHTML='<div style="text-align:center;color:#999;padding:10px;font-size:13px">Entries இல்லை</div>';
+    }
+  }
+
   const now=new Date();
   const curMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const curYear=String(now.getFullYear());
