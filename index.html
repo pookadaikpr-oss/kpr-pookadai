@@ -1537,7 +1537,7 @@ function savePur(){
   updateSupDL(); updateDash();
   clearPur();
   const supField=document.getElementById('pe-sup');
-  if(supField) supField.focus();
+  setTimeout(()=>{ if(supField) supField.focus(); },150);
   saveDB().then(()=>{
     alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
   }).catch(()=>{
@@ -1646,7 +1646,7 @@ function saveSal(){
   updateParDL(); updateDash();
   clearSal();
   const parField=document.getElementById('se-par');
-  if(parField) parField.focus();
+  setTimeout(()=>{ if(parField) parField.focus(); },150);
   if(btn) btn.disabled=false;
   saveDB().then(()=>{
     alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
