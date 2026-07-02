@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260701-v17';
+  var APP_BUILD = '20260702-v18';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -197,6 +197,7 @@ tbody td{padding:8px 11px}
     <button class="nav-btn" onclick="goPage('sales',this)">🛒 Sales</button>
     <button class="nav-btn" onclick="goPage('pay',this)">💰 Payments</button>
     <button class="nav-btn" onclick="goPage('report',this)">📈 Report</button>
+    <button class="nav-btn" onclick="goPage('misc',this)">🧾 இதர செலவு</button>
   </div>
 </div>
 
@@ -659,6 +660,46 @@ tbody td{padding:8px 11px}
   </div>
 </div>
 
+<!-- MISC EXPENSES -->
+<div class="pg" id="pg-misc">
+  <div class="card" style="margin-bottom:12px">
+    <div class="sec" style="margin-top:0">🧾 இதர செலவு Entry</div>
+    <div class="frow t2" style="margin-bottom:8px">
+      <div class="fg"><label>தேதி</label><input type="date" id="mx-date"></div>
+      <div class="fg"><label>வகை</label><input type="text" id="mx-cat" placeholder="பெட்ரோல் / Carry Bag / சாக்கு..." list="mx-cat-dl"><datalist id="mx-cat-dl"><option value="பெட்ரோல்"><option value="Carry Bag"><option value="சாக்கு"><option value="கூலி"><option value="மின்சாரம்"><option value="வாடகை"><option value="பராமரிப்பு"></datalist></div>
+    </div>
+    <div class="frow t2" style="margin-bottom:8px">
+      <div class="fg"><label>பற்று (செலவு)</label><input type="number" id="mx-paid" placeholder="0" min="0"></div>
+      <div class="fg"><label>வரவு (திரும்ப வந்தது)</label><input type="number" id="mx-in" placeholder="0" min="0"></div>
+    </div>
+    <div class="frow" style="margin-bottom:8px">
+      <div class="fg"><label>குறிப்பு</label><input type="text" id="mx-note" placeholder="Optional"></div>
+      <div class="fg"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn bo" style="flex:1" onclick="saveMisc()">💾 Save</button>
+      <button class="btn boo" style="flex:1" onclick="clearMisc()">🔄 Clear</button>
+    </div>
+  </div>
+
+  <div class="frow t2" style="margin-bottom:12px">
+    <div class="dash-card" style="text-align:center"><div class="lbl">இந்த மாதம்</div><div class="val" id="mx-month-tot" style="color:#c0392b">₹0</div></div>
+    <div class="dash-card gold" style="text-align:center"><div class="lbl">இந்த வருஷம்</div><div class="val" id="mx-year-tot">₹0</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec" style="margin-top:0">📋 இதர செலவு List</div>
+    <div class="frow t2" style="margin-bottom:10px">
+      <div class="fg"><label style="font-size:11px">From</label><input type="date" id="mx-from" oninput="renderMisc()"></div>
+      <div class="fg"><label style="font-size:11px">To</label><input type="date" id="mx-to" oninput="renderMisc()"></div>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>தேதி</th><th>வகை</th><th>பற்று</th><th>வரவு</th><th></th></tr></thead>
+      <tbody id="mx-list"></tbody>
+    </table></div>
+  </div>
+</div>
+
 <datalist id="flower-dl">
   <option value="மல்லி"><option value="முல்லை"><option value="கஞ்சா"><option value="சம்பங்கி">
   <option value="டிங்டாங்"><option value="அரளி"><option value="பச்சை"><option value="செவ்வந்தி">
@@ -1076,13 +1117,13 @@ function resolveItemShortcut(val){
   return val;
 }
 const LOCAL_KEY = 'kpr-db-v2';
-let db = { purchases:[], sales:[], payments:[], commissions:{} };
+let db = { purchases:[], sales:[], payments:[], commissions:{}, misc:[] };
 
 function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(db)); }catch(e){} }
 function loadLocal(){
   try{
     const d=localStorage.getItem(LOCAL_KEY);
-    if(d){ const p=JSON.parse(d); if(p&&p.purchases){ db=p; if(!db.commissions) db.commissions={}; } }
+    if(d){ const p=JSON.parse(d); if(p&&p.purchases){ db=p; if(!db.commissions) db.commissions={}; if(!db.misc) db.misc=[]; } }
   }catch(e){}
 }
 
@@ -1164,16 +1205,19 @@ window.addEventListener('DOMContentLoaded', function(){
           const fbSal = toArr(data.sales||[]);
           const fbPay = toArr(data.payments||[]);
           const fbComm = data.commissions||{};
+          const fbMisc = toArr(data.misc||[]);
           const fbCount = fbPur.length + fbSal.length;
           if(fbCount > 0){
             const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
             const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
             const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
+            const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
             db = {
               purchases:[...fbPur,...localPur],
               sales:[...fbSal,...localSal],
               payments:[...fbPay,...localPay],
-              commissions:Object.assign({},fbComm,db.commissions||{})
+              commissions:Object.assign({},fbComm,db.commissions||{}),
+              misc:[...fbMisc,...localMisc]
             };
             dedupDB(); saveLocal();
             syncMasterFromDB();
@@ -1224,6 +1268,7 @@ function goPage(id, btn){
   if(id==='pay') renderPay();
   if(id==='purchase') renderPL();
   if(id==='sales') renderSL();
+  if(id==='misc'){ document.getElementById('mx-date').value=today; renderMisc(); }
 }
 
 function stab(page, tab, btn){
@@ -2713,14 +2758,15 @@ function refreshFromFirebase(){
         const fbSal=toArr(data.sales||[]);
         const fbPay=toArr(data.payments||[]);
         const fbComm=data.commissions||{};
-        db={purchases:fbPur,sales:fbSal,payments:fbPay,commissions:fbComm};
+        const fbMisc=toArr(data.misc||[]);
+        db={purchases:fbPur,sales:fbSal,payments:fbPay,commissions:fbComm,misc:fbMisc};
         dedupDB(); saveLocal();
-        updateDash(); renderPL(); renderSL(); renderPay();
+        updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
         alert2('✅ Data refreshed! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
       } else {
         // Firebase empty — local-ஐயும் clear பண்று
-        db={purchases:[],sales:[],payments:[],commissions:{}};
+        db={purchases:[],sales:[],payments:[],commissions:{},misc:[]};
         saveLocal();
         updateDash(); renderPL(); renderSL(); renderPay();
         alert2('⚠️ Firebase-ல் data இல்லை — Local data-உம் clear ஆச்சு','warn');
@@ -2737,9 +2783,53 @@ function clearAllData(){
   if(pwd===null) return;
   if(pwd!=='kpr2024') return alert2('❌ Password தப்பு!','err');
   if(!confirm('எல்லா data-யும் delete பண்றீங்களா? Firebase-லயும் போகும்!')) return;
-  db={purchases:[],sales:[],payments:[],commissions:{}};
+  db={purchases:[],sales:[],payments:[],commissions:{},misc:[]};
   saveDB(); updateDash(); renderPL(); renderSL(); renderPay();
   alert2('🗑 All data cleared!','warn');
+}
+function saveMisc(){
+  const date=document.getElementById('mx-date').value;
+  const cat=document.getElementById('mx-cat').value.trim();
+  const paid=parseFloat(document.getElementById('mx-paid').value)||0;
+  const inAmt=parseFloat(document.getElementById('mx-in').value)||0;
+  const note=document.getElementById('mx-note').value.trim();
+  if(!date) return alert2('தேதி தேர்வு பண்ணுங்க!','err');
+  if(!cat) return alert2('வகை type பண்ணுங்க!','err');
+  if(paid<=0 && inAmt<=0) return alert2('பற்று அல்லது வரவு amount போடுங்க!','err');
+  if(!db.misc) db.misc=[];
+  db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note});
+  saveLocal(); clearMisc(); renderMisc();
+  saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல!','warn'); });
+}
+function clearMisc(){
+  document.getElementById('mx-date').value=today;
+  document.getElementById('mx-cat').value='';
+  document.getElementById('mx-paid').value='';
+  document.getElementById('mx-in').value='';
+  document.getElementById('mx-note').value='';
+}
+function delMisc(id){
+  if(!confirm('இந்த entry delete பண்றீங்களா?')) return;
+  db.misc=(db.misc||[]).filter(m=>String(m.id)!==String(id));
+  saveLocal(); renderMisc();
+  saveDB().catch(()=>{});
+}
+function renderMisc(){
+  const list=(db.misc||[]).slice().sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+  const from=document.getElementById('mx-from')?document.getElementById('mx-from').value:'';
+  const to=document.getElementById('mx-to')?document.getElementById('mx-to').value:'';
+  const filtered=list.filter(m=>(!from||m.date>=from)&&(!to||m.date<=to));
+  const tbody=document.getElementById('mx-list');
+  if(tbody){
+    tbody.innerHTML=filtered.length?filtered.map(m=>`<tr><td>${fmtDate(m.date)}</td><td>${m.cat}${m.note?'<br><span style="font-size:10px;color:#888">'+m.note+'</span>':''}</td><td>${m.paid>0?'₹'+m.paid.toFixed(2):''}</td><td>${m.in>0?'₹'+m.in.toFixed(2):''}</td><td><button class="btn br bsm" onclick="delMisc('${m.id}')">🗑</button></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Entries இல்லை</td></tr>';
+  }
+  const now=new Date();
+  const curMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const curYear=String(now.getFullYear());
+  const monthTot=(db.misc||[]).filter(m=>m.date&&m.date.startsWith(curMonth)).reduce((a,m)=>a+(m.paid||0)-(m.in||0),0);
+  const yearTot=(db.misc||[]).filter(m=>m.date&&m.date.startsWith(curYear)).reduce((a,m)=>a+(m.paid||0)-(m.in||0),0);
+  const mEl=document.getElementById('mx-month-tot'); if(mEl) mEl.textContent='₹'+monthTot.toLocaleString('en-IN',{minimumFractionDigits:2});
+  const yEl=document.getElementById('mx-year-tot'); if(yEl) yEl.textContent='₹'+yearTot.toLocaleString('en-IN',{minimumFractionDigits:2});
 }
 </script>
 
