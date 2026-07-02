@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260702-v22';
+  var APP_BUILD = '20260702-v25';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -444,10 +444,12 @@ tbody td{padding:8px 11px}
   </div>
   <div id="pay-sup">
     <div class="sec" style="margin-top:6px">🏪 Supplier நிலுவை</div>
+    <input type="text" id="sup-due-search" placeholder="🔍 Supplier பெயர் தேடு..." oninput="renderPay()" style="width:100%;padding:9px 12px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">
     <div id="sup-due-list"></div>
   </div>
   <div id="pay-cust" style="display:none">
     <div class="sec" style="margin-top:6px">👤 Customer நிலுவை</div>
+    <input type="text" id="cust-due-search" placeholder="🔍 Customer பெயர் தேடு..." oninput="renderPay()" style="width:100%;padding:9px 12px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">
     <div id="cust-due-list"></div>
   </div>
   <div id="pay-ledger" style="display:none">
@@ -1477,7 +1479,7 @@ function savePur(){
     // Master-ல் இல்லன்னா, form-ல் (hidden) இருக்கிற மதிப்பை பயன்படுத்து, இல்லன்னா வகை default
     const formComm=parseFloat(document.getElementById('pe-comm').value);
     const formEduppu=parseFloat(document.getElementById('pe-eduppu').value);
-    commPct=!isNaN(formComm)?formComm:(supType==='வெளிகடை'?0:10);
+    commPct=!isNaN(formComm)?formComm:((supType==='வெளிகடை'||supType==='வெளியூர்')?0:10);
     eduppuPct=!isNaN(formEduppu)?formEduppu:0;
   }
   const totalCommPct=commPct+eduppuPct;
@@ -1951,22 +1953,26 @@ function renderPay(){
   const sm={};
   db.purchases.forEach(p=>{ if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0}; sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0); });
   const sdiv=document.getElementById('sup-due-list');
-  const slist=Object.entries(sm).sort((a,b)=>a[0].localeCompare(b[0]));
+  const supSearchEl=document.getElementById('sup-due-search');
+  const supSearch=supSearchEl?normName_(supSearchEl.value):'';
+  const slist=Object.entries(sm).filter(([n])=>!supSearch||normName_(n).includes(supSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
     return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div><button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${v.total-v.comm-v.paid})">💸 Pay</button></div>`;
-  }).join(''):'<div class="empty"><div class="eico">✅</div>Supplier data இல்லை</div>';
+  }).join(''):`<div class="empty"><div class="eico">${supSearch?'🔍':'✅'}</div>${supSearch?'இந்த பெயர்-ல supplier இல்லை':'Supplier data இல்லை'}</div>`;
   const cm={};
   db.sales.forEach(s=>{ if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
   const cdiv=document.getElementById('cust-due-list');
-  const clist=Object.entries(cm).sort((a,b)=>a[0].localeCompare(b[0]));
+  const custSearchEl=document.getElementById('cust-due-search');
+  const custSearch=custSearchEl?normName_(custSearchEl.value):'';
+  const clist=Object.entries(cm).filter(([n])=>!custSearch||normName_(n).includes(custSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   cdiv.innerHTML=clist.length?clist.map(([n,v])=>{
     const mc=findMasterCustomer(n);
     const openingPrev=mc&&mc.prev>0?mc.prev:0;
     const grandTotal=v.total+openingPrev;
     const dueBal=grandTotal-v.paid;
     return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px">🛒 ${n}</div><div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த பாக்கி</span><span>₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>வரவு</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700"><span>நிலுவை</span><span style="color:${dueBal>0?'var(--red)':'var(--green)'}">₹${dueBal.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div>${dueBal>0?`<button class="btn bo bsm" style="width:100%" onclick="collectCust('${n.replace(/'/g,"\\'")}',${dueBal})">💰 Receive</button>`:'<div style="text-align:center;font-size:12px;color:var(--green)">✅ தீர்ந்தது</div>'}</div>`;
-  }).join(''):'<div class="empty"><div class="eico">✅</div>Customer data இல்லை</div>';
+  }).join(''):`<div class="empty"><div class="eico">${custSearch?'🔍':'✅'}</div>${custSearch?'இந்த பெயர்-ல customer இல்லை':'Customer data இல்லை'}</div>`;
 }
 
 function setCommission(supplier,pct){
@@ -2764,18 +2770,19 @@ function syncMasterFromDB(){
 
 function fixMissingCommission(){
   const affected=(db.purchases||[]).filter(p=>{
+    if(!(p.total>0)) return false;
     const ms=findMasterSupplier(p.supplier);
-    const shouldComm=ms?(ms.comm!=null?ms.comm:10):(p.supType==='வெளிகடை'?0:10);
+    const shouldComm=ms?(ms.comm!=null?ms.comm:10):((p.supType==='வெளிகடை'||p.supType==='வெளியூர்')?0:10);
     const shouldEduppu=ms?(ms.eduppu||0):0;
     const shouldTotalPct=shouldComm+shouldEduppu;
     const currentPct=(p.commPct||0)+(p.eduppuPct||0);
-    return currentPct===0 && shouldTotalPct>0 && p.total>0;
+    return currentPct!==shouldTotalPct;
   });
-  if(!affected.length){ alert2('கமிஷன் missing entries எதுவும் இல்லை ✅','ok'); return; }
-  if(!confirm(affected.length+' purchase entries-ல் கமிஷன் காணாம இருக்கு. Master data-ல் இருந்து சரியா recalculate பண்ணி Firebase-ல் update பண்ணலாமா?')) return;
+  if(!affected.length){ alert2('கமிஷன் mismatch entries எதுவும் இல்லை ✅','ok'); return; }
+  if(!confirm(affected.length+' purchase entries-ல் கமிஷன் master data-ல் இருந்து வித்தியாசமா இருக்கு (0→10% அல்லது 10%→0% ரெண்டு directions-லயும்). Recalculate பண்ணி Firebase-ல் update பண்ணலாமா?')) return;
   affected.forEach(p=>{
     const ms=findMasterSupplier(p.supplier);
-    const commPct=ms?(ms.comm!=null?ms.comm:10):(p.supType==='வெளிகடை'?0:10);
+    const commPct=ms?(ms.comm!=null?ms.comm:10):((p.supType==='வெளிகடை'||p.supType==='வெளியூர்')?0:10);
     const eduppuPct=ms?(ms.eduppu||0):0;
     const totalPct=commPct+eduppuPct;
     p.commPct=commPct; p.eduppuPct=eduppuPct;
