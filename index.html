@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260702-v20';
+  var APP_BUILD = '20260702-v21';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -174,7 +174,7 @@ tbody td{padding:8px 11px}
 #login-box button{width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit;}
 #login-box .err{color:#c0392b;font-size:13px;margin-top:8px;}.suggest-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border,#ddd);border-radius:10px;max-height:220px;overflow-y:auto;z-index:100;box-shadow:0 6px 16px rgba(0,0,0,.18);display:none;margin-top:2px}
 .suggest-item{padding:10px 14px;font-size:13px;border-bottom:1px solid #f0f0f0;cursor:pointer}
-.suggest-item:active,.suggest-item:hover{background:#f0faf4}
+.suggest-item:active,.suggest-item:hover{background:#c8e6c9;color:#0d3d1f;font-weight:700}
 </style>
 </head>
 <body>
@@ -243,7 +243,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🌿 Purchase Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="pe-date" onchange="localStorage.setItem('kpr-pur-date',this.value)"></div>
-        <div class="fg" style="position:relative"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" list="sup-dl" autocomplete="off" oninput="onSupInput(this.value)" onkeydown="supEnterJump(event)" onblur="setTimeout(()=>hideSuggest('pe-sup-list'),200)" onfocus="onSupInput(this.value)"><datalist id="sup-dl"></datalist><datalist id="cust-dl"></datalist><div id="pe-sup-list" class="suggest-list"></div></div>
+        <div class="fg" style="position:relative"><label>Supplier பெயர்</label><input type="text" id="pe-sup" placeholder="தோட்டக்காரர் பெயர்" autocomplete="off" oninput="onSupInput(this.value)" onkeydown="supEnterJump(event)" onblur="setTimeout(()=>hideSuggest('pe-sup-list'),200)" onfocus="onSupInput(this.value)"><div id="pe-sup-list" class="suggest-list"></div></div>
       </div>
       <div class="frow">
         <div class="fg"><label>வகை</label>
@@ -350,7 +350,7 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">🛒 Sales Entry</div>
       <div class="frow">
         <div class="fg"><label>தேதி</label><input type="date" id="se-date" onchange="localStorage.setItem('kpr-sal-date',this.value)"></div>
-        <div class="fg" style="position:relative"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" list="par-dl" autocomplete="off" oninput="onParInput(this.value)" onblur="setTimeout(()=>hideSuggest('se-par-list'),200)" onfocus="onParInput(this.value)"><datalist id="par-dl"></datalist><div id="se-par-list" class="suggest-list"></div></div>
+        <div class="fg" style="position:relative"><label>Party பெயர்</label><input type="text" id="se-par" placeholder="Customer பெயர்" autocomplete="off" oninput="onParInput(this.value)" onblur="setTimeout(()=>hideSuggest('se-par-list'),200)" onfocus="onParInput(this.value)"><div id="se-par-list" class="suggest-list"></div></div>
       </div>
       <div class="ihdr"><span>பொருள்</span><span>qty</span><span>விலை</span><span>மொத்தம்</span><span></span></div>
       <div id="se-items"></div>
