@@ -2561,8 +2561,12 @@ function _genReport(){
       const purEntryPaid=entries.reduce((a,e)=>a+(e.paid||0),0);
       const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
       const totalPatru=purEntryPaid+paymentsPaid;
-      // net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
-      const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
+      // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
+      const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
+      const isOutside=outsideCount>entries.length/2;
+      // தோட்டம்: net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
+      // வெளியூர்/வெளிகடை: net = கமிசன் + பற்று - முன்பாக்கி - பூ வரவு (முன்பாக்கி + சரக்கு கூட்டி பற்று ஏறும்)
+      const netBal=isOutside?((totalComm+totalPatru)-(munPakki+pooVaravu)):(pooVaravu-(totalPatru+munPakki+totalComm));
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
       const thS='padding:5px 6px;font-size:11px;text-align:left;white-space:nowrap';
@@ -2627,8 +2631,8 @@ function _genReport(){
             ${munPakki>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
               <span></span>
-              <span style="font-weight:700">${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
-              <span style="font-weight:700">${(totalComm+munPakki+totalPatru).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(isOutside?(pooVaravu+munPakki):pooVaravu).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(isOutside?(totalComm+totalPatru):(totalComm+munPakki+totalPatru)).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
               <span>${netBal>0?'இருப்பு :':'அதிக பற்று :'}</span>
