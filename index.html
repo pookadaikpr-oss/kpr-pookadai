@@ -578,8 +578,8 @@ tbody td{padding:8px 11px}
         <input type="month" id="rpt-full-month" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit" oninput="setFullMonth(this.value)">
       </div>
       <div class="frow">
-        <div class="fg"><label>From</label><input type="date" id="rpt-full-from"></div>
-        <div class="fg"><label>To</label><input type="date" id="rpt-full-to"></div>
+        <div class="fg"><label>From</label><input type="date" id="rpt-full-from" onchange="document.getElementById('rpt-full-month').value=''"></div>
+        <div class="fg"><label>To</label><input type="date" id="rpt-full-to" onchange="document.getElementById('rpt-full-month').value=''"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
         <button class="btn bg" style="padding:10px 4px;font-size:12px" onclick="genFullReport('purchase')">🌿 Purchase</button>
@@ -2415,7 +2415,9 @@ function genFullReport(mode){
   const out=document.getElementById('rpt-out');
   const month=document.getElementById('rpt-full-month').value;
   let from,to;
-  if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
+  const fFrom=document.getElementById('rpt-full-from').value, fTo=document.getElementById('rpt-full-to').value;
+  if(fFrom&&fTo){ from=fFrom; to=fTo; }
+  else if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
   else { from=document.getElementById('rpt-full-from').value; to=document.getElementById('rpt-full-to').value; }
   if(!from||!to){ alert2('Date கொடுங்க!','err'); return; }
   const purs=db.purchases.filter(p=>p.date>=from&&p.date<=to);
