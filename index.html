@@ -2746,11 +2746,11 @@ function _genReport(){
             allRows.push({date:e.date,type:'item',item});
           });
         }
-        if(e.paid>0) allRows.push({date:e.date,type:'paid',amount:e.paid});
+        paidBreakdownParts(e).forEach(pt=>{ allRows.push({date:e.date,type:'paid',amount:pt.amount,label:pt.label}); });
       });
       // db.payments பற்று rows
       const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
-      supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount}); });
+      supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount,label:'ரொக்கம்'}); });
       // Sort by date
       allRows.sort((a,b)=>a.date.localeCompare(b.date));
       let lastDate='';
@@ -2759,7 +2759,7 @@ function _genReport(){
         if(r.type==='item'){
           rowsHtml+=`<tr><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}">${r.item.name}</td><td style="${tdR}">${r.item.qty||''}</td><td style="${tdR}">${r.item.price||''}</td><td style="${tdR}">${r.item.amount>0?r.item.amount.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
         } else {
-          rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}" colspan="4"><i>பற்று</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${r.amount.toFixed(2)}</td></tr>`;
+          rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}" colspan="4"><i>பற்று${r.label?' ('+r.label+')':''}</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${r.amount.toFixed(2)}</td></tr>`;
         }
       });
       out.innerHTML=`
