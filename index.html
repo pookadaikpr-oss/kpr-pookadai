@@ -1586,7 +1586,7 @@ function autoFillComm(supName){
     if(commEl) commEl.value=masterSup.comm!=null?masterSup.comm:10;
     if(eduppuEl) eduppuEl.value=masterSup.eduppu||0;
     if(prevEl&&masterSup.prev>0&&(!prevEl.value||prevEl.value==='0')) prevEl.value=masterSup.prev;
-    if(typeEl&&masterSup.type) typeEl.value=masterSup.type;
+    if(typeEl&&masterSup.type){ typeEl.value=masterSup.type; onPeTypeChange(); }
     return;
   }
   // Fallback: db.commissions
