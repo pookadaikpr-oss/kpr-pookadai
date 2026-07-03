@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260703-v26';
+  var APP_BUILD = '20260703-v27';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1585,7 +1585,8 @@ function autoFillComm(supName){
     const typeEl=document.getElementById('pe-type');
     if(commEl) commEl.value=masterSup.comm!=null?masterSup.comm:10;
     if(eduppuEl) eduppuEl.value=masterSup.eduppu||0;
-    if(prevEl&&masterSup.prev>0&&(!prevEl.value||prevEl.value==='0')) prevEl.value=masterSup.prev;
+    const hasPriorPur=db.purchases.some(p=>p.supplier&&normName_(p.supplier)===normName_(name));
+    if(prevEl&&masterSup.prev>0&&!hasPriorPur&&(!prevEl.value||prevEl.value==='0')) prevEl.value=masterSup.prev;
     if(typeEl&&masterSup.type){ typeEl.value=masterSup.type; onPeTypeChange(); }
     return;
   }
@@ -2386,6 +2387,8 @@ function renderPurMessages(){
   const dateLabel=!isRange?'<div style="text-align:center;font-size:12px;color:#888;margin-bottom:8px">📅 '+fromDate.split('-').reverse().join('/')+' data</div>':'';
   const cards=suppliers.map(supplier=>{
     const dates=Object.keys(map[supplier]).sort();
+    const masterSupMsg=findMasterSupplier(supplier);
+    const supMunPakki=masterSupMsg&&masterSupMsg.prev>0?masterSupMsg.prev:0;
     let msgBody='';
     if(!isRange){
       const d=dates[0]; const dd=d.split('-').reverse().join('/'); const info=map[supplier][d];
@@ -2398,10 +2401,10 @@ function renderPurMessages(){
       msgBody='KPR பூக்கடை\n'+dd+'\n\n'+supplier+' அவர்கள்,\n\n'+itemsStr+totalLine+pattruLine;
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
-      let rows=''; let grandTotal=0,grandPrev=0,grandPaid=0;
-      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; grandPrev+=info.prev; if(info.paidCash>0) rows+=dd+'  பற்று (ரொக்கம்) = ₹'+info.paidCash.toLocaleString('en-IN')+'\n'; (info.paidItems||[]).forEach(it=>{ if((it.amount||0)>0) rows+=dd+'  பற்று ('+paidItemLabel(it)+') = ₹'+it.amount.toLocaleString('en-IN')+'\n'; }); grandPaid+=info.paid; });
-      const bal=Math.max(0, grandTotal-grandPrev-grandPaid);
-      msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
+      let rows=''; let grandTotal=0,grandPaid=0;
+      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; if(info.paidCash>0) rows+=dd+'  பற்று (ரொக்கம்) = ₹'+info.paidCash.toLocaleString('en-IN')+'\n'; (info.paidItems||[]).forEach(it=>{ if((it.amount||0)>0) rows+=dd+'  பற்று ('+paidItemLabel(it)+') = ₹'+it.amount.toLocaleString('en-IN')+'\n'; }); grandPaid+=info.paid; });
+      const bal=Math.max(0, grandTotal-supMunPakki-grandPaid);
+      msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(supMunPakki>0?'\nமுன் பாக்கி:  ₹'+supMunPakki.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
     }
     const safeId='pmsg_'+Math.random().toString(36).slice(2);
     const supMaster=(master.suppliers||[]).find(s=>s.name&&s.name.toLowerCase()===supplier.toLowerCase());
@@ -2447,10 +2450,10 @@ function renderSalMessages(){
       msgBody=`KPR பூக்கடை\n${dd}\n\n${party} அவர்கள்,\n\n${lines}\n\n${totalLine}`;
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
-      let rows=''; let gt=0,gpr=0,gp=0;
-      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[party][d]; info.items.forEach(i=>{ rows+=`${dd}  ${i.name}  ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}\n`; }); gt+=info.total; gpr+=(info.prev||0); if(info.prev>0){ rows+=`${dd}  முன் பாக்கி = ₹${info.prev.toLocaleString('en-IN')}\n`; } if(info.paid>0){ rows+=`${dd}  பற்று = ₹${info.paid.toLocaleString('en-IN')}\n`; gp+=info.paid; } });
-      const bal=gt+gpr-gp;
-      msgBody=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${party} அவர்கள்,\n\n${rows}\nமொத்த விற்பனை: ₹${gt.toLocaleString('en-IN')}${gpr>0?'\nமுன் பாக்கி:    ₹'+gpr.toLocaleString('en-IN'):''}\nவரவு:          ₹${gp.toLocaleString('en-IN')}\nநிலுவை:        ₹${bal.toLocaleString('en-IN')}`;
+      let rows=''; let gt=0,gp=0;
+      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[party][d]; info.items.forEach(i=>{ rows+=`${dd}  ${i.name}  ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}\n`; }); gt+=info.total; if(info.paid>0){ rows+=`${dd}  பற்று = ₹${info.paid.toLocaleString('en-IN')}\n`; gp+=info.paid; } });
+      const bal=gt+custMunPakki-gp;
+      msgBody=`KPR பூக்கடை\n${r1} முதல் ${r2} வரை\n\n${party} அவர்கள்,\n\n${rows}\nமொத்த விற்பனை: ₹${gt.toLocaleString('en-IN')}${custMunPakki>0?'\nமுன் பாக்கி:    ₹'+custMunPakki.toLocaleString('en-IN'):''}\nவரவு:          ₹${gp.toLocaleString('en-IN')}\nநிலுவை:        ₹${bal.toLocaleString('en-IN')}`;
     }
     const safeId='smsg_'+Math.random().toString(36).slice(2);
     const phone=findMasterCustomer(party)?.phone||'';
@@ -2649,10 +2652,11 @@ function genFullReport(mode){
       }
       entries.forEach(x=>{
         nirCount++;
-        partyTotal+=x.total; partyPaid+=x.paid||0; partyBal+=x.balance||0;
+        const xBalNoPrev=x.total-(x.paid||0);
+        partyTotal+=x.total; partyPaid+=x.paid||0; partyBal+=xBalNoPrev;
         if(x.items && x.items.length>0){
           x.items.forEach((item,idx)=>{
-            rows+=`<tr><td style="${tdStyle}">${idx===0?nirCount:''}</td><td style="${tdStyle}">${idx===0?fmtDate(x.date):''}</td><td style="${tdStyle}">${idx===0?name:''}</td><td style="${tdStyle}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&x.paid>0?x.paid.toFixed(2):''}</td><td style="${tdR}">${idx===0&&x.balance>0?x.balance.toFixed(2):''}</td></tr>`;
+            rows+=`<tr><td style="${tdStyle}">${idx===0?nirCount:''}</td><td style="${tdStyle}">${idx===0?fmtDate(x.date):''}</td><td style="${tdStyle}">${idx===0?name:''}</td><td style="${tdStyle}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&x.paid>0?x.paid.toFixed(2):''}</td><td style="${tdR}">${idx===0&&xBalNoPrev>0?xBalNoPrev.toFixed(2):''}</td></tr>`;
           });
         }
       });
@@ -2913,7 +2917,8 @@ function findMasterCustomer(name){
 function autoFillCustPrev(name){
   if(!name) return;
   const cust=findMasterCustomer(name);
-  if(cust && cust.prev>0){
+  const hasPriorSal=db.sales.some(s=>s.party&&normName_(s.party)===normName_(name));
+  if(cust && cust.prev>0 && !hasPriorSal){
     document.getElementById('se-prev').value=cust.prev;
     calcSB();
   } else {
