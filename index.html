@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260703-v27';
+  var APP_BUILD = '20260703-v28';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -518,8 +518,10 @@ tbody td{padding:8px 11px}
     <div id="edit-pur-fields" style="display:none">
       <div class="frow t3" style="margin-bottom:10px">
         <div class="fg"><label>முன்பாக்கி</label><input type="number" id="edit-prev" placeholder="0" oninput="calcEditBal()"></div>
-        <div class="fg"><label>கமிஷன்%</label><input type="number" id="edit-comm" placeholder="10" step="0.5" min="0" max="100"></div>
-        <div class="fg"><label>எடுப்பு%</label><input type="number" id="edit-eduppu" placeholder="0" step="0.5" min="0" max="100"></div>
+        <div id="edit-comm-eduppu-wrap" style="display:contents">
+          <div class="fg"><label>கமிஷன்%</label><input type="number" id="edit-comm" placeholder="10" step="0.5" min="0" max="100"></div>
+          <div class="fg"><label>எடுப்பு%</label><input type="number" id="edit-eduppu" placeholder="0" step="0.5" min="0" max="100"></div>
+        </div>
       </div>
     </div>
     <div class="frow t3">
@@ -1914,15 +1916,17 @@ function openEdit(type,id){
   const editPaidLabel=document.querySelector('label[for="edit-paid"], #editMod label:nth-of-type(4)');
   const paidLabels=document.querySelectorAll('#editMod .fg label');
   paidLabels.forEach(l=>{ if(l.nextElementSibling && l.nextElementSibling.id==='edit-paid') l.textContent=type==='sal'?'வரவு':'பற்று'; });
-  // Purchase-specific fields
+  // முன்பாக்கி shown for both — commission/எடுப்பு only for purchases
   const purFields=document.getElementById('edit-pur-fields');
+  const commWrap=document.getElementById('edit-comm-eduppu-wrap');
+  if(purFields) purFields.style.display='block';
+  document.getElementById('edit-prev').value=entry.prev||entry.advance||0;
   if(type==='pur'){
-    if(purFields) purFields.style.display='block';
-    document.getElementById('edit-prev').value=entry.prev||entry.advance||0;
+    if(commWrap) commWrap.style.display='contents';
     document.getElementById('edit-comm').value=entry.commPct||0;
     document.getElementById('edit-eduppu').value=entry.eduppuPct||0;
   } else {
-    if(purFields) purFields.style.display='none';
+    if(commWrap) commWrap.style.display='none';
   }
   document.getElementById('edit-items').innerHTML='';
   editItemCount=0;
@@ -1950,7 +1954,8 @@ function calcEditBal(){
   const t=parseFloat(document.getElementById('edit-tot').value)||0;
   const p=parseFloat(document.getElementById('edit-paid').value)||0;
   const prev=parseFloat((document.getElementById('edit-prev')||{value:'0'}).value)||0;
-  document.getElementById('edit-bal').value=(t-p).toFixed(2);
+  const bal=editData.type==='pur'?(t-prev-p):(t+prev-p);
+  document.getElementById('edit-bal').value=bal.toFixed(2);
 }
 function saveEdit(){
   const{type,id}=editData;
@@ -1978,7 +1983,10 @@ function saveEdit(){
     }
   } else {
     const e=db.sales.find(s=>String(s.id)===String(id));
-    if(e){Object.assign(e,{date,party:name,items,total,paid,balance:total-paid,note});}
+    if(e){
+      const prev=parseFloat((document.getElementById('edit-prev')||{value:'0'}).value)||0;
+      Object.assign(e,{date,party:name,items,total,prev,paid,balance:total+prev-paid,note});
+    }
   }
   saveDB(); closeEdit(); renderPL(); renderSL(); updateDash(); renderPay();
   alert2('✅ Updated!','ok');
