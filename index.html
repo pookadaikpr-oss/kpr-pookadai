@@ -107,6 +107,9 @@ body{font-family:'Noto Sans Tamil',sans-serif;background:var(--bg);color:var(--t
 .irow input{margin:0;min-width:0;width:100%;font-size:12px;padding:5px 4px}
 .ihdr{display:grid;grid-template-columns:2.5fr 1fr 1fr 1.2fr 24px;gap:3px;font-size:10px;font-weight:700;color:var(--muted);padding-bottom:4px}
 .rmbtn{background:none;border:none;color:var(--red);font-size:20px;cursor:pointer;line-height:1;padding:0}
+.pi-card{border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#fafdfb}
+.pi-card .pi-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.pi-card .pi-head select{flex:1}
 .btn{padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
 .bg{background:var(--green);color:#fff}.bg:hover{background:var(--green2)}
 .bo{background:var(--gold);color:#fff}.bo:hover{background:var(--goldf)}
@@ -270,31 +273,10 @@ tbody td{padding:8px 11px}
       <div id="pe-items"></div>
       <button class="btn boo bsm" onclick="addPI()" style="margin-bottom:10px">+ சேர்</button>
       <div class="fg" style="margin-bottom:10px"><label>மொத்தம்</label><input type="number" id="pe-tot" readonly></div>
-      <div class="frow" style="margin-bottom:10px">
-        <div class="fg"><label>பற்று</label><input type="number" id="pe-paid" placeholder="0" oninput="calcPB()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePur();}"></div>
-        <div class="fg"><label>பற்று வகை</label>
-          <select id="pe-paid-type" onchange="onPaidTypeChange()">
-            <option value="">-- தேர்வு --</option>
-            <option value="உரம்">🧪 உரம்</option>
-            <option value="மருந்து">💊 மருந்து</option>
-            <option value="நாத்து">🌱 நாத்து</option>
-          </select>
-        </div>
-      </div>
-      <div class="frow t4" id="pe-nathu-row" style="display:none;margin-bottom:10px">
-        <div class="fg"><label>நாத்து பொருள்</label>
-          <select id="pe-nathu-item" onchange="calcNathu()">
-            <option value="மல்லி">மல்லி</option>
-            <option value="முல்லை">முல்லை</option>
-            <option value="கஞ்சா">கஞ்சா</option>
-            <option value="கனகாம்பரம்">கனகாம்பரம்</option>
-            <option value="கோழி">கோழி</option>
-          </select>
-        </div>
-        <div class="fg"><label>எண்ணிக்கை</label><input type="number" id="pe-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcNathu()"></div>
-        <div class="fg"><label>விலை</label><input type="number" id="pe-nathu-price" placeholder="0" min="0" oninput="calcNathu()"></div>
-        <div class="fg"><label>தொகை</label><input type="number" id="pe-nathu-amt" placeholder="0" readonly></div>
-      </div>
+      <div class="fg" style="margin-bottom:10px"><label>பற்று (ரொக்கம்)</label><input type="number" id="pe-cash" placeholder="0" oninput="calcPaidTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePur();}"></div>
+      <div id="pe-paiditems"></div>
+      <button class="btn boo bsm" onclick="addPaidItem()" style="margin-bottom:10px">+ உரம்/மருந்து/நாத்து சேர்</button>
+      <div class="fg" style="margin-bottom:10px"><label>மொத்த பற்று</label><input type="number" id="pe-paid" placeholder="0" readonly></div>
       <div class="btn-row">
         <button id="pur-save-btn" class="btn bg" onclick="savePur()">💾 Save</button>
         <button class="btn boo" onclick="clearPur()">🔄 Clear</button>
@@ -1403,31 +1385,88 @@ function calcPB(){
   const balEl=document.getElementById('pe-bal');
   if(balEl) balEl.value=bal.toFixed(2); // element removed — safe check
 }
-function onPaidTypeChange(){
-  const type=document.getElementById('pe-paid-type').value;
-  const nathuRow=document.getElementById('pe-nathu-row');
-  const paidInput=document.getElementById('pe-paid');
-  if(type==='நாத்து'){
-    nathuRow.style.display='';
-    paidInput.readOnly=true;
-    paidInput.style.background='#f0f0f0';
-    paidInput.style.color='#888';
-    calcNathu();
-  } else {
-    nathuRow.style.display='none';
-    paidInput.readOnly=false;
-    paidInput.style.background='';
-    paidInput.style.color='';
-    calcPB();
-  }
+let paidItemCount=0;
+function addPaidItem(){
+  paidItemCount++;
+  const id='pit-'+paidItemCount;
+  const d=document.createElement('div');
+  d.className='pi-card'; d.id=id;
+  d.innerHTML=`
+    <div class="pi-head">
+      <select onchange="onPaidItemTypeChange('${id}')">
+        <option value="">-- வகை தேர்வு --</option>
+        <option value="உரம்">🧪 உரம்</option>
+        <option value="மருந்து">💊 மருந்து</option>
+        <option value="நாத்து">🌱 நாத்து</option>
+      </select>
+      <button class="rmbtn" onclick="rmPaidItem('${id}')">×</button>
+    </div>
+    <div class="fg pit-simple" style="display:none"><label>தொகை</label><input type="number" class="pit-amt-simple" placeholder="0" oninput="calcPaidTotal()"></div>
+    <div class="frow t4 pit-nathu" style="display:none">
+      <div class="fg"><label>பொருள்</label>
+        <select class="pit-nathu-item" onchange="calcPaidItemAmt('${id}')">
+          <option value="மல்லி">மல்லி</option>
+          <option value="முல்லை">முல்லை</option>
+          <option value="கஞ்சா">கஞ்சா</option>
+          <option value="கனகாம்பரம்">கனகாம்பரம்</option>
+          <option value="கோழி">கோழி</option>
+        </select>
+      </div>
+      <div class="fg"><label>எண்ணிக்கை</label><input type="number" class="pit-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcPaidItemAmt('${id}')"></div>
+      <div class="fg"><label>விலை</label><input type="number" class="pit-nathu-price" placeholder="0" min="0" oninput="calcPaidItemAmt('${id}')"></div>
+      <div class="fg"><label>தொகை</label><input type="number" class="pit-nathu-amt" placeholder="0" readonly></div>
+    </div>`;
+  document.getElementById('pe-paiditems').appendChild(d);
 }
-function calcNathu(){
-  const qty=parseFloat(document.getElementById('pe-nathu-qty').value)||0;
-  const price=parseFloat(document.getElementById('pe-nathu-price').value)||0;
+function onPaidItemTypeChange(id){
+  const card=document.getElementById(id);
+  const type=card.querySelector('.pi-head select').value;
+  const simple=card.querySelector('.pit-simple');
+  const nathu=card.querySelector('.pit-nathu');
+  if(type==='நாத்து'){ simple.style.display='none'; nathu.style.display=''; }
+  else if(type==='உரம்'||type==='மருந்து'){ simple.style.display=''; nathu.style.display='none'; }
+  else { simple.style.display='none'; nathu.style.display='none'; }
+  calcPaidTotal();
+}
+function calcPaidItemAmt(id){
+  const card=document.getElementById(id);
+  const qty=parseFloat(card.querySelector('.pit-nathu-qty').value)||0;
+  const price=parseFloat(card.querySelector('.pit-nathu-price').value)||0;
   const amt=qty*price;
-  document.getElementById('pe-nathu-amt').value=amt>0?amt.toFixed(2):'';
-  document.getElementById('pe-paid').value=amt>0?amt.toFixed(2):'';
+  card.querySelector('.pit-nathu-amt').value=amt>0?amt.toFixed(2):'';
+  calcPaidTotal();
+}
+function rmPaidItem(id){
+  const card=document.getElementById(id);
+  if(card) card.remove();
+  calcPaidTotal();
+}
+function calcPaidTotal(){
+  const cash=parseFloat(document.getElementById('pe-cash').value)||0;
+  let itemsTotal=0;
+  document.querySelectorAll('#pe-paiditems .pi-card').forEach(card=>{
+    const type=card.querySelector('.pi-head select').value;
+    if(type==='நாத்து') itemsTotal+=parseFloat(card.querySelector('.pit-nathu-amt').value)||0;
+    else if(type==='உரம்'||type==='மருந்து') itemsTotal+=parseFloat(card.querySelector('.pit-amt-simple').value)||0;
+  });
+  const total=cash+itemsTotal;
+  document.getElementById('pe-paid').value=total>0?total.toFixed(2):'';
   calcPB();
+}
+function collectPaidItems(){
+  const items=[];
+  document.querySelectorAll('#pe-paiditems .pi-card').forEach(card=>{
+    const type=card.querySelector('.pi-head select').value;
+    if(type==='நாத்து'){
+      const qty=parseFloat(card.querySelector('.pit-nathu-qty').value)||0;
+      const price=parseFloat(card.querySelector('.pit-nathu-price').value)||0;
+      if(qty>0&&price>0) items.push({type,item:card.querySelector('.pit-nathu-item').value,qty,price,amount:qty*price});
+    } else if(type==='உரம்'||type==='மருந்து'){
+      const amt=parseFloat(card.querySelector('.pit-amt-simple').value)||0;
+      if(amt>0) items.push({type,amount:amt});
+    }
+  });
+  return items;
 }
 function supEnterJump(e){
   if(e.key==='Enter'||e.key==='Tab'){
@@ -1553,15 +1592,10 @@ function clearPur(){
   document.getElementById('pe-prev').value='';
   document.getElementById('pe-comm').value='';
   document.getElementById('pe-eduppu').value='';
+  document.getElementById('pe-cash').value='';
   document.getElementById('pe-paid').value='';
-  document.getElementById('pe-paid').readOnly=false;
-  document.getElementById('pe-paid').style.background='';
-  document.getElementById('pe-paid').style.color='';
-  document.getElementById('pe-paid-type').value='';
-  document.getElementById('pe-nathu-row').style.display='none';
-  document.getElementById('pe-nathu-qty').value='';
-  document.getElementById('pe-nathu-price').value='';
-  document.getElementById('pe-nathu-amt').value='';
+  document.getElementById('pe-paiditems').innerHTML='';
+  paidItemCount=0;
   document.getElementById('pe-note').value='';
   document.getElementById('pe-items').innerHTML='';
   piCount=0; addPI();
@@ -1602,13 +1636,9 @@ function savePur(){
   }
   const totalCommPct=commPct+eduppuPct;
   const commission=Math.round(total*totalCommPct/100*100)/100;
-  const paidType=document.getElementById('pe-paid-type').value||'';
-  const paidDetail=paidType==='நாத்து'?{
-    item:document.getElementById('pe-nathu-item').value,
-    qty:parseFloat(document.getElementById('pe-nathu-qty').value)||0,
-    price:parseFloat(document.getElementById('pe-nathu-price').value)||0
-  }:null;
-  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission,paidType,paidDetail};
+  const paidCash=parseFloat(document.getElementById('pe-cash').value)||0;
+  const paidItems=collectPaidItems();
+  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission,paidCash,paidItems};
   db.purchases.push(newPur);
   saveLocal();
   updateSupDL(); updateDash();
@@ -2166,14 +2196,30 @@ function refreshLedger(){
   hint.textContent=from.split('-').reverse().join('/')+' – '+to.split('-').reverse().join('/');
 }
 
+function legacyPaidCash(p){
+  if(p.paidCash!=null) return p.paidCash;
+  if(p.paidItems&&p.paidItems.length) return 0;
+  return p.paid||0;
+}
+function paidItemLabel(it){
+  if(it.type==='நாத்து') return 'நாத்து-'+(it.item||'')+' '+(it.qty||0)+'×'+(it.price||0);
+  return it.type||'';
+}
+function paidBreakdownParts(p){
+  const parts=[];
+  const cash=legacyPaidCash(p);
+  if(cash>0) parts.push({label:'ரொக்கம்',amount:cash});
+  (p.paidItems||[]).forEach(it=>{ if((it.amount||0)>0) parts.push({label:paidItemLabel(it),amount:it.amount}); });
+  return parts;
+}
 function buildSupplierLedger(supplier,fromDate,toDate){
   const entries=db.purchases.filter(p=>p.supplier===supplier&&p.date>=fromDate&&p.date<=toDate).sort((a,b)=>a.date.localeCompare(b.date));
   if(!entries.length) return 'இந்த period-ல் data இல்லை';
   const dates=[...new Set(entries.map(p=>p.date))].sort();
   const byDate={};
-  entries.forEach(p=>{ if(!byDate[p.date]) byDate[p.date]={items:[],total:0,paid:0}; p.items.forEach(i=>byDate[p.date].items.push({...i})); byDate[p.date].total+=p.total; byDate[p.date].paid+=p.paid; });
+  entries.forEach(p=>{ if(!byDate[p.date]) byDate[p.date]={items:[],total:0,paid:0,paidCash:0,paidItems:[]}; p.items.forEach(i=>byDate[p.date].items.push({...i})); byDate[p.date].total+=p.total; byDate[p.date].paid+=p.paid; byDate[p.date].paidCash+=legacyPaidCash(p); byDate[p.date].paidItems=byDate[p.date].paidItems.concat(p.paidItems||[]); });
   let rows=''; let grandTotal=0,grandPaid=0;
-  dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=byDate[d]; info.items.forEach(i=>{ rows+=`${dd}  ${i.name}  ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}\n`; }); grandTotal+=info.total; if(info.paid>0){ rows+=`${dd}  பற்று (Payment) = ₹${info.paid.toLocaleString('en-IN')}\n`; grandPaid+=info.paid; } });
+  dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=byDate[d]; info.items.forEach(i=>{ rows+=`${dd}  ${i.name}  ${i.qty} × ₹${i.price} = ₹${i.amount.toLocaleString('en-IN')}\n`; }); grandTotal+=info.total; if(info.paidCash>0) rows+=`${dd}  பற்று (ரொக்கம்) = ₹${info.paidCash.toLocaleString('en-IN')}\n`; info.paidItems.forEach(it=>{ rows+=`${dd}  பற்று (${paidItemLabel(it)}) = ₹${(it.amount||0).toLocaleString('en-IN')}\n`; }); grandPaid+=info.paid; });
   const d1=fromDate.split('-').reverse().join('/'); const d2=toDate.split('-').reverse().join('/'); const bal=grandTotal-grandPaid;
   return `KPR பூக்கடை\n${d1} முதல் ${d2} வரை\n\n${supplier} அவர்கள்,\n\n${rows}\nமொத்த வரவு:  ₹${grandTotal.toLocaleString('en-IN')}\nமொத்த பற்று: ₹${grandPaid.toLocaleString('en-IN')}\nநிலுவை:      ₹${bal.toLocaleString('en-IN')}`;
 }
@@ -2323,7 +2369,7 @@ function renderPurMessages(){
   }
   const filterName=isRange?(document.getElementById('msg-search-range')||{value:''}).value.trim().toLowerCase():(document.getElementById('msg-search')||{value:''}).value.trim().toLowerCase();
   const map={};
-  (db.purchases||[]).forEach(p=>{ if(!p.date||p.date<fromDate||p.date>toDate) return; const sup=p.supplier||''; if(filterName&&!sup.toLowerCase().includes(filterName)) return; if(!map[sup]) map[sup]={}; if(!map[sup][p.date]) map[sup][p.date]={items:[],total:0,prev:0,paid:0}; (p.items||[]).forEach(i=>map[sup][p.date].items.push({...i})); map[sup][p.date].total+=(p.total||0); map[sup][p.date].prev+=(p.prev||0); map[sup][p.date].paid+=(p.paid||0); });
+  (db.purchases||[]).forEach(p=>{ if(!p.date||p.date<fromDate||p.date>toDate) return; const sup=p.supplier||''; if(filterName&&!sup.toLowerCase().includes(filterName)) return; if(!map[sup]) map[sup]={}; if(!map[sup][p.date]) map[sup][p.date]={items:[],total:0,prev:0,paid:0,paidCash:0,paidItems:[]}; (p.items||[]).forEach(i=>map[sup][p.date].items.push({...i})); map[sup][p.date].total+=(p.total||0); map[sup][p.date].prev+=(p.prev||0); map[sup][p.date].paid+=(p.paid||0); map[sup][p.date].paidCash+=legacyPaidCash(p); map[sup][p.date].paidItems=map[sup][p.date].paidItems.concat(p.paidItems||[]); });
   const suppliers=Object.keys(map).sort();
   if(!suppliers.length){ div.innerHTML='<div class="empty"><div class="eico">💬</div>'+fromDate.split('-').reverse().join('/')+' — Data இல்லை</div>'; return; }
   const dateLabel=!isRange?'<div style="text-align:center;font-size:12px;color:#888;margin-bottom:8px">📅 '+fromDate.split('-').reverse().join('/')+' data</div>':'';
@@ -2335,12 +2381,14 @@ function renderPurMessages(){
       const lines=(info.items||[]).map(i=>'• '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')).join('\n');
       const itemsStr=lines?lines+'\n':'';
       const totalLine=info.total>0?'\nமொத்தம்: ₹'+info.total.toLocaleString('en-IN'):'';
-      const pattruLine=info.paid>0?'\nபற்று: ₹'+info.paid.toLocaleString('en-IN'):'';
+      let pattruLine='';
+      if(info.paidCash>0) pattruLine+='\nபற்று (ரொக்கம்): ₹'+info.paidCash.toLocaleString('en-IN');
+      (info.paidItems||[]).forEach(it=>{ if((it.amount||0)>0) pattruLine+='\nபற்று ('+paidItemLabel(it)+'): ₹'+it.amount.toLocaleString('en-IN'); });
       msgBody='KPR பூக்கடை\n'+dd+'\n\n'+supplier+' அவர்கள்,\n\n'+itemsStr+totalLine+pattruLine;
     } else {
       const r1=dates[0].split('-').reverse().join('/'); const r2=dates[dates.length-1].split('-').reverse().join('/');
       let rows=''; let grandTotal=0,grandPrev=0,grandPaid=0;
-      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; grandPrev+=info.prev; if(info.paid>0){ rows+=dd+'  பற்று = ₹'+info.paid.toLocaleString('en-IN')+'\n'; grandPaid+=info.paid; } });
+      dates.forEach(d=>{ const dd=d.split('-').reverse().join('/'); const info=map[supplier][d]; (info.items||[]).forEach(i=>{ rows+=dd+'  '+(i.name||'')+'  '+(i.qty||0)+' × ₹'+(i.price||0)+' = ₹'+(i.amount||0).toLocaleString('en-IN')+'\n'; }); grandTotal+=info.total; grandPrev+=info.prev; if(info.paidCash>0) rows+=dd+'  பற்று (ரொக்கம்) = ₹'+info.paidCash.toLocaleString('en-IN')+'\n'; (info.paidItems||[]).forEach(it=>{ if((it.amount||0)>0) rows+=dd+'  பற்று ('+paidItemLabel(it)+') = ₹'+it.amount.toLocaleString('en-IN')+'\n'; }); grandPaid+=info.paid; });
       const bal=Math.max(0, grandTotal-grandPrev-grandPaid);
       msgBody='KPR பூக்கடை\n'+r1+' முதல் '+r2+' வரை\n\n'+supplier+' அவர்கள்,\n\n'+rows+(grandTotal>0?'\nமொத்த வரவு:  ₹'+grandTotal.toLocaleString('en-IN'):'')+(grandPaid>0?'\nமொத்த பற்று: ₹'+grandPaid.toLocaleString('en-IN'):'');
     }
@@ -2528,7 +2576,6 @@ function genFullReport(mode){
       let supVaravu=0, supPatru=0, supViyapar=0, supEdai=0;
       let rows='';
       entries.forEach(x=>{
-        const patru=x.paid||0;
         const entryCommPct=(x.commPct||0)+(x.eduppuPct||0);
         if(x.items && x.items.length>0){
           // Calculate total commission for this entry
@@ -2549,14 +2596,17 @@ function genFullReport(mode){
               itemViyapar=Math.round(varavu/entryTotalVaravu*entryTotalComm*100)/100;
             }
             supEdai+=edai; supVaravu+=varavu; supViyapar+=itemViyapar;
-            if(idx===0) supPatru+=patru;
-            rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">${item.name}</td><td style="${tdR}">${edai>0?edai:''}</td><td style="${tdR}">${vilai>0?vilai:''}</td><td style="${tdR}">${varavu>0?varavu.toFixed(2):''}</td><td style="${tdR}">${idx===0&&patru>0?patru.toFixed(2):''}</td><td style="${tdR}">${itemViyapar>0?itemViyapar.toFixed(2):''}</td></tr>`;
+            rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">${item.name}</td><td style="${tdR}">${edai>0?edai:''}</td><td style="${tdR}">${vilai>0?vilai:''}</td><td style="${tdR}">${varavu>0?varavu.toFixed(2):''}</td><td style="${tdR}"></td><td style="${tdR}">${itemViyapar>0?itemViyapar.toFixed(2):''}</td></tr>`;
+          });
+          paidBreakdownParts(x).forEach(pt=>{
+            nirCount++; supPatru+=pt.amount;
+            rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">பற்று (${pt.label})</td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}">${pt.amount.toFixed(2)}</td><td style="${tdR}"></td></tr>`;
           });
         } else {
-          nirCount++;
-          const patruOnly=x.paid||0;
-          supPatru+=patruOnly;
-          rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">பற்று</td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}">${patruOnly>0?patruOnly.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
+          paidBreakdownParts(x).forEach(pt=>{
+            nirCount++; supPatru+=pt.amount;
+            rows+=`<tr><td style="${tdStyle}">${nirCount}</td><td style="${tdStyle}">${fmtDate(x.date)}</td><td style="${tdStyle}">${name}</td><td style="${tdStyle}">பற்று (${pt.label})</td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}"></td><td style="${tdR}">${pt.amount.toFixed(2)}</td><td style="${tdR}"></td></tr>`;
+          });
         }
       });
       grandVaravu+=supVaravu; grandPatru+=supPatru; grandViyapar+=supViyapar; grandEdai+=supEdai;
