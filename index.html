@@ -617,10 +617,19 @@ tbody td{padding:8px 11px}
       </div>
       <div class="frow t2" style="margin-bottom:8px">
         <div class="fg"><label>போன்</label><div style="display:flex;gap:6px"><input type="tel" id="ms-sup-phone" placeholder="போன் எண்" style="flex:1"><button type="button" tabindex="-1" onclick="pickContact('ms-sup-phone')" style="background:#e8f5e9;border:1.5px solid var(--green);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px">📞</button></div></div>
-        <div class="fg"><label>கமிஷன்%</label><input type="number" id="ms-sup-comm" placeholder="கமிஷன்%" min="0" max="100" step="0.5"></div>
+        <div class="fg"><label>வகை</label>
+          <select id="ms-sup-type" onchange="if(this.value!=='தோட்டம்'){document.getElementById('ms-sup-comm').value=0;}">
+            <option value="தோட்டம்">🌿 தோட்டம்</option>
+            <option value="வெளியூர்">🚚 வெளியூர்</option>
+            <option value="வெளிகடை">🏪 வெளிகடை</option>
+          </select>
+        </div>
       </div>
       <div class="frow t2" style="margin-bottom:8px">
+        <div class="fg"><label>கமிஷன்%</label><input type="number" id="ms-sup-comm" placeholder="கமிஷன்%" min="0" max="100" step="0.5"></div>
         <div class="fg"><label>எடுப்பு%</label><input type="number" id="ms-sup-eduppu" placeholder="எடுப்பு%" min="0" max="100" step="0.5"></div>
+      </div>
+      <div class="frow t2" style="margin-bottom:8px">
         <div class="fg"><label>முன்பாக்கி ₹</label><input type="number" id="ms-sup-prev" placeholder="0" value="0" min="0"></div>
       </div>
       <div class="fg" style="margin-bottom:8px"><label>முன்பாக்கி தேதி (இந்த தேதி முதல் report-ல் வரும்)</label><input type="date" id="ms-sup-prev-date"></div>
@@ -800,6 +809,7 @@ function saveMasterSup(){
     name,
     town:document.getElementById('ms-sup-town').value.trim(),
     phone:document.getElementById('ms-sup-phone').value.trim(),
+    type:document.getElementById('ms-sup-type').value||'தோட்டம்',
     comm:document.getElementById('ms-sup-comm').value!==''?parseFloat(document.getElementById('ms-sup-comm').value):10,
     eduppu:document.getElementById('ms-sup-eduppu').value!==''?parseFloat(document.getElementById('ms-sup-eduppu').value):0,
     prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
@@ -809,6 +819,7 @@ function saveMasterSup(){
   editingSupIdx=-1;
   // Clear form immediately
   ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ms-sup-type').value='தோட்டம்';
   document.getElementById('ms-sup-comm').value='10';
   document.getElementById('ms-sup-eduppu').value='0';
   document.getElementById('ms-sup-prev').value='0';
@@ -945,6 +956,7 @@ function editMasterSup(idx){
     document.getElementById('ms-sup-name').value=s.name;
     document.getElementById('ms-sup-town').value=s.town||'';
     document.getElementById('ms-sup-phone').value=s.phone||'';
+    document.getElementById('ms-sup-type').value=s.type||'தோட்டம்';
     document.getElementById('ms-sup-comm').value=s.comm!=null?s.comm:10;
     document.getElementById('ms-sup-eduppu').value=s.eduppu!=null?s.eduppu:0;
     document.getElementById('ms-sup-prev').value=s.prev||0;
@@ -964,7 +976,7 @@ function renderMaster(){
     ? filteredSups.map((s,i)=>`
       <div style="border:1.5px solid #e0dcd5;border-radius:10px;padding:10px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-weight:700;font-size:14px;color:#1a6b3a">${s.name}</span>
+          <span style="font-weight:700;font-size:14px;color:#1a6b3a">${s.name} <span style="font-size:10px;font-weight:600;background:${s.type==='வெளியூர்'?'#fff3e0':s.type==='வெளிகடை'?'#e3f2fd':'#e8f5e9'};color:${s.type==='வெளியூர்'?'#e65100':s.type==='வெளிகடை'?'#1565c0':'#1a6b3a'};padding:2px 6px;border-radius:5px;vertical-align:middle">${s.type==='வெளியூர்'?'🚚 வெளியூர்':s.type==='வெளிகடை'?'🏪 வெளிகடை':'🌿 தோட்டம்'}</span></span>
           <div style="display:flex;gap:6px">
             <button onclick="editMasterSupByName(this.dataset.name)" data-name="${s.name}" style="background:#e8f5e9;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✏️</button>
             <button onclick="deleteMasterSupByName(this.dataset.name)" data-name="${s.name}" style="background:#fdecea;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
@@ -1472,9 +1484,11 @@ function autoFillComm(supName){
     const commEl=document.getElementById('pe-comm');
     const eduppuEl=document.getElementById('pe-eduppu');
     const prevEl=document.getElementById('pe-prev');
+    const typeEl=document.getElementById('pe-type');
     if(commEl) commEl.value=masterSup.comm!=null?masterSup.comm:10;
     if(eduppuEl) eduppuEl.value=masterSup.eduppu||0;
     if(prevEl&&masterSup.prev>0&&(!prevEl.value||prevEl.value==='0')) prevEl.value=masterSup.prev;
+    if(typeEl&&masterSup.type) typeEl.value=masterSup.type;
     return;
   }
   // Fallback: db.commissions
