@@ -253,7 +253,7 @@ tbody td{padding:8px 11px}
       </div>
       <div class="frow">
         <div class="fg"><label>வகை</label>
-          <select id="pe-type">
+          <select id="pe-type" onchange="onPeTypeChange()">
             <option value="தோட்டம்">🌿 தோட்டம்</option>
             <option value="வெளியூர்">🚚 வெளியூர்</option>
             <option value="வெளிகடை">🏪 வெளிகடை</option>
@@ -275,7 +275,7 @@ tbody td{padding:8px 11px}
       <div class="fg" style="margin-bottom:10px"><label>மொத்தம்</label><input type="number" id="pe-tot" readonly></div>
       <div class="fg" style="margin-bottom:10px"><label>பற்று (ரொக்கம்)</label><input type="number" id="pe-cash" placeholder="0" oninput="calcPaidTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePur();}"></div>
       <div id="pe-paiditems"></div>
-      <button class="btn boo bsm" onclick="addPaidItem()" style="margin-bottom:10px">+ உரம்/மருந்து/நாத்து சேர்</button>
+      <button id="pe-paiditem-btn" class="btn boo bsm" onclick="addPaidItem()" style="margin-bottom:10px">+ உரம்/மருந்து/நாத்து சேர்</button>
       <div class="fg" style="margin-bottom:10px"><label>மொத்த பற்று</label><input type="number" id="pe-paid" placeholder="0" readonly></div>
       <div class="btn-row">
         <button id="pur-save-btn" class="btn bg" onclick="savePur()">💾 Save</button>
@@ -1386,6 +1386,16 @@ function calcPB(){
   if(balEl) balEl.value=bal.toFixed(2); // element removed — safe check
 }
 let paidItemCount=0;
+function onPeTypeChange(){
+  const type=document.getElementById('pe-type').value;
+  const btn=document.getElementById('pe-paiditem-btn');
+  const isThottam=(type==='தோட்டம்');
+  if(btn) btn.style.display=isThottam?'':'none';
+  if(!isThottam){
+    document.getElementById('pe-paiditems').innerHTML='';
+    calcPaidTotal();
+  }
+}
 function addPaidItem(){
   paidItemCount++;
   const id='pit-'+paidItemCount;
@@ -1589,6 +1599,7 @@ function autoFillComm(supName){
 function clearPur(){
   document.getElementById('pe-sup').value='';
   document.getElementById('pe-type').value='தோட்டம்';
+  onPeTypeChange();
   document.getElementById('pe-prev').value='';
   document.getElementById('pe-comm').value='';
   document.getElementById('pe-eduppu').value='';
