@@ -270,7 +270,27 @@ tbody td{padding:8px 11px}
       <div class="fg" style="margin-bottom:10px"><label>மொத்தம்</label><input type="number" id="pe-tot" readonly></div>
       <div class="frow" style="margin-bottom:10px">
         <div class="fg"><label>பற்று</label><input type="number" id="pe-paid" placeholder="0" oninput="calcPB()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePur();}"></div>
-        <!-- நிலுவை box removed -->
+        <div class="fg"><label>பற்று வகை</label>
+          <select id="pe-paid-type" onchange="onPaidTypeChange()">
+            <option value="">-- தேர்வு --</option>
+            <option value="உரம்">🧪 உரம்</option>
+            <option value="மருந்து">💊 மருந்து</option>
+            <option value="நாத்து">🌱 நாத்து</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow t3" id="pe-nathu-row" style="display:none;margin-bottom:10px">
+        <div class="fg"><label>நாத்து பொருள்</label>
+          <select id="pe-nathu-item" onchange="calcNathu()">
+            <option value="மல்லி">மல்லி</option>
+            <option value="முல்லை">முல்லை</option>
+            <option value="கஞ்சா">கஞ்சா</option>
+            <option value="கனகாம்பரம்">கனகாம்பரம்</option>
+            <option value="கோழி">கோழி</option>
+          </select>
+        </div>
+        <div class="fg"><label>எண்ணிக்கை</label><input type="number" id="pe-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcNathu()"></div>
+        <div class="fg"><label>விலை</label><input type="number" id="pe-nathu-price" placeholder="0" min="0" oninput="calcNathu()"></div>
       </div>
       <div class="btn-row">
         <button id="pur-save-btn" class="btn bg" onclick="savePur()">💾 Save</button>
@@ -1380,6 +1400,31 @@ function calcPB(){
   const balEl=document.getElementById('pe-bal');
   if(balEl) balEl.value=bal.toFixed(2); // element removed — safe check
 }
+function onPaidTypeChange(){
+  const type=document.getElementById('pe-paid-type').value;
+  const nathuRow=document.getElementById('pe-nathu-row');
+  const paidInput=document.getElementById('pe-paid');
+  if(type==='நாத்து'){
+    nathuRow.style.display='';
+    paidInput.readOnly=true;
+    paidInput.style.background='#f0f0f0';
+    paidInput.style.color='#888';
+    calcNathu();
+  } else {
+    nathuRow.style.display='none';
+    paidInput.readOnly=false;
+    paidInput.style.background='';
+    paidInput.style.color='';
+    calcPB();
+  }
+}
+function calcNathu(){
+  const qty=parseFloat(document.getElementById('pe-nathu-qty').value)||0;
+  const price=parseFloat(document.getElementById('pe-nathu-price').value)||0;
+  const amt=qty*price;
+  document.getElementById('pe-paid').value=amt>0?amt.toFixed(2):'';
+  calcPB();
+}
 function supEnterJump(e){
   if(e.key==='Enter'||e.key==='Tab'){
     e.preventDefault();
@@ -1505,6 +1550,13 @@ function clearPur(){
   document.getElementById('pe-comm').value='';
   document.getElementById('pe-eduppu').value='';
   document.getElementById('pe-paid').value='';
+  document.getElementById('pe-paid').readOnly=false;
+  document.getElementById('pe-paid').style.background='';
+  document.getElementById('pe-paid').style.color='';
+  document.getElementById('pe-paid-type').value='';
+  document.getElementById('pe-nathu-row').style.display='none';
+  document.getElementById('pe-nathu-qty').value='';
+  document.getElementById('pe-nathu-price').value='';
   document.getElementById('pe-note').value='';
   document.getElementById('pe-items').innerHTML='';
   piCount=0; addPI();
@@ -1545,7 +1597,13 @@ function savePur(){
   }
   const totalCommPct=commPct+eduppuPct;
   const commission=Math.round(total*totalCommPct/100*100)/100;
-  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission};
+  const paidType=document.getElementById('pe-paid-type').value||'';
+  const paidDetail=paidType==='நாத்து'?{
+    item:document.getElementById('pe-nathu-item').value,
+    qty:parseFloat(document.getElementById('pe-nathu-qty').value)||0,
+    price:parseFloat(document.getElementById('pe-nathu-price').value)||0
+  }:null;
+  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission,paidType,paidDetail};
   db.purchases.push(newPur);
   saveLocal();
   updateSupDL(); updateDash();
