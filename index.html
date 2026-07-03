@@ -97,6 +97,7 @@ body{font-family:'Noto Sans Tamil',sans-serif;background:var(--bg);color:var(--t
 .stab.on{background:var(--green);color:#fff}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .frow.t3{grid-template-columns:1fr 1fr 1fr}
+.frow.t4{grid-template-columns:1.2fr 1fr 1fr 1fr}
 .fg{display:flex;flex-direction:column;gap:3px}
 .fg label{font-size:11px;font-weight:700;color:var(--muted)}
 .fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;transition:border .2s;box-shadow:inset 0 1px 3px rgba(0,0,0,0.06)}
@@ -150,6 +151,7 @@ tbody td{padding:8px 11px}
 @media(max-width:560px){
   .frow{grid-template-columns:1fr}
   .frow.t3{grid-template-columns:1fr 1fr}
+  .frow.t4{grid-template-columns:1fr 1fr}
   .dash-grid{grid-template-columns:1fr 1fr}
   .irow{grid-template-columns:2fr 1fr 1fr 1fr 28px}
 }
@@ -279,7 +281,7 @@ tbody td{padding:8px 11px}
           </select>
         </div>
       </div>
-      <div class="frow t3" id="pe-nathu-row" style="display:none;margin-bottom:10px">
+      <div class="frow t4" id="pe-nathu-row" style="display:none;margin-bottom:10px">
         <div class="fg"><label>நாத்து பொருள்</label>
           <select id="pe-nathu-item" onchange="calcNathu()">
             <option value="மல்லி">மல்லி</option>
@@ -291,6 +293,7 @@ tbody td{padding:8px 11px}
         </div>
         <div class="fg"><label>எண்ணிக்கை</label><input type="number" id="pe-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcNathu()"></div>
         <div class="fg"><label>விலை</label><input type="number" id="pe-nathu-price" placeholder="0" min="0" oninput="calcNathu()"></div>
+        <div class="fg"><label>தொகை</label><input type="number" id="pe-nathu-amt" placeholder="0" readonly></div>
       </div>
       <div class="btn-row">
         <button id="pur-save-btn" class="btn bg" onclick="savePur()">💾 Save</button>
@@ -1422,6 +1425,7 @@ function calcNathu(){
   const qty=parseFloat(document.getElementById('pe-nathu-qty').value)||0;
   const price=parseFloat(document.getElementById('pe-nathu-price').value)||0;
   const amt=qty*price;
+  document.getElementById('pe-nathu-amt').value=amt>0?amt.toFixed(2):'';
   document.getElementById('pe-paid').value=amt>0?amt.toFixed(2):'';
   calcPB();
 }
@@ -1557,6 +1561,7 @@ function clearPur(){
   document.getElementById('pe-nathu-row').style.display='none';
   document.getElementById('pe-nathu-qty').value='';
   document.getElementById('pe-nathu-price').value='';
+  document.getElementById('pe-nathu-amt').value='';
   document.getElementById('pe-note').value='';
   document.getElementById('pe-items').innerHTML='';
   piCount=0; addPI();
