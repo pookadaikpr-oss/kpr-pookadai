@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260704-v41';
+  var APP_BUILD = '20260704-v42';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2846,6 +2846,9 @@ function _genReport(){
       const thS='padding:3px 2px;font-size:8px;text-align:left;white-space:nowrap;overflow:hidden';
       const tdS='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;white-space:nowrap;overflow:hidden';
       const tdR='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;overflow:hidden';
+      let rowsHtml='';
+      // Collect all rows — items + paid, merge & sort by date
+      const allRows=[];
       entries.forEach(e=>{
         if(e.items&&e.items.length>0){
           e.items.forEach(item=>{
@@ -2927,6 +2930,7 @@ function _genReport(){
       const thS='padding:3px 2px;font-size:8px;text-align:left;white-space:nowrap;overflow:hidden';
       const tdS='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;white-space:nowrap;overflow:hidden';
       const tdR='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;overflow:hidden';
+      let custRowsHtml='';
       entries.forEach(e=>{
         if(e.items&&e.items.length>0){
           e.items.forEach((item,idx)=>{
