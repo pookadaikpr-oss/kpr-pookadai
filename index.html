@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260704-v35';
+  var APP_BUILD = '20260704-v36';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -221,8 +221,9 @@ tbody td{padding:8px 11px}
   <div id="alertBox"></div>
   <!-- FIREBASE LOADING BANNER -->
   <div id="fb-loading"><span class="spinner"></span>Firebase இணைகிறது... தரவு வருகிறது</div>
-  <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+  <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
     <button class="btn bsm" onclick="refreshFromFirebase()" style="font-size:12px;background:#e6f7ed;color:#1a6b3a;border:1.5px solid #27ae60;font-weight:700">🔄 Refresh</button>
+    <button class="btn bsm" onclick="kprDownloadBackup()" style="font-size:12px;background:#eef5fb;color:#154a75;border:1.5px solid #2980b9;font-weight:700">📥 Backup</button>
     <button class="btn bsm" onclick="fixMissingCommission()" style="font-size:11px;background:#fff8e6;color:#b8860b;border:1.5px solid #d4af37;font-weight:700">🔧 கமிஷன் Fix</button>
     <button class="btn bsm" onclick="clearAllData()" style="font-size:10px;background:#f5f0ea;color:#aaa;border:1px solid #ddd">🗑 Clear All Data</button>
   </div>
@@ -3256,6 +3257,24 @@ function loadPasswords(){
 
 // ===== HIDDEN FINANCIAL SUMMARY (Rajalakshmi மட்டும்) =====
 let KPR_SUMMARY_PIN = '2580'; // default — Firebase-ல் இருந்து overwrite ஆகும்
+function kprDownloadBackup(){
+  try{
+    const snapshot = JSON.parse(JSON.stringify(db));
+    const stamp = today || new Date().toISOString().slice(0,10);
+    const blob = new Blob([JSON.stringify(snapshot,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'KPR_Backup_'+stamp+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    alert2('✅ Backup file download ஆச்சு! WhatsApp/Drive-ல் வெச்சுக்கோங்க','ok');
+  }catch(e){
+    alert2('⚠️ Backup download ஆகல, மறுபடி try பண்ணுங்க','err');
+  }
+}
 function loadSummaryPin(){
   fetch(FIREBASE_URL+'/settings/summaryPin.json')
     .then(r=>r.json()).then(data=>{ if(data) KPR_SUMMARY_PIN = String(data); })
