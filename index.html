@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260704-v36';
+  var APP_BUILD = '20260704-v38';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3206,16 +3206,44 @@ function renderMisc(){
 </script>
 
 <script>
-// Service Worker for PWA
+// Service Worker for PWA — Offline support (app shell cache-able, Firebase எப்போவும் network)
 if('serviceWorker' in navigator){
   const swCode = `
+    const CACHE_NAME = 'kpr-app-cache-v1';
+    const FB_HOST = 'kpr-poo-kadai-default-rtdb.asia-southeast1.firebasedatabase.app';
     self.addEventListener('install', e => self.skipWaiting());
-    self.addEventListener('activate', e => clients.claim());
-    self.addEventListener('fetch', e => e.respondWith(fetch(e.request, {cache:'no-store'}).catch(()=>fetch(e.request).catch(()=>new Response('')))));
+    self.addEventListener('activate', e => {
+      clients.claim();
+      e.waitUntil(
+        caches.keys().then(names => Promise.all(
+          names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))
+        ))
+      );
+    });
+    self.addEventListener('fetch', e => {
+      const url = new URL(e.request.url);
+      // Firebase data calls: எப்போவும் network மட்டும், offline-ஆ இருந்தா real error-ஆ போகும் (app-ன் existing offline-handling வேலை செய்யணும்)
+      if(url.hostname === FB_HOST || e.request.method !== 'GET'){
+        e.respondWith(fetch(e.request));
+        return;
+      }
+      // App shell (HTML/CSS/JS/Fonts): network-first, offline-ல cache-ல இருந்து காமிக்கும்
+      e.respondWith(
+        fetch(e.request).then(res => {
+          if(res && res.status === 200){
+            const resClone = res.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, resClone));
+          }
+          return res;
+        }).catch(() =>
+          caches.match(e.request).then(cached => cached || new Response('Offline — இணைய இணைப்பு இல்ல', {status:503}))
+        )
+      );
+    });
   `;
   const swBlob = new Blob([swCode], {type:'text/javascript'});
   const swURL = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swURL).then(()=>console.log('SW registered'));
+  navigator.serviceWorker.register(swURL).then(()=>console.log('SW registered (offline mode)'));
 }
 
 // ===== LOGIN SYSTEM =====
