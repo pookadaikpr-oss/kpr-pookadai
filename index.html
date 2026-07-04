@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260704-v39';
+  var APP_BUILD = '20260704-v41';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2843,12 +2843,9 @@ function _genReport(){
       const netBal=isOutside?((totalComm+totalPatru)-(munPakki+pooVaravu)):(pooVaravu-(totalPatru+munPakki+totalComm));
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
-      const thS='padding:5px 6px;font-size:11px;text-align:left;white-space:nowrap';
-      const tdS='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
-      const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
-      let rowsHtml='';
-      // Collect all rows — items + paid, merge & sort by date
-      const allRows=[];
+      const thS='padding:3px 2px;font-size:8px;text-align:left;white-space:nowrap;overflow:hidden';
+      const tdS='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;white-space:nowrap;overflow:hidden';
+      const tdR='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;overflow:hidden';
       entries.forEach(e=>{
         if(e.items&&e.items.length>0){
           e.items.forEach(item=>{
@@ -2884,16 +2881,16 @@ function _genReport(){
           </div>
           <div style="font-size:12px;margin-bottom:4px">பெயர்: <b>${normName} அவர்கள்</b></div>
           ${munPakki>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span>முன் பாக்கி</span><span><b>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</b></span></div>`:''}
-          <div style="overflow-x:auto;margin-bottom:10px">
-            <table style="width:100%;border-collapse:collapse">
+          <div style="margin-bottom:10px">
+            <table style="width:100%;border-collapse:collapse;table-layout:fixed">
               <thead style="background:#1a6b3a;color:#fff">
                 <tr>
-                  <th style="${thS}">தேதி</th>
-                  <th style="${thS}">பொருள்</th>
-                  <th style="${thS};text-align:right">அளவு</th>
-                  <th style="${thS};text-align:right">விலை</th>
-                  <th style="${thS};text-align:right">வரவு</th>
-                  <th style="${thS};text-align:right">பற்று</th>
+                  <th style="${thS};width:16%">தேதி</th>
+                  <th style="${thS};width:30%">பொருள்</th>
+                  <th style="${thS};text-align:right;width:14%">அளவு</th>
+                  <th style="${thS};text-align:right;width:14%">விலை</th>
+                  <th style="${thS};text-align:right;width:13%">வரவு</th>
+                  <th style="${thS};text-align:right;width:13%">பற்று</th>
                 </tr>
               </thead>
               <tbody>${rowsHtml}</tbody>
@@ -2927,10 +2924,9 @@ function _genReport(){
       const netBalCust=grandTotalCust-totalVaravu;
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
-      const thS='padding:5px 6px;font-size:11px;text-align:left;white-space:nowrap';
-      const tdS='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap';
-      const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
-      let custRowsHtml='';
+      const thS='padding:3px 2px;font-size:8px;text-align:left;white-space:nowrap;overflow:hidden';
+      const tdS='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;white-space:nowrap;overflow:hidden';
+      const tdR='padding:2px 2px;font-size:8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;overflow:hidden';
       entries.forEach(e=>{
         if(e.items&&e.items.length>0){
           e.items.forEach((item,idx)=>{
@@ -2953,16 +2949,16 @@ function _genReport(){
           </div>
           <div style="font-size:12px;margin-bottom:4px">பெயர்: <b>${normName} அவர்கள்</b></div>
           ${munPakkiCust>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span>முன் பாக்கி</span><span><b>${munPakkiCust.toLocaleString('en-IN',{minimumFractionDigits:2})}</b></span></div>`:''}
-          <div style="overflow-x:auto;margin-bottom:10px">
-            <table style="width:100%;border-collapse:collapse">
+          <div style="margin-bottom:10px">
+            <table style="width:100%;border-collapse:collapse;table-layout:fixed">
               <thead style="background:#c8860a;color:#fff">
                 <tr>
-                  <th style="${thS}">தேதி</th>
-                  <th style="${thS}">பொருள்</th>
-                  <th style="${thS};text-align:right">Qty</th>
-                  <th style="${thS};text-align:right">விலை</th>
-                  <th style="${thS};text-align:right">மொத்தம்</th>
-                  <th style="${thS};text-align:right">வரவு</th>
+                  <th style="${thS};width:15%">தேதி</th>
+                  <th style="${thS};width:29%">பொருள்</th>
+                  <th style="${thS};text-align:right;width:12%">Qty</th>
+                  <th style="${thS};text-align:right;width:14%">விலை</th>
+                  <th style="${thS};text-align:right;width:15%">மொத்தம்</th>
+                  <th style="${thS};text-align:right;width:15%">வரவு</th>
                 </tr>
               </thead>
               <tbody>${custRowsHtml}</tbody>
