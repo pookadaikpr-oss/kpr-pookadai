@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260703-v32';
+  var APP_BUILD = '20260704-v35';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -159,11 +159,11 @@ tbody td{padding:8px 11px}
   .irow{grid-template-columns:2fr 1fr 1fr 1fr 28px}
 }
   @media print{
-    @page{ size:A4 landscape; margin:6mm 8mm; }
+    @page{ size:105mm 297mm; margin:5mm 6mm; }
     body{ font-size:10px !important; background:#fff !important; }
     .nav,.hdr-date,#rpt-print-btn-row{ display:none !important; }
     #pg-report > *:not(#rpt-out){ display:none !important; }
-    #rpt-out{ display:block !important; max-width:148mm !important; margin:0 !important; }
+    #rpt-out{ display:block !important; max-width:105mm !important; margin:0 !important; }
     .card{ box-shadow:none !important; border:none !important; padding:0 !important; margin:0 !important; }
     table{ width:100% !important; font-size:9px !important; border-collapse:collapse !important; }
     th{ padding:2px 4px !important; font-size:9px !important; }
@@ -189,7 +189,7 @@ tbody td{padding:8px 11px}
   <div class="hdr-top">
     <div class="logo">
       <span class="logo-icon">🌸</span>
-      <div><div class="logo-name">KPR பூ கடை</div><div class="logo-sub">Punnaivanam</div></div>
+      <div><div class="logo-name" onclick="kprLogoTap()" style="cursor:default;user-select:none">KPR பூ கடை</div><div class="logo-sub">Punnaivanam</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="hdr-date" id="hdrDate"></div>
@@ -473,6 +473,61 @@ tbody td{padding:8px 11px}
   </div>
 </div>
 
+<!-- KPR Hidden Summary: PIN Modal -->
+<div class="moverlay" id="kprPinMod">
+  <div class="modal" style="max-width:300px">
+    <h3 style="text-align:center;margin-bottom:14px">🔒 PIN</h3>
+    <input type="password" id="kpr-pin-input" inputmode="numeric" maxlength="6" placeholder="••••" style="font-size:22px;text-align:center;letter-spacing:6px;font-weight:700;margin-bottom:10px" autocomplete="off">
+    <div id="kpr-pin-err" style="color:var(--red);font-size:12px;text-align:center;min-height:16px;margin-bottom:8px"></div>
+    <div class="btn-row">
+      <button class="btn bg" onclick="kprCheckPin()">✅ Enter</button>
+      <button class="btn boo" onclick="kprCloseAll()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- KPR Hidden Summary: Result Modal -->
+<div class="moverlay" id="kprSumMod">
+  <div class="modal" style="max-width:340px;max-height:90vh;overflow-y:auto">
+    <h3 style="text-align:center;margin-bottom:12px">📊 இன்றைய நிலவரம்</h3>
+    <div style="background:#f8f8f8;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">லாபம் (Sales−Purchase)</span><span id="kpr-sum-profit" style="font-weight:700"></span></div>
+    </div>
+    <div style="background:#f0faf4;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.9">
+      <div style="font-weight:700;color:var(--green);margin-bottom:4px">💵 Cash (இன்று)</div>
+      <div style="display:flex;justify-content:space-between"><span>Customer வரவு</span><span id="kpr-cash-recv" style="color:var(--green)"></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Supplier பற்று</span><span id="kpr-cash-paid" style="color:var(--red)"></span></div>
+      <div style="display:flex;justify-content:space-between"><span>இதர செலவு</span><span id="kpr-cash-misc" style="color:var(--red)"></span></div>
+    </div>
+    <div style="background:#eef5fb;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.9">
+      <div style="font-weight:700;color:#1a5276;margin-bottom:4px">📱 Bank/GPay (இன்று)</div>
+      <div style="display:flex;justify-content:space-between"><span>Customer வரவு</span><span id="kpr-bank-recv" style="color:var(--green)"></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Supplier பற்று</span><span id="kpr-bank-paid" style="color:var(--red)"></span></div>
+      <div style="display:flex;justify-content:space-between"><span>இதர செலவு</span><span id="kpr-bank-misc" style="color:var(--red)"></span></div>
+    </div>
+    <div class="fg" style="margin-bottom:8px"><label style="font-size:11px">💰 கையிருப்பு (Opening/Current Cash)</label><input type="number" id="kpr-cash-input" placeholder="0" step="0.50"></div>
+    <div class="fg" style="margin-bottom:12px"><label style="font-size:11px">🏦 Bank Balance (Opening/Current)</label><input type="number" id="kpr-bank-input" placeholder="0" step="0.50"></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div style="flex:1;background:#1a6b3a;color:#fff;padding:8px;border-radius:8px;text-align:center">
+        <div style="font-size:10px;opacity:.85">மொத்த Cash</div>
+        <div id="kpr-cash-total" style="font-size:15px;font-weight:800"></div>
+      </div>
+      <div style="flex:1;background:#154a75;color:#fff;padding:8px;border-radius:8px;text-align:center">
+        <div style="font-size:10px;opacity:.85">மொத்த Bank</div>
+        <div id="kpr-bank-total" style="font-size:15px;font-weight:800"></div>
+      </div>
+    </div>
+    <div class="totbar-like" style="background:#c8952a;color:#fff;padding:10px 14px;border-radius:8px;text-align:center;margin-bottom:12px">
+      <div style="font-size:11px;opacity:.9">மொத்த நிலவரம் (Cash+Bank)</div>
+      <div id="kpr-sum-total" style="font-size:24px;font-weight:800"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn bg" onclick="kprSaveBalances()">💾 Balance Save</button>
+      <button class="btn boo" onclick="kprCloseAll()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Payment Modal -->
 <div class="moverlay" id="payMod">
   <div class="modal">
@@ -485,6 +540,13 @@ tbody td{padding:8px 11px}
     <input type="hidden" id="pm-amt">
     <div class="fg" style="margin-bottom:10px" id="pm-varavy-row"><label id="pm-varavy-label">வரவு தொகை</label><input type="number" id="pm-varavy-input" placeholder="0" min="0" step="0.50" style="font-size:15px;font-weight:700"></div>
     <div class="fg" style="margin-bottom:14px"><label>தேதி</label><input type="date" id="pm-date"></div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>பணம் எப்படி?</label>
+      <div style="display:flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+        <button type="button" id="pm-mode-cash" class="stab on" onclick="pmSetMode('cash')">💵 Cash</button>
+        <button type="button" id="pm-mode-gpay" class="stab" onclick="pmSetMode('gpay')">📱 GPay/Bank</button>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn bg" onclick="confirmPay()">✅ Confirm</button>
       <button class="btn boo" onclick="closePay()">Cancel</button>
@@ -697,6 +759,13 @@ tbody td{padding:8px 11px}
     <div class="frow t2" style="margin-bottom:8px">
       <div class="fg"><label>பற்று (செலவு)</label><input type="number" id="mx-paid" placeholder="0" min="0"></div>
       <div class="fg"><label>வரவு (திரும்ப வந்தது)</label><input type="number" id="mx-in" placeholder="0" min="0"></div>
+    </div>
+    <div class="fg" style="margin-bottom:8px">
+      <label>பணம் எப்படி?</label>
+      <div style="display:flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+        <button type="button" id="mx-mode-cash" class="stab on" onclick="mxSetMode('cash')">💵 Cash</button>
+        <button type="button" id="mx-mode-gpay" class="stab" onclick="mxSetMode('gpay')">📱 GPay/Bank</button>
+      </div>
     </div>
     <div class="frow" style="margin-bottom:8px">
       <div class="fg"><label>குறிப்பு</label><input type="text" id="mx-note" placeholder="Optional"></div>
@@ -1152,13 +1221,13 @@ function resolveItemShortcut(val){
   return val;
 }
 const LOCAL_KEY = 'kpr-db-v2';
-let db = { purchases:[], sales:[], payments:[], commissions:{}, misc:[] };
+let db = { purchases:[], sales:[], payments:[], commissions:{}, misc:[], balances:{cash:0,bank:0} };
 
 function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(db)); }catch(e){} }
 function loadLocal(){
   try{
     const d=localStorage.getItem(LOCAL_KEY);
-    if(d){ const p=JSON.parse(d); if(p&&p.purchases){ db=p; if(!db.commissions) db.commissions={}; if(!db.misc) db.misc=[]; } }
+    if(d){ const p=JSON.parse(d); if(p&&p.purchases){ db=p; if(!db.commissions) db.commissions={}; if(!db.misc) db.misc=[]; if(!db.balances) db.balances={cash:0,bank:0}; } }
   }catch(e){}
 }
 
@@ -1180,6 +1249,7 @@ function dedupDB(){
   const s2=new Set(); db.sales=(db.sales||[]).filter(p=>{if(s2.has(String(p.id)))return false;s2.add(String(p.id));return true;});
   const s3=new Set(); db.payments=(db.payments||[]).filter(p=>{if(s3.has(String(p.id)))return false;s3.add(String(p.id));return true;});
   if(!db.commissions) db.commissions={};
+  if(!db.balances) db.balances={cash:0,bank:0};
 }
 
 // ===== DATE FORMAT HELPER =====
@@ -1241,6 +1311,7 @@ window.addEventListener('DOMContentLoaded', function(){
           const fbPay = toArr(data.payments||[]);
           const fbComm = data.commissions||{};
           const fbMisc = toArr(data.misc||[]);
+          const fbBalances = data.balances||null;
           const fbCount = fbPur.length + fbSal.length;
           if(fbCount > 0){
             const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
@@ -1252,7 +1323,8 @@ window.addEventListener('DOMContentLoaded', function(){
               sales:[...fbSal,...localSal],
               payments:[...fbPay,...localPay],
               commissions:Object.assign({},fbComm,db.commissions||{}),
-              misc:[...fbMisc,...localMisc]
+              misc:[...fbMisc,...localMisc],
+              balances:fbBalances||db.balances||{cash:0,bank:0}
             };
             dedupDB(); saveLocal();
             syncMasterFromDB();
@@ -2153,8 +2225,14 @@ function collectCust(name,due){
   openPay('sal',entries[0]?entries[0].id:null,name,due);
 }
 
+function pmSetMode(mode){
+  payData.mode=mode;
+  document.getElementById('pm-mode-cash').classList.toggle('on',mode==='cash');
+  document.getElementById('pm-mode-gpay').classList.toggle('on',mode==='gpay');
+}
 function openPay(type,id,name,due){
-  payData={type,id,name,due};
+  payData={type,id,name,due,mode:'cash'};
+  pmSetMode('cash');
   document.getElementById('pm-title').textContent=(type==='pur'?'💸 Pay: ':'💰 விற்பனை வரவு: ')+name;
   document.getElementById('pm-amt').value='';
   document.getElementById('pm-date').value=today;
@@ -2288,7 +2366,7 @@ function confirmPay(){
   const{type,name}=payData; let remaining=amt;
   if(type==='pur'){ db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   else{ db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
-  db.payments.push({id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt});
+  db.payments.push({id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt,mode:payData.mode||'cash'});
   saveDB(); closePay(); renderPay(); renderPL(); renderSL(); updateDash();
   alert2('✅ ₹'+amt.toFixed(2)+' payment பதிவானது!','ok');
 }
@@ -2681,7 +2759,7 @@ function genFullReport(mode){
 function printReport(){
   const out=document.getElementById('rpt-out');
   if(!out||!out.innerHTML.trim()){ alert2('முதல்ல Generate பண்ணுங்க!','err'); return; }
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPR Report</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet"><style>@page{size:148mm 210mm;margin:6mm 8mm}body{font-family:'Noto Sans Tamil',sans-serif;padding:16px;font-size:12px;color:#111}.print-top{text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:14px}.print-top h2{color:#1a6b3a;font-size:18px;margin:0}.print-top p{margin:4px 0;font-size:11px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}thead{background:#1a6b3a;color:#fff}thead th{padding:5px 7px;text-align:left}tbody td{padding:4px 7px;border-bottom:1px solid #eee}tr{page-break-inside:avoid}.card{margin-bottom:12px;border:1px solid #ddd;border-radius:8px;padding:10px;page-break-inside:avoid}.sec{font-size:13px;font-weight:700;color:#1a6b3a;margin-bottom:8px}.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}.bg2{background:#e6f7ed;color:#1a6b3a}.br2{background:#fdecea;color:#c0392b}.totbar{background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}.profit-box{text-align:center;padding:10px;border-radius:8px;margin-bottom:10px}.ppos{background:#e6f7ed;color:#1a6b3a}.pneg{background:#fdecea;color:#c0392b}.pval{font-size:24px;font-weight:700}.plbl{font-size:11px}.dash-card{padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px}.lbl{font-size:10px;color:#777}.val{font-size:16px;font-weight:700;color:#1a6b3a}.gold .val{color:#c8952a}.sub{font-size:10px;color:#999}.print-help{background:#fff8e1;border:1.5px solid #d4af37;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:#5a4a00}.rpt-action-btn{display:none}@media print{button{display:none}.print-help{display:none}}</style></head><body><div class="print-help">📄 <b>Print வழிமுறை (Cut பண்ணின half A4 sheet-க்கு):</b><br>1️⃣ Print Dialog-ல <b>Pages</b> box-ல <b>1</b> மட்டும் போட்டு Print பண்ணுங்க (Front side).<br>2️⃣ அதே sheet-ஐ புரட்டி மறுபடி Printer-ல வைச்சு, Pages box-ல <b>2</b> போட்டு Print பண்ணுங்க (Back side — rows அதிகமா இருந்தா மட்டும்).<br>3️⃣ Layout: <b>Portrait</b> தேர்ந்தெடுங்க. Paper size: <b>A5</b> (இல்ல custom 148×210mm).<br>4️⃣ More settings-ல "Headers and footers" checkbox <b>OFF</b> பண்ணுங்க.</div><div class="print-top"><h2>🌸 KPR பூக்கடை</h2><p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p><p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p></div><button onclick="window.print()" style="margin-bottom:8px;margin-right:8px;padding:8px 20px;background:#1a6b3a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨️ Print பண்ணுங்க</button><button id="kprPdfBtn" style="margin-bottom:8px;margin-right:8px;padding:8px 20px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">📥 PDF Download</button><button id="kprShareBtn" style="margin-bottom:14px;padding:8px 20px;background:#25D366;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">📤 Share</button><div id="kprReportContent">${out.innerHTML}</div><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/scr` + `ipt><script>function kprBuildShareText(root){var out=[];function walk(el){if(el.tagName==='TABLE'){var rows=el.querySelectorAll('tr');rows.forEach(function(tr){var cells=Array.prototype.map.call(tr.children,function(td){return td.textContent.replace(/\\s+/g,' ').trim();}).filter(function(c){return c.length>0;});if(cells.length)out.push(cells.join('   '));});out.push('');return;}if(el.tagName==='BUTTON'||el.tagName==='SCRIPT'||el.tagName==='STYLE')return;if(!el.children||el.children.length===0){var t=el.textContent.replace(/\\s+/g,' ').trim();if(t)out.push(t);return;}Array.prototype.forEach.call(el.children,walk);}walk(root);return out.join('\\n').replace(/\\n{3,}/g,'\\n\\n');}function kprFallbackTextShare(){var txt=kprBuildShareText(document.body);if(navigator.share){navigator.share({title:'KPR Report',text:txt}).catch(function(){});}else{navigator.clipboard.writeText(txt).then(function(){alert('Report copy ஆச்சு! WhatsApp-ல paste பண்ணுங்க.');}).catch(function(){alert('Share ஆகல, Print/PDF பயன்படுத்துங்க.');});}}function kprMakePdf(cb){var el=document.getElementById('kprReportContent');if(!window.html2pdf){cb(null);return;}var opt={margin:5,filename:'KPR_Report.pdf',image:{type:'jpeg',quality:0.95},html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a5',orientation:'portrait'}};html2pdf().set(opt).from(el).outputPdf('blob').then(function(blob){cb(blob);}).catch(function(){cb(null);});}document.getElementById('kprPdfBtn').onclick=function(){var btn=this;var orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ தயார் ஆகுது...';kprMakePdf(function(blob){btn.disabled=false;btn.textContent=orig;if(!blob){alert('PDF உருவாக்க முடியல, Print பட்டனை பயன்படுத்துங்க.');return;}var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='KPR_Report.pdf';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},3000);});};document.getElementById('kprShareBtn').onclick=function(){var btn=this;var orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ தயார் ஆகுது...';kprMakePdf(function(blob){if(!blob){kprFallbackTextShare();btn.disabled=false;btn.textContent=orig;return;}var file=new File([blob],'KPR_Report.pdf',{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:'KPR Report'}).catch(function(){}).finally(function(){btn.disabled=false;btn.textContent=orig;});}else{var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='KPR_Report.pdf';a.click();btn.disabled=false;btn.textContent=orig;}});};<\/scr` + `ipt></body></html>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPR Report</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet"><style>@page{size:105mm 297mm;margin:5mm 6mm}body{font-family:'Noto Sans Tamil',sans-serif;padding:10px;font-size:11px;color:#111}.print-top{text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:14px}.print-top h2{color:#1a6b3a;font-size:18px;margin:0}.print-top p{margin:4px 0;font-size:11px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}thead{background:#1a6b3a;color:#fff}thead th{padding:5px 7px;text-align:left}tbody td{padding:4px 7px;border-bottom:1px solid #eee}tr{page-break-inside:avoid}.card{margin-bottom:12px;border:1px solid #ddd;border-radius:8px;padding:10px;page-break-inside:avoid}.sec{font-size:13px;font-weight:700;color:#1a6b3a;margin-bottom:8px}.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}.bg2{background:#e6f7ed;color:#1a6b3a}.br2{background:#fdecea;color:#c0392b}.totbar{background:#1a6b3a;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px}.profit-box{text-align:center;padding:10px;border-radius:8px;margin-bottom:10px}.ppos{background:#e6f7ed;color:#1a6b3a}.pneg{background:#fdecea;color:#c0392b}.pval{font-size:24px;font-weight:700}.plbl{font-size:11px}.dash-card{padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px}.lbl{font-size:10px;color:#777}.val{font-size:16px;font-weight:700;color:#1a6b3a}.gold .val{color:#c8952a}.sub{font-size:10px;color:#999}.print-help{background:#fff8e1;border:1.5px solid #d4af37;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:#5a4a00}.rpt-action-btn{display:none}@media print{button{display:none}.print-help{display:none}}</style></head><body><div class="print-help">📄 <b>Print வழிமுறை (Cut பண்ணின half A4 sheet-க்கு):</b><br>1️⃣ Print Dialog-ல <b>Pages</b> box-ல <b>1</b> மட்டும் போட்டு Print பண்ணுங்க (Front side).<br>2️⃣ அதே sheet-ஐ புரட்டி மறுபடி Printer-ல வைச்சு, Pages box-ல <b>2</b> போட்டு Print பண்ணுங்க (Back side — rows அதிகமா இருந்தா மட்டும்).<br>3️⃣ Layout: <b>Portrait</b> தேர்ந்தெடுங்க. Paper size: <b>Custom 105×297mm</b> (A4-ஐ நீளவாக்கா அரை பண்ணினது).<br>4️⃣ More settings-ல "Headers and footers" checkbox <b>OFF</b> பண்ணுங்க.</div><div class="print-top"><h2>🌸 KPR பூக்கடை</h2><p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p><p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p></div><button onclick="window.print()" style="margin-bottom:8px;margin-right:8px;padding:8px 20px;background:#1a6b3a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨️ Print பண்ணுங்க</button><button id="kprPdfBtn" style="margin-bottom:8px;margin-right:8px;padding:8px 20px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">📥 PDF Download</button><button id="kprShareBtn" style="margin-bottom:14px;padding:8px 20px;background:#25D366;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">📤 Share</button><div id="kprReportContent">${out.innerHTML}</div><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/scr` + `ipt><script>function kprBuildShareText(root){var out=[];function walk(el){if(el.tagName==='TABLE'){var rows=el.querySelectorAll('tr');rows.forEach(function(tr){var cells=Array.prototype.map.call(tr.children,function(td){return td.textContent.replace(/\\s+/g,' ').trim();}).filter(function(c){return c.length>0;});if(cells.length)out.push(cells.join('   '));});out.push('');return;}if(el.tagName==='BUTTON'||el.tagName==='SCRIPT'||el.tagName==='STYLE')return;if(!el.children||el.children.length===0){var t=el.textContent.replace(/\\s+/g,' ').trim();if(t)out.push(t);return;}Array.prototype.forEach.call(el.children,walk);}walk(root);return out.join('\\n').replace(/\\n{3,}/g,'\\n\\n');}function kprFallbackTextShare(){var txt=kprBuildShareText(document.body);if(navigator.share){navigator.share({title:'KPR Report',text:txt}).catch(function(){});}else{navigator.clipboard.writeText(txt).then(function(){alert('Report copy ஆச்சு! WhatsApp-ல paste பண்ணுங்க.');}).catch(function(){alert('Share ஆகல, Print/PDF பயன்படுத்துங்க.');});}}function kprMakePdf(cb){var el=document.getElementById('kprReportContent');if(!window.html2pdf){cb(null);return;}var opt={margin:5,filename:'KPR_Report.pdf',image:{type:'jpeg',quality:0.95},html2canvas:{scale:2},jsPDF:{unit:'mm',format:[105,297],orientation:'portrait'}};html2pdf().set(opt).from(el).outputPdf('blob').then(function(blob){cb(blob);}).catch(function(){cb(null);});}document.getElementById('kprPdfBtn').onclick=function(){var btn=this;var orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ தயார் ஆகுது...';kprMakePdf(function(blob){btn.disabled=false;btn.textContent=orig;if(!blob){alert('PDF உருவாக்க முடியல, Print பட்டனை பயன்படுத்துங்க.');return;}var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='KPR_Report.pdf';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},3000);});};document.getElementById('kprShareBtn').onclick=function(){var btn=this;var orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ தயார் ஆகுது...';kprMakePdf(function(blob){if(!blob){kprFallbackTextShare();btn.disabled=false;btn.textContent=orig;return;}var file=new File([blob],'KPR_Report.pdf',{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:'KPR Report'}).catch(function(){}).finally(function(){btn.disabled=false;btn.textContent=orig;});}else{var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='KPR_Report.pdf';a.click();btn.disabled=false;btn.textContent=orig;}});};<\/scr` + `ipt></body></html>`;
   const blob = new Blob([html], {type:'text/html'});
   const blobUrl = URL.createObjectURL(blob);
   const pw = window.open(blobUrl, '_blank');
@@ -3005,7 +3083,8 @@ function refreshFromFirebase(){
         const fbPay=toArr(data.payments||[]);
         const fbComm=data.commissions||{};
         const fbMisc=toArr(data.misc||[]);
-        db={purchases:fbPur,sales:fbSal,payments:fbPay,commissions:fbComm,misc:fbMisc};
+        const fbBalances=data.balances||{cash:0,bank:0};
+        db={purchases:fbPur,sales:fbSal,payments:fbPay,commissions:fbComm,misc:fbMisc,balances:fbBalances};
         dedupDB(); saveLocal();
         updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
@@ -3033,6 +3112,12 @@ function clearAllData(){
   saveDB(); updateDash(); renderPL(); renderSL(); renderPay();
   alert2('🗑 All data cleared!','warn');
 }
+let mxMode='cash';
+function mxSetMode(mode){
+  mxMode=mode;
+  document.getElementById('mx-mode-cash').classList.toggle('on',mode==='cash');
+  document.getElementById('mx-mode-gpay').classList.toggle('on',mode==='gpay');
+}
 function saveMisc(){
   const date=document.getElementById('mx-date').value;
   const cat=document.getElementById('mx-cat').value.trim();
@@ -3043,7 +3128,7 @@ function saveMisc(){
   if(!cat) return alert2('வகை type பண்ணுங்க!','err');
   if(paid<=0 && inAmt<=0) return alert2('பற்று அல்லது வரவு amount போடுங்க!','err');
   if(!db.misc) db.misc=[];
-  db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note});
+  db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash'});
   saveLocal(); clearMisc(); renderMisc();
   saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல!','warn'); });
 }
@@ -3053,6 +3138,7 @@ function clearMisc(){
   document.getElementById('mx-paid').value='';
   document.getElementById('mx-in').value='';
   document.getElementById('mx-note').value='';
+  mxSetMode('cash');
 }
 function delMisc(id){
   if(!confirm('இந்த entry delete பண்றீங்களா?')) return;
@@ -3168,6 +3254,81 @@ function loadPasswords(){
     });
 }
 
+// ===== HIDDEN FINANCIAL SUMMARY (Rajalakshmi மட்டும்) =====
+let KPR_SUMMARY_PIN = '2580'; // default — Firebase-ல் இருந்து overwrite ஆகும்
+function loadSummaryPin(){
+  fetch(FIREBASE_URL+'/settings/summaryPin.json')
+    .then(r=>r.json()).then(data=>{ if(data) KPR_SUMMARY_PIN = String(data); })
+    .catch(()=>{});
+}
+let kprTapCount = 0, kprTapTimer = null;
+function kprLogoTap(){
+  kprTapCount++;
+  clearTimeout(kprTapTimer);
+  kprTapTimer = setTimeout(()=>{ kprTapCount = 0; }, 1500);
+  if(kprTapCount >= 5){
+    kprTapCount = 0;
+    clearTimeout(kprTapTimer);
+    document.getElementById('kpr-pin-input').value='';
+    document.getElementById('kpr-pin-err').textContent='';
+    document.getElementById('kprPinMod').classList.add('on');
+    setTimeout(()=>document.getElementById('kpr-pin-input').focus(),100);
+  }
+}
+function kprCheckPin(){
+  const val = document.getElementById('kpr-pin-input').value.trim();
+  if(val === KPR_SUMMARY_PIN){
+    document.getElementById('kprPinMod').classList.remove('on');
+    kprOpenSummary();
+  } else {
+    document.getElementById('kpr-pin-err').textContent = 'தவறான PIN!';
+  }
+}
+function kprCloseAll(){
+  document.getElementById('kprPinMod').classList.remove('on');
+  document.getElementById('kprSumMod').classList.remove('on');
+}
+function kprOpenSummary(){
+  const purs=(db.purchases||[]).filter(p=>p.date===today);
+  const sals=(db.sales||[]).filter(s=>s.date===today);
+  const purTotal=purs.reduce((a,b)=>a+(b.total||0),0);
+  const salTotal=sals.reduce((a,b)=>a+(b.total||0),0);
+  const profit=salTotal-purTotal;
+  const payToday=(db.payments||[]).filter(p=>p.date===today);
+  const miscToday=(db.misc||[]).filter(m=>m.date===today);
+  const recvCash=payToday.filter(p=>p.type==='sal'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
+  const recvBank=payToday.filter(p=>p.type==='sal'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
+  const paidCash=payToday.filter(p=>p.type==='pur'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
+  const paidBank=payToday.filter(p=>p.type==='pur'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
+  const miscCash=miscToday.filter(m=>(m.mode||'cash')==='cash').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
+  const miscBank=miscToday.filter(m=>m.mode==='gpay').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
+  const bal=db.balances||{cash:0,bank:0};
+  document.getElementById('kpr-sum-profit').textContent=(profit>=0?'+':'')+'₹'+profit.toLocaleString('en-IN');
+  document.getElementById('kpr-cash-recv').textContent='+₹'+recvCash.toLocaleString('en-IN');
+  document.getElementById('kpr-cash-paid').textContent='−₹'+paidCash.toLocaleString('en-IN');
+  document.getElementById('kpr-cash-misc').textContent='−₹'+miscCash.toLocaleString('en-IN');
+  document.getElementById('kpr-bank-recv').textContent='+₹'+recvBank.toLocaleString('en-IN');
+  document.getElementById('kpr-bank-paid').textContent='−₹'+paidBank.toLocaleString('en-IN');
+  document.getElementById('kpr-bank-misc').textContent='−₹'+miscBank.toLocaleString('en-IN');
+  document.getElementById('kpr-cash-input').value=bal.cash||0;
+  document.getElementById('kpr-bank-input').value=bal.bank||0;
+  const cashTotal=(bal.cash||0)+recvCash-paidCash-miscCash;
+  const bankTotal=(bal.bank||0)+recvBank-paidBank-miscBank;
+  const grandTotal=cashTotal+bankTotal;
+  document.getElementById('kpr-cash-total').textContent='₹'+cashTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
+  document.getElementById('kpr-bank-total').textContent='₹'+bankTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
+  document.getElementById('kpr-sum-total').textContent='₹'+grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
+  document.getElementById('kprSumMod').classList.add('on');
+}
+function kprSaveBalances(){
+  const cash=parseFloat(document.getElementById('kpr-cash-input').value)||0;
+  const bank=parseFloat(document.getElementById('kpr-bank-input').value)||0;
+  db.balances={cash,bank};
+  saveLocal();
+  kprOpenSummary(); // totals refresh
+  saveDB().then(()=>{ alert2('✅ Balance Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல!','warn'); });
+}
+
 function doLogin(){
   const pwd = document.getElementById('login-pwd').value.trim();
   const err = document.getElementById('login-err');
@@ -3233,6 +3394,7 @@ function applyRoleRestrictions(){
 
 // Load passwords on start
 loadPasswords();
+loadSummaryPin();
 
 
 // Check if role already saved on this device
