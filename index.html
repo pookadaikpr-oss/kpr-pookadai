@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260705-v49';
+  var APP_BUILD = '20260705-v51';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -494,6 +494,10 @@ tbody td{padding:8px 11px}
     <div style="background:#f8f8f8;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;line-height:1.9">
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">லாபம் (Sales−Purchase)</span><span id="kpr-sum-profit" style="font-weight:700"></span></div>
     </div>
+    <div style="background:#fdf3e6;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;line-height:1.9">
+      <div style="font-weight:700;color:#7a4a1a;margin-bottom:2px">🧾 இதர செலவு (Total)</div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">இந்த மாதம்</span><span id="kpr-misc-month" style="font-weight:700"></span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">இந்த வருஷம்</span><span id="kpr-misc-year" style="font-weight:700"></span></div>
     <div style="background:#f0faf4;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.9">
       <div style="font-weight:700;color:var(--green);margin-bottom:4px">💵 Cash (இன்று)</div>
       <div style="display:flex;justify-content:space-between"><span>Customer வரவு</span><span id="kpr-cash-recv" style="color:var(--green)"></span></div>
@@ -790,11 +794,6 @@ tbody td{padding:8px 11px}
       <button class="btn bo" id="mx-save-btn" style="flex:1" onclick="saveMisc()">💾 Save</button>
       <button class="btn boo" style="flex:1" onclick="clearMisc()">🔄 Clear</button>
     </div>
-  </div>
-
-  <div class="frow t2" style="margin-bottom:12px">
-    <div class="dash-card" style="text-align:center"><div class="lbl">இந்த மாதம்</div><div class="val" id="mx-month-tot" style="color:#c0392b">₹0</div></div>
-    <div class="dash-card gold" style="text-align:center"><div class="lbl">இந்த வருஷம்</div><div class="val" id="mx-year-tot">₹0</div></div>
   </div>
 
   <div class="card" style="margin-bottom:12px">
@@ -3237,7 +3236,12 @@ function renderMisc(){
     const rows=Object.entries(catMap).sort((a,b)=>(b[1].paid-b[1].in)-(a[1].paid-a[1].in));
     if(rows.length){
       const grandTot=rows.reduce((a,r)=>a+r[1].paid-r[1].in,0);
-      summaryDiv.innerHTML=rows.map(([cat,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px"><span>${cat}</span><span style="font-weight:700;color:#c0392b">₹${(v.paid-v.in).toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-weight:700;font-size:13px;color:var(--green)"><span>மொத்தம்</span><span>₹${grandTot.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`;
+      summaryDiv.innerHTML=rows.map(([cat,v])=>{
+        const net=v.paid-v.in;
+        const sign=net>=0?'−':'+';
+        const color=net>=0?'#c0392b':'#1a6b3a';
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px"><span>${cat}</span><span style="font-weight:700;color:${color}">${sign}₹${Math.abs(net).toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`;
+      }).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-weight:700;font-size:13px;color:var(--green)"><span>மொத்தம்</span><span>${grandTot>=0?'':'+'}₹${(grandTot>=0?grandTot:Math.abs(grandTot)).toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`;
     } else {
       summaryDiv.innerHTML='<div style="text-align:center;color:#999;padding:10px;font-size:13px">Entries இல்லை</div>';
     }
@@ -3248,8 +3252,8 @@ function renderMisc(){
   const curYear=String(now.getFullYear());
   const monthTot=(db.misc||[]).filter(m=>m.date&&m.date.startsWith(curMonth)).reduce((a,m)=>a+(m.paid||0)-(m.in||0),0);
   const yearTot=(db.misc||[]).filter(m=>m.date&&m.date.startsWith(curYear)).reduce((a,m)=>a+(m.paid||0)-(m.in||0),0);
-  const mEl=document.getElementById('mx-month-tot'); if(mEl) mEl.textContent='₹'+monthTot.toLocaleString('en-IN',{minimumFractionDigits:2});
-  const yEl=document.getElementById('mx-year-tot'); if(yEl) yEl.textContent='₹'+yearTot.toLocaleString('en-IN',{minimumFractionDigits:2});
+  const mEl=document.getElementById('mx-month-tot'); if(mEl){ mEl.textContent=(monthTot>=0?'₹':'+₹')+Math.abs(monthTot).toLocaleString('en-IN',{minimumFractionDigits:2}); mEl.style.color=monthTot>=0?'#c0392b':'#1a6b3a'; }
+  const yEl=document.getElementById('mx-year-tot'); if(yEl){ yEl.textContent=(yearTot>=0?'₹':'+₹')+Math.abs(yearTot).toLocaleString('en-IN',{minimumFractionDigits:2}); yEl.style.color=yearTot>=0?'#c0392b':'#1a6b3a'; }
 }
 </script>
 
@@ -3399,6 +3403,15 @@ function kprOpenSummary(){
   const miscBank=miscToday.filter(m=>m.mode==='gpay').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
   const bal=db.balances||{cash:0,bank:0};
   document.getElementById('kpr-sum-profit').textContent=(profit>=0?'+':'')+'₹'+profit.toLocaleString('en-IN');
+  const nowD=new Date();
+  const curMonthKey=nowD.getFullYear()+'-'+String(nowD.getMonth()+1).padStart(2,'0');
+  const curYearKey=String(nowD.getFullYear());
+  const miscMonthTot=(db.misc||[]).filter(m=>m.date&&m.date.startsWith(curMonthKey)).reduce((a,m)=>a+(m.paid||0)-(m.in||0),0);
+  const miscYearTot=(db.misc||[]).filter(m=>m.date&&m.date.startsWith(curYearKey)).reduce((a,m)=>a+(m.paid||0)-(m.in||0),0);
+  document.getElementById('kpr-misc-month').textContent=(miscMonthTot>=0?'−':'+')+'₹'+Math.abs(miscMonthTot).toLocaleString('en-IN');
+  document.getElementById('kpr-misc-month').style.color=miscMonthTot>=0?'var(--red)':'var(--green)';
+  document.getElementById('kpr-misc-year').textContent=(miscYearTot>=0?'−':'+')+'₹'+Math.abs(miscYearTot).toLocaleString('en-IN');
+  document.getElementById('kpr-misc-year').style.color=miscYearTot>=0?'var(--red)':'var(--green)';
   document.getElementById('kpr-cash-recv').textContent='+₹'+recvCash.toLocaleString('en-IN');
   document.getElementById('kpr-cash-paid').textContent='−₹'+paidCash.toLocaleString('en-IN');
   document.getElementById('kpr-cash-misc').textContent=(miscCash>=0?'−₹':'+₹')+Math.abs(miscCash).toLocaleString('en-IN');
