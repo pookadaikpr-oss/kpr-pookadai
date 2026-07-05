@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260705-v46';
+  var APP_BUILD = '20260705-v47';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -528,7 +528,7 @@ tbody td{padding:8px 11px}
         <div id="kpr-bank-total" style="font-size:13px;font-weight:800"></div>
       </div>
       <div style="flex:1;background:#7a4a1a;color:#fff;padding:8px 4px;border-radius:8px;text-align:center">
-        <div style="font-size:9px;opacity:.85">வீட்டு பணம்</div>
+        <div style="font-size:9px;opacity:.85">வீட்டுக்கு எடுத்தது (Cash-ல் கழிந்தது)</div>
         <div id="kpr-home-total" style="font-size:13px;font-weight:800"></div>
       </div>
     </div>
@@ -3383,10 +3383,10 @@ function kprOpenSummary(){
   document.getElementById('kpr-bank-misc').textContent='−₹'+miscBank.toLocaleString('en-IN');
   document.getElementById('kpr-cash-input').value=bal.cash||0;
   document.getElementById('kpr-bank-input').value=bal.bank||0;
-  const cashTotal=(bal.cash||0)+recvCash-paidCash-miscCash;
-  const bankTotal=(bal.bank||0)+recvBank-paidBank-miscBank;
   const homeTotal=(db.homeMoney||[]).reduce((a,h)=>a+(h.amount||0),0);
-  const grandTotal=cashTotal+bankTotal+homeTotal;
+  const cashTotal=(bal.cash||0)+recvCash-paidCash-miscCash-homeTotal;
+  const bankTotal=(bal.bank||0)+recvBank-paidBank-miscBank;
+  const grandTotal=cashTotal+bankTotal;
   document.getElementById('kpr-cash-total').textContent='₹'+cashTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
   document.getElementById('kpr-bank-total').textContent='₹'+bankTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
   document.getElementById('kpr-home-total').textContent='₹'+homeTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
