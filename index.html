@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260705-v48';
+  var APP_BUILD = '20260705-v49';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -787,7 +787,7 @@ tbody td{padding:8px 11px}
       <div class="fg"></div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn bo" style="flex:1" onclick="saveMisc()">💾 Save</button>
+      <button class="btn bo" id="mx-save-btn" style="flex:1" onclick="saveMisc()">💾 Save</button>
       <button class="btn boo" style="flex:1" onclick="clearMisc()">🔄 Clear</button>
     </div>
   </div>
@@ -3143,6 +3143,7 @@ function mxSetMode(mode){
   document.getElementById('mx-mode-cash').classList.toggle('on',mode==='cash');
   document.getElementById('mx-mode-gpay').classList.toggle('on',mode==='gpay');
 }
+let editingMiscId=null;
 function saveMisc(){
   const date=document.getElementById('mx-date').value;
   const cat=document.getElementById('mx-cat').value.trim();
@@ -3153,11 +3154,34 @@ function saveMisc(){
   if(!cat) return alert2('வகை type பண்ணுங்க!','err');
   if(paid<=0 && inAmt<=0) return alert2('பற்று அல்லது வரவு amount போடுங்க!','err');
   if(!db.misc) db.misc=[];
-  db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash'});
+  if(editingMiscId){
+    const idx=db.misc.findIndex(m=>String(m.id)===String(editingMiscId));
+    if(idx>-1){ db.misc[idx]={...db.misc[idx],date,cat,paid,in:inAmt,note,mode:mxMode||'cash'}; }
+    editingMiscId=null;
+  } else {
+    db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash'});
+  }
   saveLocal(); clearMisc(); renderMisc();
   saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல!','warn'); });
 }
+function editMisc(id){
+  const m=(db.misc||[]).find(x=>String(x.id)===String(id));
+  if(!m) return;
+  editingMiscId=id;
+  document.getElementById('mx-date').value=m.date||today;
+  document.getElementById('mx-cat').value=m.cat||'';
+  document.getElementById('mx-paid').value=m.paid||'';
+  document.getElementById('mx-in').value=m.in||'';
+  document.getElementById('mx-note').value=m.note||'';
+  mxSetMode(m.mode||'cash');
+  const btn=document.getElementById('mx-save-btn');
+  if(btn) btn.textContent='✏️ Update';
+  document.getElementById('pg-misc').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function clearMisc(){
+  editingMiscId=null;
+  const btn=document.getElementById('mx-save-btn');
+  if(btn) btn.textContent='💾 Save';
   document.getElementById('mx-date').value=today;
   document.getElementById('mx-cat').value='';
   document.getElementById('mx-paid').value='';
@@ -3198,7 +3222,7 @@ function renderMisc(){
 
   const tbody=document.getElementById('mx-list');
   if(tbody){
-    tbody.innerHTML=filtered.length?filtered.map(m=>`<tr><td>${fmtDate(m.date)}</td><td>${m.cat}${m.note?'<br><span style="font-size:10px;color:#888">'+m.note+'</span>':''}</td><td>${m.paid>0?'₹'+m.paid.toFixed(2):''}</td><td>${m.in>0?'₹'+m.in.toFixed(2):''}</td><td><button class="btn br bsm" onclick="delMisc('${m.id}')">🗑</button></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Entries இல்லை</td></tr>';
+    tbody.innerHTML=filtered.length?filtered.map(m=>`<tr><td>${fmtDate(m.date)}</td><td>${m.cat}${m.note?'<br><span style="font-size:10px;color:#888">'+m.note+'</span>':''}</td><td>${m.paid>0?'₹'+m.paid.toFixed(2):''}</td><td>${m.in>0?'₹'+m.in.toFixed(2):''}</td><td style="white-space:nowrap"><button class="btn bo bsm" onclick="editMisc('${m.id}')" style="margin-right:4px">✏️</button><button class="btn br bsm" onclick="delMisc('${m.id}')">🗑</button></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Entries இல்லை</td></tr>';
   }
 
   // வகை வாரியா சுருக்கம் (date range-க்குள் உள்ள அனைத்தும், cat filter தவிர்த்து)
