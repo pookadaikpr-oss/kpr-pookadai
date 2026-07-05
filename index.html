@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260706-v52';
+  var APP_BUILD = '20260706-v53';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -500,13 +500,13 @@ tbody td{padding:8px 11px}
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">இந்த வருஷம்</span><span id="kpr-misc-year" style="font-weight:700"></span></div>
     </div>
     <div style="background:#f0faf4;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.9">
-      <div style="font-weight:700;color:var(--green);margin-bottom:4px">💵 Cash (இன்று)</div>
+      <div style="font-weight:700;color:var(--green);margin-bottom:4px">💵 Cash <span id="kpr-cash-range">(இன்று)</span></div>
       <div style="display:flex;justify-content:space-between"><span>Customer வரவு</span><span id="kpr-cash-recv" style="color:var(--green)"></span></div>
       <div style="display:flex;justify-content:space-between"><span>Supplier பற்று</span><span id="kpr-cash-paid" style="color:var(--red)"></span></div>
       <div style="display:flex;justify-content:space-between"><span>இதர செலவு</span><span id="kpr-cash-misc" style="color:var(--red)"></span></div>
     </div>
     <div style="background:#eef5fb;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.9">
-      <div style="font-weight:700;color:#1a5276;margin-bottom:4px">📱 Bank/GPay (இன்று)</div>
+      <div style="font-weight:700;color:#1a5276;margin-bottom:4px">📱 Bank/GPay <span id="kpr-bank-range">(இன்று)</span></div>
       <div style="display:flex;justify-content:space-between"><span>Customer வரவு</span><span id="kpr-bank-recv" style="color:var(--green)"></span></div>
       <div style="display:flex;justify-content:space-between"><span>Supplier பற்று</span><span id="kpr-bank-paid" style="color:var(--red)"></span></div>
       <div style="display:flex;justify-content:space-between"><span>இதர செலவு</span><span id="kpr-bank-misc" style="color:var(--red)"></span></div>
@@ -3389,21 +3389,25 @@ function kprCloseAll(){
   document.getElementById('kprSumMod').classList.remove('on');
 }
 function kprOpenSummary(){
-  const purs=(db.purchases||[]).filter(p=>p.date===today);
-  const sals=(db.sales||[]).filter(s=>s.date===today);
+  const bal=db.balances||{cash:0,bank:0};
+  const sinceDate=bal.lastUpdated||today; // கடைசியா Save பண்ணின நாள் (இல்லைன்னா இன்று மட்டும்)
+  const purs=(db.purchases||[]).filter(p=>p.date>=sinceDate&&p.date<=today);
+  const sals=(db.sales||[]).filter(s=>s.date>=sinceDate&&s.date<=today);
   const purTotal=purs.reduce((a,b)=>a+(b.total||0),0);
   const salTotal=sals.reduce((a,b)=>a+(b.total||0),0);
   const profit=salTotal-purTotal;
-  const payToday=(db.payments||[]).filter(p=>p.date===today);
-  const miscToday=(db.misc||[]).filter(m=>m.date===today);
+  const payToday=(db.payments||[]).filter(p=>p.date>=sinceDate&&p.date<=today);
+  const miscToday=(db.misc||[]).filter(m=>m.date>=sinceDate&&m.date<=today);
   const recvCash=payToday.filter(p=>p.type==='sal'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
   const recvBank=payToday.filter(p=>p.type==='sal'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
   const paidCash=payToday.filter(p=>p.type==='pur'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
   const paidBank=payToday.filter(p=>p.type==='pur'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
   const miscCash=miscToday.filter(m=>(m.mode||'cash')==='cash').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
   const miscBank=miscToday.filter(m=>m.mode==='gpay').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
-  const bal=db.balances||{cash:0,bank:0};
   document.getElementById('kpr-sum-profit').textContent=(profit>=0?'+':'')+'₹'+profit.toLocaleString('en-IN');
+  const rangeLabel=sinceDate===today?'(இன்று)':'('+fmtDate(sinceDate)+' — '+fmtDate(today)+')';
+  document.getElementById('kpr-cash-range').textContent=rangeLabel;
+  document.getElementById('kpr-bank-range').textContent=rangeLabel;
   const nowD=new Date();
   const curMonthKey=nowD.getFullYear()+'-'+String(nowD.getMonth()+1).padStart(2,'0');
   const curYearKey=String(nowD.getFullYear());
@@ -3474,7 +3478,7 @@ function kprDeleteHomeEntry(id){
 function kprSaveBalances(){
   const cash=parseFloat(document.getElementById('kpr-cash-input').value)||0;
   const bank=parseFloat(document.getElementById('kpr-bank-input').value)||0;
-  db.balances={cash,bank};
+  db.balances={cash,bank,lastUpdated:today};
   saveLocal();
   kprOpenSummary(); // totals refresh
   saveDB().then(()=>{ alert2('✅ Balance Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல!','warn'); });
