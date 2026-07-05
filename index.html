@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260705-v51';
+  var APP_BUILD = '20260706-v52';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -498,6 +498,7 @@ tbody td{padding:8px 11px}
       <div style="font-weight:700;color:#7a4a1a;margin-bottom:2px">🧾 இதர செலவு (Total)</div>
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">இந்த மாதம்</span><span id="kpr-misc-month" style="font-weight:700"></span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">இந்த வருஷம்</span><span id="kpr-misc-year" style="font-weight:700"></span></div>
+    </div>
     <div style="background:#f0faf4;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.9">
       <div style="font-weight:700;color:var(--green);margin-bottom:4px">💵 Cash (இன்று)</div>
       <div style="display:flex;justify-content:space-between"><span>Customer வரவு</span><span id="kpr-cash-recv" style="color:var(--green)"></span></div>
