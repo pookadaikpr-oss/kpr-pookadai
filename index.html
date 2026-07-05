@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260705-v47';
+  var APP_BUILD = '20260705-v48';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3377,10 +3377,12 @@ function kprOpenSummary(){
   document.getElementById('kpr-sum-profit').textContent=(profit>=0?'+':'')+'₹'+profit.toLocaleString('en-IN');
   document.getElementById('kpr-cash-recv').textContent='+₹'+recvCash.toLocaleString('en-IN');
   document.getElementById('kpr-cash-paid').textContent='−₹'+paidCash.toLocaleString('en-IN');
-  document.getElementById('kpr-cash-misc').textContent='−₹'+miscCash.toLocaleString('en-IN');
+  document.getElementById('kpr-cash-misc').textContent=(miscCash>=0?'−₹':'+₹')+Math.abs(miscCash).toLocaleString('en-IN');
+  document.getElementById('kpr-cash-misc').style.color=miscCash>=0?'var(--red)':'var(--green)';
   document.getElementById('kpr-bank-recv').textContent='+₹'+recvBank.toLocaleString('en-IN');
   document.getElementById('kpr-bank-paid').textContent='−₹'+paidBank.toLocaleString('en-IN');
-  document.getElementById('kpr-bank-misc').textContent='−₹'+miscBank.toLocaleString('en-IN');
+  document.getElementById('kpr-bank-misc').textContent=(miscBank>=0?'−₹':'+₹')+Math.abs(miscBank).toLocaleString('en-IN');
+  document.getElementById('kpr-bank-misc').style.color=miscBank>=0?'var(--red)':'var(--green)';
   document.getElementById('kpr-cash-input').value=bal.cash||0;
   document.getElementById('kpr-bank-input').value=bal.bank||0;
   const homeTotal=(db.homeMoney||[]).reduce((a,h)=>a+(h.amount||0),0);
