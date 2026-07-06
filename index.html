@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260706-v54';
+  var APP_BUILD = '20260707-v55';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2082,7 +2082,11 @@ function saveEdit(){
       const eduppuPct=parseFloat(document.getElementById('edit-eduppu').value)||0;
       const totalCommPct=commPct+eduppuPct;
       const commission=Math.round(total*totalCommPct/100*100)/100;
-      Object.assign(e,{date,supplier:name,items,total,prev,paid,balance:total-prev-paid,note,commPct,eduppuPct,commission});
+      // paidItems (உரம்/நாத்து breakdown) தொகையை கழிச்சு, மீதி amount-ஐ paidCash-ல் sync பண்ணுறோம்
+      // (இல்லைன்னா statement/message-ல் இந்த பற்று தொகை காமிக்காம மறையும்)
+      const existingItemsTotal=(e.paidItems||[]).reduce((a,it)=>a+(it.amount||0),0);
+      const syncedPaidCash=Math.max(0, paid-existingItemsTotal);
+      Object.assign(e,{date,supplier:name,items,total,prev,paid,balance:total-prev-paid,note,commPct,eduppuPct,commission,paidCash:syncedPaidCash});
     }
   } else {
     const e=db.sales.find(s=>String(s.id)===String(id));
