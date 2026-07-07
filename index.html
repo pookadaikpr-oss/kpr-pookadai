@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260707-v56';
+  var APP_BUILD = '20260707-v57';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -451,12 +451,18 @@ tbody td{padding:8px 11px}
   </div>
   <div id="pay-sup">
     <div class="sec" style="margin-top:6px">🏪 Supplier நிலுவை</div>
-    <input type="text" id="sup-due-search" placeholder="🔍 Supplier பெயர் தேடு..." oninput="renderPay()" style="width:100%;padding:9px 12px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">
+    <div style="position:relative;margin-bottom:10px">
+      <input type="text" id="sup-due-search" placeholder="🔍 Supplier பெயர் தேடு..." autocomplete="off" oninput="onSupDueSearchInput(this.value)" onkeydown="suggestKeyNav(event,'sup-due-search-list')" onblur="setTimeout(()=>hideSuggest('sup-due-search-list'),200)" onfocus="onSupDueSearchInput(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box">
+      <div id="sup-due-search-list" class="suggest-list"></div>
+    </div>
     <div id="sup-due-list"></div>
   </div>
   <div id="pay-cust" style="display:none">
     <div class="sec" style="margin-top:6px">👤 Customer நிலுவை</div>
-    <input type="text" id="cust-due-search" placeholder="🔍 Customer பெயர் தேடு..." oninput="renderPay()" style="width:100%;padding:9px 12px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">
+    <div style="position:relative;margin-bottom:10px">
+      <input type="text" id="cust-due-search" placeholder="🔍 Customer பெயர் தேடு..." autocomplete="off" oninput="onCustDueSearchInput(this.value)" onkeydown="suggestKeyNav(event,'cust-due-search-list')" onblur="setTimeout(()=>hideSuggest('cust-due-search-list'),200)" onfocus="onCustDueSearchInput(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box">
+      <div id="cust-due-search-list" class="suggest-list"></div>
+    </div>
     <div id="cust-due-list"></div>
   </div>
   <div id="pay-ledger" style="display:none">
@@ -469,7 +475,7 @@ tbody td{padding:8px 11px}
       <div class="fg"><label style="font-size:11px">From</label><input type="date" id="ledger-from" oninput="renderLedger()"></div>
       <div class="fg"><label style="font-size:11px">To</label><input type="date" id="ledger-to" oninput="renderLedger()"></div>
     </div>
-    <div class="filt"><input type="text" id="ledger-search" placeholder="🔍 பெயர் தேடுங்க..." style="flex:1" oninput="renderLedger()"></div>
+    <div class="filt" style="position:relative"><input type="text" id="ledger-search" placeholder="🔍 பெயர் தேடுங்க..." autocomplete="off" style="flex:1" oninput="onLedgerSearchInput(this.value)" onkeydown="suggestKeyNav(event,'ledger-search-list')" onblur="setTimeout(()=>hideSuggest('ledger-search-list'),200)" onfocus="onLedgerSearchInput(this.value)"><div id="ledger-search-list" class="suggest-list"></div></div>
     <div id="ledger-list"></div>
   </div>
 </div>
@@ -1655,6 +1661,43 @@ function suggestKeyNav(e, listId, fallback){
     return;
   }
   if(e.key==='Escape'){ hideSuggest(listId); }
+}
+function onSupDueSearchInput(val){
+  const listEl=document.getElementById('sup-due-search-list');
+  if(!listEl) return;
+  const n=normName_(val);
+  const names=[...new Set((db.purchases||[]).map(p=>p.supplier).filter(Boolean))].filter(nm=>!n||normName_(nm).includes(n)).sort().slice(0,50);
+  renderSuggestList(listEl, names, (picked)=>{
+    document.getElementById('sup-due-search').value=picked;
+    renderPay();
+    hideSuggest('sup-due-search-list');
+  });
+  renderPay();
+}
+function onCustDueSearchInput(val){
+  const listEl=document.getElementById('cust-due-search-list');
+  if(!listEl) return;
+  const n=normName_(val);
+  const names=[...new Set((db.sales||[]).map(s=>s.party).filter(Boolean))].filter(nm=>!n||normName_(nm).includes(n)).sort().slice(0,50);
+  renderSuggestList(listEl, names, (picked)=>{
+    document.getElementById('cust-due-search').value=picked;
+    renderPay();
+    hideSuggest('cust-due-search-list');
+  });
+  renderPay();
+}
+function onLedgerSearchInput(val){
+  const listEl=document.getElementById('ledger-search-list');
+  if(!listEl) return;
+  const n=normName_(val);
+  const src=ledgerType==='cust'?(db.sales||[]).map(s=>s.party):(db.purchases||[]).map(p=>p.supplier);
+  const names=[...new Set(src.filter(Boolean))].filter(nm=>!n||normName_(nm).includes(n)).sort().slice(0,50);
+  renderSuggestList(listEl, names, (picked)=>{
+    document.getElementById('ledger-search').value=picked;
+    renderLedger();
+    hideSuggest('ledger-search-list');
+  });
+  renderLedger();
 }
 function onSupInput(val){
   autoFillComm(val);
