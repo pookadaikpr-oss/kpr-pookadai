@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260707-v55';
+  var APP_BUILD = '20260707-v56';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1260,12 +1260,17 @@ function loadLocal(){
 function saveDB(){
   saveLocal();
   const snapshot = JSON.parse(JSON.stringify(db));
-  return fetch(FIREBASE_URL+'/db.json',{
-    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot)
-  }).then(r=>{
-    if(!r.ok) throw new Error('Firebase error: '+r.status);
-    return r.json();
-  });
+  // Field-specific PUT — ஒவ்வொரு field-ஐயும் தனித்தனியா அனுப்புறோம்,
+  // இல்லைன்னா ஒரு device-ல ஒரு field save பண்ணும்போது, அந்த device-ன் stale
+  // copy-ல இருக்குற மற்ற fields (எ.கா homeMoney) மேலெழுதப்பட்டு, மற்ற device-ல
+  // செய்த மாற்றங்கள் (delete உட்பட) இழக்கப்படும் ரிஸ்க் இருக்கு.
+  const fields = ['purchases','sales','payments','commissions','misc','balances','homeMoney'];
+  return Promise.all(fields.map(f =>
+    fetch(FIREBASE_URL+'/db/'+f+'.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(snapshot[f] !== undefined ? snapshot[f] : (f==='commissions'?{}:(f==='balances'?{cash:0,bank:0}:[])))
+    }).then(r=>{ if(!r.ok) throw new Error('Firebase error ('+f+'): '+r.status); return r.json(); })
+  ));
 }
 
 function toArr(v){ if(!v) return []; if(Array.isArray(v)) return v; return Object.values(v); }
