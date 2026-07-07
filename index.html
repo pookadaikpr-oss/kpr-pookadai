@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260707-v57';
+  var APP_BUILD = '20260707-v58';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -446,8 +446,11 @@ tbody td{padding:8px 11px}
   </div>
   <div style="margin-bottom:12px">
     <button class="btn boo" style="width:100%;padding:10px;font-size:13px" onclick="stab('pay','ledger',document.getElementById('ledger-toggle-btn'));renderLedger()" id="ledger-toggle-btn">📋 Ledger காண்க</button>
-    <button class="btn boo" style="width:100%;padding:10px;font-size:13px;margin-top:6px;color:#c0392b;border-color:#c0392b" onclick="toggleRecentPayments()" id="recent-pay-toggle-btn">↩️ Payment Undo</button>
-    <div id="recent-pay-list" style="display:none;margin-top:8px"></div>
+    <button class="btn boo" style="width:100%;padding:10px;font-size:13px;margin-top:6px;color:#c0392b;border-color:#c0392b" onclick="toggleRecentPayments()" id="recent-pay-toggle-btn">↩️ Payment Undo / List</button>
+    <div id="recent-pay-list" style="display:none;margin-top:8px">
+      <div class="fg" style="margin-bottom:8px"><label style="font-size:11px">தேதி தேர்வு (காலி விட்டா — Recent 20)</label><input type="date" id="pay-list-date" oninput="renderRecentPayments()"></div>
+      <div id="recent-pay-items"></div>
+    </div>
   </div>
   <div id="pay-sup">
     <div class="sec" style="margin-top:6px">🏪 Supplier நிலுவை</div>
@@ -2417,14 +2420,30 @@ function toggleRecentPayments(){
   if(!div) return;
   const show=div.style.display==='none';
   div.style.display=show?'block':'none';
-  if(show) renderRecentPayments();
+  if(show){
+    const dEl=document.getElementById('pay-list-date');
+    if(dEl && !dEl.value) dEl.value=today;
+    renderRecentPayments();
+  }
 }
 function renderRecentPayments(){
-  const div=document.getElementById('recent-pay-list');
+  const div=document.getElementById('recent-pay-items');
   if(!div) return;
-  const list=[...(db.payments||[])].sort((a,b)=>String(b.id).localeCompare(String(a.id))).slice(0,20);
-  if(!list.length){ div.innerHTML='<div class="empty"><div class="eico">📋</div>Payments இல்லை</div>'; return; }
-  div.innerHTML=list.map(p=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--muted)">${fmtDate(p.date)} · ${p.type==='pur'?'💸 Pay':'💰 Receive'} · ₹${p.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}</div></div><button class="btn br bsm" onclick="undoPayment('${p.id}')">↩️ Undo</button></div>`).join('');
+  const dEl=document.getElementById('pay-list-date');
+  const selDate=dEl?dEl.value:'';
+  let list;
+  if(selDate){
+    list=(db.payments||[]).filter(p=>p.date===selDate).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+  } else {
+    list=[...(db.payments||[])].sort((a,b)=>String(b.id).localeCompare(String(a.id))).slice(0,20);
+  }
+  if(!list.length){ div.innerHTML='<div class="empty"><div class="eico">📋</div>'+(selDate?'இந்த தேதிக்கு Payments இல்லை':'Payments இல்லை')+'</div>'; return; }
+  if(selDate){
+    const totalRecv=list.filter(p=>p.type==='sal').reduce((a,p)=>a+(p.amount||0),0);
+    const totalPaid=list.filter(p=>p.type==='pur').reduce((a,p)=>a+(p.amount||0),0);
+    div.innerHTML=`<div style="background:#f8f8f8;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:flex;justify-content:space-between"><span>மொத்த வரவு: <b style="color:var(--green)">+₹${totalRecv.toLocaleString('en-IN')}</b></span><span>மொத்த பற்று: <b style="color:var(--red)">−₹${totalPaid.toLocaleString('en-IN')}</b></span></div>`;
+  } else { div.innerHTML=''; }
+  div.innerHTML+=list.map(p=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--muted)">${fmtDate(p.date)} · ${p.type==='pur'?'💸 Pay':'💰 Receive'} · ₹${p.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}${p.mode==='gpay'?' · 📱 GPay':' · 💵 Cash'}</div></div><button class="btn br bsm" onclick="undoPayment('${p.id}')">↩️ Undo</button></div>`).join('');
 }
 function undoPayment(paymentId){
   const pay=(db.payments||[]).find(p=>String(p.id)===String(paymentId));
