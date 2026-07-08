@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260708-v60';
+  var APP_BUILD = '20260708-v61';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3032,10 +3032,11 @@ function _genReport(){
       const masterCust=findMasterCustomer(normName);
       const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:0;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
-      // Payments tab-ல் (Customer Receive) பதிவான வரவு-ஐயும் சேர்க்கிறோம்
-      // (இல்லைன்னா statement-ல் இந்த வரவு தெரியாம மறையும் — sale entry-ன் உள்ளே paid field மட்டும் காமிக்கும்)
       const custPayments=db.payments.filter(p=>p.type==='sal'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
-      const totalVaravu=entries.reduce((a,e)=>a+e.paid,0)+custPayments.reduce((a,p)=>a+(p.amount||0),0);
+      // Payments tab-ல் entries இருந்தா, அதுவே single source (sales.paid duplicate ஆகும்).
+      // இல்லைன்னா (பழைய legacy entries), sales.paid-ஐ மட்டும் பயன்படுத்துறோம்.
+      const useCustPayments=custPayments.length>0;
+      const totalVaravu=useCustPayments?custPayments.reduce((a,p)=>a+(p.amount||0),0):entries.reduce((a,e)=>a+(e.paid||0),0);
       const grandTotalCust=mottaVirpanai+munPakkiCust;
       const netBalCust=grandTotalCust-totalVaravu;
       const d1=from.split('-').reverse().join('/');
@@ -3051,23 +3052,25 @@ function _genReport(){
         if(!dateGroups[e.date]){ dateGroups[e.date]={entries:[],total:0,paid:0,extraPayments:[]}; dateOrder.push(e.date); }
         dateGroups[e.date].entries.push(e);
         dateGroups[e.date].total+=e.total||0;
-        dateGroups[e.date].paid+=e.paid||0;
+        if(!useCustPayments) dateGroups[e.date].paid+=e.paid||0;
       });
-      custPayments.forEach(p=>{
-        if(!dateGroups[p.date]){ dateGroups[p.date]={entries:[],total:0,paid:0,extraPayments:[]}; dateOrder.push(p.date); }
-        dateGroups[p.date].extraPayments.push(p);
-        dateGroups[p.date].paid+=p.amount||0;
-      });
+      if(useCustPayments){
+        custPayments.forEach(p=>{
+          if(!dateGroups[p.date]){ dateGroups[p.date]={entries:[],total:0,paid:0,extraPayments:[]}; dateOrder.push(p.date); }
+          dateGroups[p.date].extraPayments.push(p);
+          dateGroups[p.date].paid+=p.amount||0;
+        });
+      }
       dateOrder.sort();
       dateOrder.forEach(dt=>{
         const grp=dateGroups[dt];
         grp.entries.forEach((e,ei)=>{
           if(e.items&&e.items.length>0){
             e.items.forEach((item,idx)=>{
-              custRowsHtml+=`<tr><td style="${tdS}">${(ei===0&&idx===0)?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${idx===0&&e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+              custRowsHtml+=`<tr><td style="${tdS}">${(ei===0&&idx===0)?fmtDate(e.date):''}</td><td style="${tdS}">${item.name}</td><td style="${tdR}">${item.qty||''}</td><td style="${tdR}">${item.price||''}</td><td style="${tdR}">${item.amount>0?item.amount.toFixed(2):''}</td><td style="${tdR}">${(!useCustPayments&&idx===0&&e.paid>0)?e.paid.toFixed(2):''}</td></tr>`;
             });
           } else {
-            custRowsHtml+=`<tr><td style="${tdS}">${ei===0?fmtDate(e.date):''}</td><td style="${tdS}" colspan="3">${e.items&&e.items.length?e.items.map(i=>i.name).join(', '):'-'}</td><td style="${tdR}">${e.total.toFixed(2)}</td><td style="${tdR}">${e.paid>0?e.paid.toFixed(2):''}</td></tr>`;
+            custRowsHtml+=`<tr><td style="${tdS}">${ei===0?fmtDate(e.date):''}</td><td style="${tdS}" colspan="3">${e.items&&e.items.length?e.items.map(i=>i.name).join(', '):'-'}</td><td style="${tdR}">${e.total.toFixed(2)}</td><td style="${tdR}">${(!useCustPayments&&e.paid>0)?e.paid.toFixed(2):''}</td></tr>`;
           }
         });
         grp.extraPayments.forEach(p=>{
