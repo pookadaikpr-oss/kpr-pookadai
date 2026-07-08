@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260708-v62';
+  var APP_BUILD = '20260708-v63';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1266,6 +1266,7 @@ function loadLocal(){
   }catch(e){}
 }
 
+let lastSavedSnapshot={};
 function saveDB(){
   saveLocal();
   const snapshot = JSON.parse(JSON.stringify(db));
@@ -1273,13 +1274,18 @@ function saveDB(){
   // இல்லைன்னா ஒரு device-ல ஒரு field save பண்ணும்போது, அந்த device-ன் stale
   // copy-ல இருக்குற மற்ற fields (எ.கா homeMoney) மேலெழுதப்பட்டு, மற்ற device-ல
   // செய்த மாற்றங்கள் (delete உட்பட) இழக்கப்படும் ரிஸ்க் இருக்கு.
-  const fields = ['purchases','sales','payments','commissions','misc','balances','homeMoney'];
+  const allFields = ['purchases','sales','payments','commissions','misc','balances','homeMoney'];
+  // Speed optimization: கடைசியா successfully save ஆன snapshot-உடன் ஒப்பிட்டு,
+  // உண்மையில் மாறின fields-ஐ மட்டும் அனுப்புறோம் (automatic diff — manual field
+  // குறிப்பிடும் தேவை இல்லை, அதனால தவறா ஒரு field skip ஆகும் ரிஸ்க் இல்லை).
+  const fields = allFields.filter(f => JSON.stringify(snapshot[f]) !== JSON.stringify(lastSavedSnapshot[f]));
+  if(fields.length === 0) return Promise.resolve([]);
   return Promise.all(fields.map(f =>
     fetch(FIREBASE_URL+'/db/'+f+'.json', {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(snapshot[f] !== undefined ? snapshot[f] : (f==='commissions'?{}:(f==='balances'?{cash:0,bank:0}:[])))
     }).then(r=>{ if(!r.ok) throw new Error('Firebase error ('+f+'): '+r.status); return r.json(); })
-  ));
+  )).then(results=>{ lastSavedSnapshot=snapshot; return results; });
 }
 
 function toArr(v){ if(!v) return []; if(Array.isArray(v)) return v; return Object.values(v); }
