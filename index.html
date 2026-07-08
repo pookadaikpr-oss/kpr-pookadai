@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260708-v61';
+  var APP_BUILD = '20260708-v62';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2964,14 +2964,16 @@ function _genReport(){
       // Sort by date
       allRows.sort((a,b)=>a.date.localeCompare(b.date));
       let lastDate='';
-      let dateItemTotal=0, datePaidTotal=0;
+      let dateItemTotal=0, datePaidTotal=0, dateRowCount=0;
       const flushDateSubtotal=()=>{
         if(!lastDate) return;
+        if(dateRowCount<=1) return; // ஒரே ஒரு entry-க்கு subtotal வேண்டாம்
         rowsHtml+=`<tr style="background:#fdf3e0"><td colspan="4" style="${tdS};text-align:right;font-weight:700">அன்றைய மொத்தம்:</td><td style="${tdR};font-weight:700">${dateItemTotal.toFixed(2)}</td><td style="${tdR};font-weight:700">${datePaidTotal>0?datePaidTotal.toFixed(2):''}</td></tr>`;
       };
       allRows.forEach(r=>{
         const showDate=r.date!==lastDate;
-        if(showDate){ flushDateSubtotal(); dateItemTotal=0; datePaidTotal=0; lastDate=r.date; }
+        if(showDate){ flushDateSubtotal(); dateItemTotal=0; datePaidTotal=0; dateRowCount=0; lastDate=r.date; }
+        dateRowCount++;
         if(r.type==='item'){
           dateItemTotal+=r.item.amount||0;
           rowsHtml+=`<tr><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}">${r.item.name}</td><td style="${tdR}">${r.item.qty||''}</td><td style="${tdR}">${r.item.price||''}</td><td style="${tdR}">${r.item.amount>0?r.item.amount.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
@@ -3076,7 +3078,10 @@ function _genReport(){
         grp.extraPayments.forEach(p=>{
           custRowsHtml+=`<tr style="background:#eef7f0"><td style="${tdS}">${grp.entries.length===0?fmtDate(p.date):''}</td><td style="${tdS}" colspan="3"><i>வரவு (ரொக்கம்)</i></td><td style="${tdR}"></td><td style="${tdR};color:#1a6b3a;font-weight:700">${(p.amount||0).toFixed(2)}</td></tr>`;
         });
-        custRowsHtml+=`<tr style="background:#fdf3e0"><td colspan="4" style="${tdS};text-align:right;font-weight:700">அன்றைய மொத்தம்:</td><td style="${tdR};font-weight:700">${grp.total.toFixed(2)}</td><td style="${tdR};font-weight:700">${grp.paid>0?grp.paid.toFixed(2):''}</td></tr>`;
+        const totalRowCount=grp.entries.reduce((a,e)=>a+(e.items&&e.items.length>0?e.items.length:1),0)+grp.extraPayments.length;
+        if(totalRowCount>1){
+          custRowsHtml+=`<tr style="background:#fdf3e0"><td colspan="4" style="${tdS};text-align:right;font-weight:700">அன்றைய மொத்தம்:</td><td style="${tdR};font-weight:700">${grp.total.toFixed(2)}</td><td style="${tdR};font-weight:700">${grp.paid>0?grp.paid.toFixed(2):''}</td></tr>`;
+        }
       });
       out.innerHTML=`
         <div style="background:#fff;border:2px solid #c8860a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
