@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260708-v63';
+  var APP_BUILD = '20260709-v64';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1367,7 +1367,10 @@ window.addEventListener('DOMContentLoaded', function(){
             const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
             const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
             const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
-            const localHomeMoney = (db.homeMoney||[]).filter(h=>!fbHomeMoney.find(f=>String(f.id)===String(h.id)));
+            // வீட்டு பணம் — ஒரே ஒரு நபர் (secret feature) தான் இதை edit பண்றது, அதனால
+            // union-merge தேவையில்ல. Firebase-ஐ மட்டும் authoritative-ஆ எடுத்துக்குறோம் —
+            // இல்லைன்னா ஒரு stale device local cache-ல் இருந்த delete ஆன entry, திரும்ப
+            // "resurrect" ஆகிடும் (union-merge logic delete-ஐ கையாளாது).
             db = {
               purchases:[...fbPur,...localPur],
               sales:[...fbSal,...localSal],
@@ -1375,7 +1378,7 @@ window.addEventListener('DOMContentLoaded', function(){
               commissions:Object.assign({},fbComm,db.commissions||{}),
               misc:[...fbMisc,...localMisc],
               balances:fbBalances||db.balances||{cash:0,bank:0,home:0},
-              homeMoney:[...fbHomeMoney,...localHomeMoney]
+              homeMoney:fbHomeMoney
             };
             dedupDB(); saveLocal();
             syncMasterFromDB();
