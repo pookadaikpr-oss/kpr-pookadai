@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v64';
+  var APP_BUILD = '20260709-v66';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -731,6 +731,7 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>முன்பாக்கி ₹</label><input type="number" id="ms-sup-prev" placeholder="0" value="0" min="0"></div>
       </div>
       <div class="fg" style="margin-bottom:8px"><label>முன்பாக்கி தேதி (இந்த தேதி முதல் report-ல் வரும்)</label><input type="date" id="ms-sup-prev-date"></div>
+      <div class="fg" style="margin-bottom:8px"><label>🎯 நிலையான முன்பாக்கி Target ₹ (Optional — கொஞ்சம் பேருக்கு மட்டும்)</label><input type="number" id="ms-sup-float-target" placeholder="எ.கா 35000 — காலியா விடலாம்" min="0"></div>
       <button class="btn bg" style="width:100%" onclick="saveMasterSup()">💾 Save தோட்டக்காரர்</button>
     </div>
     <div class="card">
@@ -924,12 +925,13 @@ function saveMasterSup(){
     comm:document.getElementById('ms-sup-comm').value!==''?parseFloat(document.getElementById('ms-sup-comm').value):10,
     eduppu:document.getElementById('ms-sup-eduppu').value!==''?parseFloat(document.getElementById('ms-sup-eduppu').value):0,
     prev:parseFloat(document.getElementById('ms-sup-prev').value)||0,
-    prevDate:document.getElementById('ms-sup-prev-date').value||''
+    prevDate:document.getElementById('ms-sup-prev-date').value||'',
+    floatTarget:parseFloat(document.getElementById('ms-sup-float-target').value)||0
   };
   const wasEditing = editingSupIdx;
   editingSupIdx=-1;
   // Clear form immediately
-  ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date'].forEach(id=>document.getElementById(id).value='');
+  ['ms-sup-name','ms-sup-town','ms-sup-phone','ms-sup-prev-date','ms-sup-float-target'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-sup-type').value='தோட்டம்';
   document.getElementById('ms-sup-comm').value='10';
   document.getElementById('ms-sup-eduppu').value='0';
@@ -1072,6 +1074,7 @@ function editMasterSup(idx){
     document.getElementById('ms-sup-eduppu').value=s.eduppu!=null?s.eduppu:0;
     document.getElementById('ms-sup-prev').value=s.prev||0;
     document.getElementById('ms-sup-prev-date').value=s.prevDate||'';
+    document.getElementById('ms-sup-float-target').value=s.floatTarget||'';
     window.scrollTo({top:0,behavior:'smooth'});
     document.getElementById('ms-sup-name').focus();
     alert2(s.name+' — edit பண்ணலாம்! Save பண்ணினா update ஆகும்','ok');
@@ -2892,6 +2895,24 @@ function updateRptPartyDL(){
   const dl=document.getElementById('rpt-party-dl');
   if(dl){ dl.innerHTML=''; names.sort().forEach(n=>{ const o=document.createElement('option'); o.value=n; dl.appendChild(o); }); }
 }
+function recalcSupplierCommission(normName,from,to){
+  const masterSup=findMasterSupplier(normName);
+  if(!masterSup){ alert2('இந்த supplier Master Data-ல் இல்ல!','err'); return; }
+  const newCommPct=masterSup.comm!=null?masterSup.comm:0;
+  const newEduppuPct=masterSup.eduppu||0;
+  const affected=db.purchases.filter(p=>p.supplier&&normName_(p.supplier)===normName&&p.date>=from&&p.date<=to);
+  if(!affected.length){ alert2('இந்த காலத்துல entries இல்ல!','err'); return; }
+  const ok=confirm('இந்த காலத்துல ('+affected.length+' entries) commission % இப்போ Master Data-ல் இருக்குற '+newCommPct+'% + '+newEduppuPct+'% ஆக மாத்தணுமா? இது பழைய entries-ஐ மாத்திடும்.');
+  if(!ok) return;
+  affected.forEach(p=>{
+    p.commPct=newCommPct;
+    p.eduppuPct=newEduppuPct;
+    const totalPct=newCommPct+newEduppuPct;
+    p.commission=Math.round((p.total||0)*totalPct/100*100)/100;
+  });
+  saveLocal();
+  saveDB().then(()=>{ alert2('✅ '+affected.length+' entries-ன் commission % update ஆச்சு!','ok'); genReport(); }).catch(()=>{ alert2('⚠️ Local-ல் update ஆச்சு, Firebase sync ஆகல!','warn'); genReport(); });
+}
 function genReport(){
   // Fresh master data fetch பண்ணிட்டு report generate பண்றோம்
   Promise.all([
@@ -3034,6 +3055,19 @@ function _genReport(){
               <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
             ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal})" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
+            <button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>
+            ${(masterSup&&masterSup.floatTarget>0)?(()=>{
+              const currentFloat=-netBal;
+              const diff=masterSup.floatTarget-currentFloat;
+              return `<div style="margin-top:10px;background:#fdf3e0;border:1.5px solid #d4af37;border-radius:10px;padding:10px 12px">
+                <div style="font-weight:700;color:#7a4a1a;font-size:12.5px;margin-bottom:6px">🎯 நிலையான முன்பாக்கி Target</div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:2px"><span>Target</span><span style="font-weight:700">₹${masterSup.floatTarget.toLocaleString('en-IN')}</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span>இப்போ இருக்குறது</span><span style="font-weight:700">₹${currentFloat.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
+                <div style="text-align:center;font-size:13px;font-weight:800;color:${diff>0?'#c0392b':(diff<0?'#1a6b3a':'#555')};background:#fff;padding:6px;border-radius:8px">
+                  ${diff>0?'₹'+diff.toLocaleString('en-IN',{minimumFractionDigits:2})+' Pay பண்ணணும் (Target-க்கு குறைவா இருக்கு)':(diff<0?'₹'+Math.abs(diff).toLocaleString('en-IN',{minimumFractionDigits:2})+' அதிகமா இருக்கு — Pay வேண்டாம்':'✅ Target exact-ஆ பொருந்துது')}
+                </div>
+              </div>`;
+            })():''}
           </div>
         </div>`;
     } else {
