@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v66';
+  var APP_BUILD = '20260709-v67';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -917,6 +917,13 @@ function saveMasterSup(){
  try{
   const name=document.getElementById('ms-sup-name').value.trim();
   if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  if(editingSupIdx<0){
+    const existingIdx=master.suppliers.findIndex(s=>s.name===name);
+    if(existingIdx>=0){
+      const ok=confirm('"'+name+'" ஏற்கனவே இருக்கு! Edit பண்ணாம நேரடியா Save பண்ணா, அவங்க முன்பாக்கி/மற்ற details இப்போ இந்த form-ல இருக்குறது (பெரும்பாலும் 0/காலி) ஆல மாறிடும். இதனால பழைய data இழக்கலாம்.\n\nதொடரணுமா? (இல்லைன்னா Cancel பண்ணி, அந்த supplier-ன் ✏️ Edit பட்டனை தட்டி update பண்ணுங்க)');
+      if(!ok) return;
+    }
+  }
   const sup={
     name,
     town:document.getElementById('ms-sup-town').value.trim(),
