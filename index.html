@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v68';
+  var APP_BUILD = '20260709-v70';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -691,6 +691,16 @@ tbody td{padding:8px 11px}
         <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn bg" onclick="genKiloReport()">📊 Generate</button></div>
       </div>
     </div>
+  </div>
+  <div class="card" style="margin-bottom:12px;border:1.5px solid #c0392b">
+    <div class="sec" style="margin-top:0;color:#c0392b">📅 மாதம் முடி (Month Close) — முன்பாக்கி Auto Carry-Forward</div>
+    <div style="font-size:11.5px;color:#777;margin-bottom:10px;line-height:1.5">இந்த தேதி range-ல் உள்ள data வெச்சு, எல்லா Suppliers/Customers-ன் முன்பாக்கியும் தானா update ஆகும். Fixed Float Target வெச்ச suppliers-க்கு (துணைமாலை மாதிரி), Target amount-ஏ carry forward ஆகும். <b>Backup எடுத்திருந்து பண்ணுங்க.</b></div>
+    <div class="frow" style="margin-bottom:8px">
+      <div class="fg"><label>From</label><input type="date" id="mc-from"></div>
+      <div class="fg"><label>To</label><input type="date" id="mc-to"></div>
+    </div>
+    <button class="btn" style="width:100%;padding:11px;background:#c0392b;color:#fff;font-weight:700" onclick="monthClose()">🔒 மாதம் முடி — முன்பாக்கி Update</button>
+    <div id="mc-result" style="margin-top:10px"></div>
   </div>
   <div id="rpt-out"></div>
   <div id="rpt-print-btn-row" style="display:none;margin-top:12px;padding-bottom:14px">
@@ -2172,44 +2182,72 @@ function closeEdit(){ document.getElementById('editMod').classList.remove('on');
 
 // ===== PAYMENTS =====
 function monthClose(){
-  if(!confirm('மாதம் முடி — எல்லா Suppliers & Customers-க்கும் இருப்பு calculate பண்ணி முன்பாக்கி update ஆகும். சரியா?')) return;
-  
-  // Calculate supplier balance for each supplier
-  const supNames=[...new Set(db.purchases.map(p=>p.supplier).filter(Boolean))];
+  const from=document.getElementById('mc-from').value;
+  const to=document.getElementById('mc-to').value;
+  if(!from||!to) return alert2('From/To தேதி தேர்வு பண்ணுங்க!','err');
+  const ok=confirm('மாதம் முடி: '+from+' முதல் '+to+' வரைக்கும் data வெச்சு, எல்லா Suppliers/Customers-ன் முன்பாக்கியும் Auto-update ஆகும். இதை Undo பண்ண முடியாது. Backup எடுத்து இருக்கீங்களா? தொடரணுமா?');
+  if(!ok) return;
+
+  const supChanges=[];
+  const supNames=[...new Set(db.purchases.filter(p=>p.date>=from&&p.date<=to).map(p=>p.supplier).filter(Boolean))];
   supNames.forEach(name=>{
-    const entries=db.purchases.filter(p=>p.supplier===name);
+    const entries=db.purchases.filter(p=>p.supplier===name&&p.date>=from&&p.date<=to);
     const masterSup=findMasterSupplier(name);
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
-    const totalPatru=entries.reduce((a,e)=>a+e.paid,0);
-    // இருப்பு = முன்பாக்கி - பூவரவு + கமிஷன் - பற்று
-    const iruppu=munPakki - pooVaravu + totalComm - totalPatru;
-    // Update master
-    if(masterSup){ masterSup.prev=Math.round(iruppu*100)/100; }
-    else{ master.suppliers.push({name,town:'',phone:'',comm:10,eduppu:0,prev:Math.round(iruppu*100)/100}); }
+    // பற்று = paidCash/paidItems (நேரடி advance) + db.payments (Payments tab) — double-count தவிர்க்க
+    const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
+    const normName=normName_(name);
+    const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+    const totalPatru=paidCashTotal+paymentsPaid;
+    const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
+    const isOutside=outsideCount>entries.length/2;
+    const netBal=isOutside?((totalComm+totalPatru)-(munPakki+pooVaravu)):(pooVaravu-(totalPatru+munPakki+totalComm));
+    let newPrev;
+    if(masterSup&&masterSup.floatTarget>0){
+      newPrev=masterSup.floatTarget; // Fixed Float exception — Target amount-ஏ carry forward
+    } else {
+      newPrev=netBal<0?Math.round(Math.abs(netBal)*100)/100:0; // சாதாரண: முழுசா pay பண்ணி settle, overpay excess மட்டும் carry forward
+    }
+    const oldPrev=masterSup?masterSup.prev||0:0;
+    if(masterSup){ masterSup.prev=newPrev; masterSup.prevDate=to; }
+    else{ master.suppliers.push({name,town:'',phone:'',type:'தோட்டம்',comm:10,eduppu:0,prev:newPrev,prevDate:to}); }
+    supChanges.push({name,oldPrev,newPrev,netBal,isFloat:!!(masterSup&&masterSup.floatTarget>0)});
   });
 
-  // Calculate customer balance
-  const custNames=[...new Set(db.sales.map(s=>s.party).filter(Boolean))];
+  const custChanges=[];
+  const custNames=[...new Set(db.sales.filter(s=>s.date>=from&&s.date<=to).map(s=>s.party).filter(Boolean))];
   custNames.forEach(name=>{
-    const entries=db.sales.filter(s=>s.party===name);
+    const entries=db.sales.filter(s=>s.party===name&&s.date>=from&&s.date<=to);
     const masterCust=findMasterCustomer(name);
     const munPakki=masterCust&&masterCust.prev>0?masterCust.prev:0;
     const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
-    const totalVaravu=entries.reduce((a,e)=>a+e.paid,0);
-    const iruppu=munPakki + mottaVirpanai - totalVaravu;
-    if(masterCust){ masterCust.prev=Math.round(iruppu*100)/100; }
-    else{ master.customers.push({name,town:'',phone:'',prev:Math.round(iruppu*100)/100}); }
+    const normName=normName_(name);
+    const custPayments=db.payments.filter(p=>p.type==='sal'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
+    const totalVaravu=custPayments.length>0?custPayments.reduce((a,p)=>a+(p.amount||0),0):entries.reduce((a,e)=>a+(e.paid||0),0);
+    const netBalCust=(mottaVirpanai+munPakki)-totalVaravu;
+    const newPrev=netBalCust>0?Math.round(netBalCust*100)/100:0;
+    const oldPrev=masterCust?masterCust.prev||0:0;
+    if(masterCust){ masterCust.prev=newPrev; masterCust.prevDate=to; }
+    else{ master.customers.push({name,town:'',phone:'',prev:newPrev,prevDate:to}); }
+    custChanges.push({name,oldPrev,newPrev,netBalCust});
   });
 
   saveMasterLocal();
   saveMasterFirebase('suppliers');
   saveMasterFirebase('customers');
-  
-  // Generate சிட்டை for all suppliers
-  generateMonthSlips();
-  alert2('மாதம் முடிந்தது! முன்பாக்கி update ஆச்சு ✅','ok');
+
+  const resDiv=document.getElementById('mc-result');
+  if(resDiv){
+    resDiv.innerHTML=`<div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;font-size:12px;max-height:300px;overflow-y:auto">
+      <div style="font-weight:700;margin-bottom:6px">🌿 Suppliers (${supChanges.length})</div>
+      ${supChanges.map(c=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>${c.name}${c.isFloat?' 🎯':''}</span><span>₹${c.oldPrev.toLocaleString('en-IN')} → ₹${c.newPrev.toLocaleString('en-IN')}</span></div>`).join('')}
+      <div style="font-weight:700;margin:8px 0 6px">🛒 Customers (${custChanges.length})</div>
+      ${custChanges.map(c=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>${c.name}</span><span>₹${c.oldPrev.toLocaleString('en-IN')} → ₹${c.newPrev.toLocaleString('en-IN')}</span></div>`).join('')}
+    </div>`;
+  }
+  alert2('மாதம் முடிந்தது! '+supChanges.length+' suppliers + '+custChanges.length+' customers முன்பாக்கி update ஆச்சு ✅','ok');
 }
 
 function generateMonthSlips(){
@@ -3069,13 +3107,16 @@ function _genReport(){
             ${(masterSup&&masterSup.floatTarget>0)?(()=>{
               const currentFloat=-netBal;
               const diff=masterSup.floatTarget-currentFloat;
-              return `<div style="margin-top:10px;background:#fdf3e0;border:1.5px solid #d4af37;border-radius:10px;padding:10px 12px">
-                <div style="font-weight:700;color:#7a4a1a;font-size:12.5px;margin-bottom:6px">🎯 நிலையான முன்பாக்கி Target</div>
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:2px"><span>Target</span><span style="font-weight:700">₹${masterSup.floatTarget.toLocaleString('en-IN')}</span></div>
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span>இப்போ இருக்குறது</span><span style="font-weight:700">₹${currentFloat.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
-                <div style="text-align:center;font-size:13px;font-weight:800;color:${diff>0?'#c0392b':(diff<0?'#1a6b3a':'#555')};background:#fff;padding:6px;border-radius:8px">
-                  ${diff>0?'₹'+diff.toLocaleString('en-IN',{minimumFractionDigits:2})+' Pay பண்ணணும் (Target-க்கு குறைவா இருக்கு)':(diff<0?'₹'+Math.abs(diff).toLocaleString('en-IN',{minimumFractionDigits:2})+' அதிகமா இருக்கு — Pay வேண்டாம்':'✅ Target exact-ஆ பொருந்துது')}
-                </div>
+              const statusLine=diff>0
+                ? `<div style="text-align:center;font-size:16px;font-weight:800;color:#c0392b">Pay: ₹${diff.toLocaleString('en-IN',{minimumFractionDigits:2})}</div>`
+                : diff<0
+                  ? `<div style="text-align:center;font-size:13px;font-weight:700;color:#1a6b3a">✅ ₹${Math.abs(diff).toLocaleString('en-IN',{minimumFractionDigits:2})} அதிகம் — Pay வேண்டாம்</div>`
+                  : `<div style="text-align:center;font-size:13px;font-weight:700;color:#555">✅ Target exact</div>`;
+              const payBtn=diff>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${diff})" style="margin-top:8px;width:100%;padding:10px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${diff.toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:'';
+              return `<div class="rpt-action-btn" style="margin-top:10px;background:#fdf3e0;border:1.5px solid #d4af37;border-radius:10px;padding:10px 12px">
+                <div style="font-weight:700;color:#7a4a1a;font-size:11.5px;margin-bottom:6px">🎯 Target ₹${masterSup.floatTarget.toLocaleString('en-IN')} (இப்போ ₹${currentFloat.toLocaleString('en-IN',{minimumFractionDigits:2})})</div>
+                ${statusLine}
+                ${payBtn}
               </div>`;
             })():''}
           </div>
