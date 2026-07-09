@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v70';
+  var APP_BUILD = '20260709-v71';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -693,8 +693,8 @@ tbody td{padding:8px 11px}
     </div>
   </div>
   <div class="card" style="margin-bottom:12px;border:1.5px solid #c0392b">
-    <div class="sec" style="margin-top:0;color:#c0392b">📅 மாதம் முடி (Month Close) — முன்பாக்கி Auto Carry-Forward</div>
-    <div style="font-size:11.5px;color:#777;margin-bottom:10px;line-height:1.5">இந்த தேதி range-ல் உள்ள data வெச்சு, எல்லா Suppliers/Customers-ன் முன்பாக்கியும் தானா update ஆகும். Fixed Float Target வெச்ச suppliers-க்கு (துணைமாலை மாதிரி), Target amount-ஏ carry forward ஆகும். <b>Backup எடுத்திருந்து பண்ணுங்க.</b></div>
+    <div class="sec" style="margin-top:0;color:#c0392b">📅 மாதம் முடி (Month Close) — Suppliers முன்பாக்கி Auto Carry-Forward</div>
+    <div style="font-size:11.5px;color:#777;margin-bottom:10px;line-height:1.5">இந்த தேதி range-ல் உள்ள data வெச்சு, <b>தோட்டம் category Suppliers-ன் முன்பாக்கி மட்டும்</b> தானா update ஆகும் (வெளியூர்/வெளிகடை, Customers தொடாது). Fixed Float Target வெச்ச suppliers-க்கு (துணைமாலை மாதிரி), Target amount-ஏ carry forward ஆகும். <b>Backup எடுத்திருந்து பண்ணுங்க.</b></div>
     <div class="frow" style="margin-bottom:8px">
       <div class="fg"><label>From</label><input type="date" id="mc-from"></div>
       <div class="fg"><label>To</label><input type="date" id="mc-to"></div>
@@ -2185,14 +2185,17 @@ function monthClose(){
   const from=document.getElementById('mc-from').value;
   const to=document.getElementById('mc-to').value;
   if(!from||!to) return alert2('From/To தேதி தேர்வு பண்ணுங்க!','err');
-  const ok=confirm('மாதம் முடி: '+from+' முதல் '+to+' வரைக்கும் data வெச்சு, எல்லா Suppliers/Customers-ன் முன்பாக்கியும் Auto-update ஆகும். இதை Undo பண்ண முடியாது. Backup எடுத்து இருக்கீங்களா? தொடரணுமா?');
+  const ok=confirm('மாதம் முடி: '+from+' முதல் '+to+' வரைக்கும் data வெச்சு, தோட்டம் Suppliers-ன் முன்பாக்கி மட்டும் Auto-update ஆகும் (வெளியூர்/வெளிகடை, Customers தொடாது). இதை Undo பண்ண முடியாது. Backup எடுத்து இருக்கீங்களா? தொடரணுமா?');
   if(!ok) return;
 
   const supChanges=[];
   const supNames=[...new Set(db.purchases.filter(p=>p.date>=from&&p.date<=to).map(p=>p.supplier).filter(Boolean))];
   supNames.forEach(name=>{
-    const entries=db.purchases.filter(p=>p.supplier===name&&p.date>=from&&p.date<=to);
     const masterSup=findMasterSupplier(name);
+    // தோட்டம் category suppliers மட்டும் — வெளியூர்/வெளிகடை skip
+    const supTypeVal=masterSup&&masterSup.type?masterSup.type:'தோட்டம்';
+    if(supTypeVal!=='தோட்டம்') return;
+    const entries=db.purchases.filter(p=>p.supplier===name&&p.date>=from&&p.date<=to);
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
@@ -2201,9 +2204,7 @@ function monthClose(){
     const normName=normName_(name);
     const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
     const totalPatru=paidCashTotal+paymentsPaid;
-    const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
-    const isOutside=outsideCount>entries.length/2;
-    const netBal=isOutside?((totalComm+totalPatru)-(munPakki+pooVaravu)):(pooVaravu-(totalPatru+munPakki+totalComm));
+    const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
     let newPrev;
     if(masterSup&&masterSup.floatTarget>0){
       newPrev=masterSup.floatTarget; // Fixed Float exception — Target amount-ஏ carry forward
@@ -2216,38 +2217,17 @@ function monthClose(){
     supChanges.push({name,oldPrev,newPrev,netBal,isFloat:!!(masterSup&&masterSup.floatTarget>0)});
   });
 
-  const custChanges=[];
-  const custNames=[...new Set(db.sales.filter(s=>s.date>=from&&s.date<=to).map(s=>s.party).filter(Boolean))];
-  custNames.forEach(name=>{
-    const entries=db.sales.filter(s=>s.party===name&&s.date>=from&&s.date<=to);
-    const masterCust=findMasterCustomer(name);
-    const munPakki=masterCust&&masterCust.prev>0?masterCust.prev:0;
-    const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
-    const normName=normName_(name);
-    const custPayments=db.payments.filter(p=>p.type==='sal'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
-    const totalVaravu=custPayments.length>0?custPayments.reduce((a,p)=>a+(p.amount||0),0):entries.reduce((a,e)=>a+(e.paid||0),0);
-    const netBalCust=(mottaVirpanai+munPakki)-totalVaravu;
-    const newPrev=netBalCust>0?Math.round(netBalCust*100)/100:0;
-    const oldPrev=masterCust?masterCust.prev||0:0;
-    if(masterCust){ masterCust.prev=newPrev; masterCust.prevDate=to; }
-    else{ master.customers.push({name,town:'',phone:'',prev:newPrev,prevDate:to}); }
-    custChanges.push({name,oldPrev,newPrev,netBalCust});
-  });
-
   saveMasterLocal();
   saveMasterFirebase('suppliers');
-  saveMasterFirebase('customers');
 
   const resDiv=document.getElementById('mc-result');
   if(resDiv){
     resDiv.innerHTML=`<div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;font-size:12px;max-height:300px;overflow-y:auto">
-      <div style="font-weight:700;margin-bottom:6px">🌿 Suppliers (${supChanges.length})</div>
+      <div style="font-weight:700;margin-bottom:6px">🌿 தோட்டம் Suppliers (${supChanges.length})</div>
       ${supChanges.map(c=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>${c.name}${c.isFloat?' 🎯':''}</span><span>₹${c.oldPrev.toLocaleString('en-IN')} → ₹${c.newPrev.toLocaleString('en-IN')}</span></div>`).join('')}
-      <div style="font-weight:700;margin:8px 0 6px">🛒 Customers (${custChanges.length})</div>
-      ${custChanges.map(c=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>${c.name}</span><span>₹${c.oldPrev.toLocaleString('en-IN')} → ₹${c.newPrev.toLocaleString('en-IN')}</span></div>`).join('')}
     </div>`;
   }
-  alert2('மாதம் முடிந்தது! '+supChanges.length+' suppliers + '+custChanges.length+' customers முன்பாக்கி update ஆச்சு ✅','ok');
+  alert2('மாதம் முடிந்தது! '+supChanges.length+' தோட்டம் suppliers முன்பாக்கி update ஆச்சு ✅','ok');
 }
 
 function generateMonthSlips(){
