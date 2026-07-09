@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v67';
+  var APP_BUILD = '20260709-v68';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2969,10 +2969,13 @@ function _genReport(){
       const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
-      // பற்று = purchase entries paid + db.payments (both sources)
-      const purEntryPaid=entries.reduce((a,e)=>a+(e.paid||0),0);
+      // பற்று = paidCash/paidItems (Purchase Entry-ல் நேரடியா போட்ட advance) + db.payments (Payments tab "Pay")
+      // இவை இரண்டும் genuinely வேற வேற தொகைகள் — confirmPay() e.paidCash-ஐ touch பண்ணாது,
+      // ஆனா e.paid field-ஐ மட்டும் touch பண்ணும் (balance tracking-க்கு). அதனால e.paid-ஐ கூட்டக்கூடாது
+      // (அது paidCash + பழைய confirmPay அளவு இரண்டையும் merge பண்ணி வெச்சிருக்கும், double-count ஆகும்).
+      const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
       const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
-      const totalPatru=purEntryPaid+paymentsPaid;
+      const totalPatru=paidCashTotal+paymentsPaid;
       // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
       const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
       const isOutside=outsideCount>entries.length/2;
