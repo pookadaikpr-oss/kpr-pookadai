@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v71';
+  var APP_BUILD = '20260709-v72';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -550,6 +550,16 @@ tbody td{padding:8px 11px}
       <div style="font-size:11px;opacity:.9">மொத்த நிலவரம் (Cash+Bank)</div>
       <div id="kpr-sum-total" style="font-size:24px;font-weight:800"></div>
     </div>
+    <div style="margin-bottom:12px;border:1.5px solid #c0392b;border-radius:8px;padding:10px">
+      <div style="font-weight:700;color:#c0392b;font-size:12px;margin-bottom:6px">📅 மாதம் முடி (Month Close) — தோட்டம் Suppliers மட்டும்</div>
+      <div style="font-size:10.5px;color:#777;margin-bottom:8px;line-height:1.4">தேதி range-ல் உள்ள தோட்டம் Suppliers-ன் முன்பாக்கி மட்டும் Auto-update ஆகும். Backup எடுத்திருந்து பண்ணுங்க.</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input type="date" id="mc-from" style="flex:1">
+        <input type="date" id="mc-to" style="flex:1">
+      </div>
+      <button class="btn" style="width:100%;padding:9px;background:#c0392b;color:#fff;font-weight:700;font-size:12px" onclick="monthClose()">🔒 மாதம் முடி — முன்பாக்கி Update</button>
+      <div id="mc-result" style="margin-top:8px"></div>
+    </div>
     <div class="btn-row">
       <button class="btn bg" onclick="kprSaveBalances()">💾 Balance Save</button>
       <button class="btn boo" onclick="kprCloseAll()">Close</button>
@@ -691,16 +701,6 @@ tbody td{padding:8px 11px}
         <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn bg" onclick="genKiloReport()">📊 Generate</button></div>
       </div>
     </div>
-  </div>
-  <div class="card" style="margin-bottom:12px;border:1.5px solid #c0392b">
-    <div class="sec" style="margin-top:0;color:#c0392b">📅 மாதம் முடி (Month Close) — Suppliers முன்பாக்கி Auto Carry-Forward</div>
-    <div style="font-size:11.5px;color:#777;margin-bottom:10px;line-height:1.5">இந்த தேதி range-ல் உள்ள data வெச்சு, <b>தோட்டம் category Suppliers-ன் முன்பாக்கி மட்டும்</b> தானா update ஆகும் (வெளியூர்/வெளிகடை, Customers தொடாது). Fixed Float Target வெச்ச suppliers-க்கு (துணைமாலை மாதிரி), Target amount-ஏ carry forward ஆகும். <b>Backup எடுத்திருந்து பண்ணுங்க.</b></div>
-    <div class="frow" style="margin-bottom:8px">
-      <div class="fg"><label>From</label><input type="date" id="mc-from"></div>
-      <div class="fg"><label>To</label><input type="date" id="mc-to"></div>
-    </div>
-    <button class="btn" style="width:100%;padding:11px;background:#c0392b;color:#fff;font-weight:700" onclick="monthClose()">🔒 மாதம் முடி — முன்பாக்கி Update</button>
-    <div id="mc-result" style="margin-top:10px"></div>
   </div>
   <div id="rpt-out"></div>
   <div id="rpt-print-btn-row" style="display:none;margin-top:12px;padding-bottom:14px">
