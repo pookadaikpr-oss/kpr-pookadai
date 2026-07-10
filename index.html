@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260709-v72';
+  var APP_BUILD = '20260710-v74';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2740,7 +2740,7 @@ function setRptMode(m){
 function genKiloReport(){
   const date=document.getElementById('rpt-kilo-date').value;
   if(!date) return alert2('தேதி தேர்வு பண்ணுங்க!','err');
-  const DIRECT_KG=['பச்சை','கஞ்சா','துளசி','செவ்வந்தி','கோழி','நந்தி','அருகு'];
+  const DIRECT_KG=['பச்சை','கஞ்சா','துளசி','செவ்வந்தி','கோழி','நந்தி','அருகு','தாமரை','ரோஸ்'];
   const map={};
   db.purchases.filter(p=>p.date===date).forEach(p=>{
     (p.items||[]).forEach(it=>{
