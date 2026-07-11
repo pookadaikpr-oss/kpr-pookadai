@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260711-v78';
+  var APP_BUILD = '20260711-v80';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2203,8 +2203,9 @@ function monthClose(){
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
     const normName=normName_(name);
     const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+    const receivedTotal=db.payments.filter(p=>p.type==='pur_in'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
     const totalPatru=paidCashTotal+paymentsPaid;
-    const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
+    const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
     let newPrev;
     if(masterSup&&masterSup.floatTarget>0){
       newPrev=masterSup.floatTarget; // Fixed Float exception — Target amount-ஏ carry forward
@@ -2316,7 +2317,12 @@ function renderPay(){
   const slist=Object.entries(sm).filter(([n])=>!supSearch||normName_(n).includes(supSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
-    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div></div><button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${v.total-v.comm-v.paid})">💸 Pay</button></div>`;
+    const received=(db.payments||[]).filter(p=>p.type==='pur_in'&&p.name===n).reduce((a,p)=>a+(p.amount||0),0);
+    const adjustedDue=v.total-v.comm-v.paid+received;
+    const btn=adjustedDue>=0
+      ? `<button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${adjustedDue})">💸 Pay</button>`
+      : `<button class="btn bo bsm" style="width:100%" onclick="receiveFromSupplier('${n.replace(/'/g,"\\'")}',${-adjustedDue})">💰 Receive (அதிக பற்று)</button>`;
+    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${received>0?`<div style="display:flex;justify-content:space-between"><span>Received (பாக்கி குறைப்பு)</span><span style="color:var(--gold)">₹${received.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}</div>${btn}</div>`;
   }).join(''):`<div class="empty"><div class="eico">${supSearch?'🔍':'✅'}</div>${supSearch?'இந்த பெயர்-ல supplier இல்லை':'Supplier data இல்லை'}</div>`;
   const cm={};
   db.sales.forEach(s=>{ if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
@@ -2343,6 +2349,9 @@ function paySupplier(name,netPay){
   const entries=db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   openPay('pur',entries[0]?entries[0].id:null,name,netPay);
 }
+function receiveFromSupplier(name,amt){
+  openPay('pur_in',null,name,amt);
+}
 function collectCust(name,due){
   const entries=db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   openPay('sal',entries[0]?entries[0].id:null,name,due);
@@ -2356,11 +2365,11 @@ function pmSetMode(mode){
 function openPay(type,id,name,due){
   payData={type,id,name,due,mode:'cash'};
   pmSetMode('cash');
-  document.getElementById('pm-title').textContent=(type==='pur'?'💸 Pay: ':'💰 விற்பனை வரவு: ')+name;
+  document.getElementById('pm-title').textContent=(type==='pur'?'💸 Pay: ':type==='pur_in'?'💰 Supplier-இடம் இருந்து பெறுதல்: ':'💰 விற்பனை வரவு: ')+name;
   document.getElementById('pm-amt').value='';
   document.getElementById('pm-date').value=today;
   document.getElementById('payMod').classList.add('on');
-  const entries=type==='pur'?db.purchases.filter(p=>p.supplier===name):db.sales.filter(s=>s.party===name);
+  const entries=(type==='pur'||type==='pur_in')?db.purchases.filter(p=>p.supplier===name):db.sales.filter(s=>s.party===name);
   const gross=entries.reduce((a,e)=>a+e.total,0);
   let prev;
   if(type==='sal'){
@@ -2375,9 +2384,9 @@ function openPay(type,id,name,due){
   const summary=document.getElementById('pm-summary'); summary.style.display='block';
   // Labels based on type
   const grossLabel=document.getElementById('pm-gross-label');
-  if(grossLabel) grossLabel.textContent=type==='pur'?'மொத்த வரவு':'மொத்த விற்பனை';
+  if(grossLabel) grossLabel.textContent=(type==='pur'||type==='pur_in')?'மொத்த வரவு':'மொத்த விற்பனை';
   const paidLabel=document.querySelector('#pm-summary div:nth-child(2) span:first-child');
-  if(paidLabel) paidLabel.textContent=type==='sal'?'முன்பாக்கி':'பற்று';
+  if(paidLabel) paidLabel.textContent=type==='sal'?'முன்பாக்கி':type==='pur_in'?'அதிக பற்று':'பற்று';
   document.getElementById('pm-gross').textContent='₹'+gross.toLocaleString('en-IN');
   document.getElementById('pm-already-paid').textContent=type==='sal'?'₹'+prev.toLocaleString('en-IN'):'₹'+alreadyPaid.toLocaleString('en-IN');
   document.getElementById('pm-balance-show').textContent='₹'+Math.abs(netDue).toLocaleString('en-IN');
@@ -2386,7 +2395,7 @@ function openPay(type,id,name,due){
   const varavyInput=document.getElementById('pm-varavy-input');
   const varavyLabel=document.getElementById('pm-varavy-label');
   if(varavyRow){ varavyRow.style.display='block'; }
-  if(varavyLabel){ varavyLabel.textContent=type==='pur'?'Payment Amount':'வரவு தொகை'; }
+  if(varavyLabel){ varavyLabel.textContent=type==='pur'?'Payment Amount':type==='pur_in'?'பெறும் தொகை':'வரவு தொகை'; }
   if(varavyInput){ varavyInput.value=''; setTimeout(()=>varavyInput.focus(),200); }
   if(!document.getElementById('pm-due')){ const inp=document.createElement('input'); inp.type='hidden'; inp.id='pm-due'; document.querySelector('#payMod .modal').appendChild(inp); }
   document.getElementById('pm-due').value=Math.abs(netDue).toFixed(2);
@@ -2476,7 +2485,7 @@ function renderRecentPayments(){
   }
   if(!list.length){ div.innerHTML='<div class="empty"><div class="eico">📋</div>'+(selDate?'இந்த தேதிக்கு Payments இல்லை':'Payments இல்லை')+'</div>'; return; }
   if(selDate){
-    const totalRecv=list.filter(p=>p.type==='sal').reduce((a,p)=>a+(p.amount||0),0);
+    const totalRecv=list.filter(p=>p.type==='sal'||p.type==='pur_in').reduce((a,p)=>a+(p.amount||0),0);
     const totalPaid=list.filter(p=>p.type==='pur').reduce((a,p)=>a+(p.amount||0),0);
     div.innerHTML=`<div style="background:#f8f8f8;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:flex;justify-content:space-between"><span>மொத்த வரவு: <b style="color:var(--green)">+₹${totalRecv.toLocaleString('en-IN')}</b></span><span>மொத்த பற்று: <b style="color:var(--red)">−₹${totalPaid.toLocaleString('en-IN')}</b></span></div>`;
   } else { div.innerHTML=''; }
@@ -2487,7 +2496,9 @@ function undoPayment(paymentId){
   if(!pay) return;
   if(!confirm('₹'+pay.amount.toFixed(2)+' payment ('+pay.name+') delete பண்ணி, நிலுவை-ஆ மறுபடி மாத்தலாமா?')) return;
   let remaining=pay.amount;
-  const list=pay.type==='pur'
+  const list=pay.type==='pur_in'
+    ? []
+    : pay.type==='pur'
     ? db.purchases.filter(p=>p.supplier===pay.name&&p.paid>0).sort((a,b)=>String(b.id).localeCompare(String(a.id)))
     : db.sales.filter(s=>s.party===pay.name&&s.paid>0).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
   list.forEach(e=>{ if(remaining<=0) return; const revert=Math.min(remaining,e.paid); e.paid-=revert; e.balance=(e.balance||0)+revert; remaining-=revert; });
@@ -2504,6 +2515,7 @@ function confirmPay(){
   if(amt<=0) return alert2('வரவு தொகை enter பண்ணுங்க!','err');
   const{type,name}=payData; let remaining=amt;
   if(type==='pur'){ db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
+  else if(type==='pur_in'){ /* Supplier நமக்கு cash கொடுக்கிறது — purchases entries-ஐ touch பண்ணாது, db.payments-ல் மட்டும் பதிவு */ }
   else{ db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   db.payments.push({id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt,mode:payData.mode||'cash'});
   saveDB(); closePay(); renderPay(); renderPL(); renderSL(); updateDash();
