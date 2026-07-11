@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260711-v75';
+  var APP_BUILD = '20260711-v76';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2830,6 +2830,7 @@ function genFullReport(mode){
       const namesInGroup=supsByType[supType];
       if(!namesInGroup||!namesInGroup.length) return;
       let catVaravu=0, catPatru=0, catViyapar=0, catEdai=0;
+      nirCount=0; // ஒவ்வொரு category-க்கும் நிர் எண் மறுபடி 1-ல் இருந்து ஆரம்பிக்கும்
       html+=`<div style="background:${typeColors[supType]};color:#fff;padding:6px 10px;border-radius:6px 6px 0 0;font-size:13px;font-weight:800;margin-top:10px">🏷️ ${supType} Suppliers</div>`;
     namesInGroup.forEach(name=>{
       const entries=purs.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
