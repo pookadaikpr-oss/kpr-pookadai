@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260710-v74';
+  var APP_BUILD = '20260711-v75';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2810,7 +2810,28 @@ function genFullReport(mode){
     html+=`<div style="font-size:14px;font-weight:700;color:#1a6b3a;margin:10px 0 6px;text-align:center">Purchase Statement</div>`;
     let nirCount=0;
     let grandVaravu=0, grandPatru=0, grandViyapar=0, grandEdai=0;
+    // Suppliers-ஐ Master Data type படி (தோட்டம்/வெளியூர்/வெளிக்கடை) group பண்றோம்
+    const getSupType=(name)=>{
+      const ms=findMasterSupplier(name);
+      if(ms&&ms.type) return ms.type;
+      const anyEntry=purs.find(p=>p.supplier===name&&p.supType);
+      return anyEntry?anyEntry.supType:'தோட்டம்';
+    };
+    const typeOrder=['தோட்டம்','வெளியூர்','வெளிகடை'];
+    const typeColors={'தோட்டம்':'#1a6b3a','வெளியூர்':'#8e5a1a','வெளிகடை':'#1a5c8e'};
+    const supsByType={};
+    typeOrder.forEach(t=>supsByType[t]=[]);
     sups.forEach(name=>{
+      const t=getSupType(name);
+      if(!supsByType[t]) supsByType[t]=[];
+      supsByType[t].push(name);
+    });
+    typeOrder.forEach(supType=>{
+      const namesInGroup=supsByType[supType];
+      if(!namesInGroup||!namesInGroup.length) return;
+      let catVaravu=0, catPatru=0, catViyapar=0, catEdai=0;
+      html+=`<div style="background:${typeColors[supType]};color:#fff;padding:6px 10px;border-radius:6px 6px 0 0;font-size:13px;font-weight:800;margin-top:10px">🏷️ ${supType} Suppliers</div>`;
+    namesInGroup.forEach(name=>{
       const entries=purs.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
       let supVaravu=0, supPatru=0, supViyapar=0, supEdai=0;
       let rows='';
@@ -2849,8 +2870,11 @@ function genFullReport(mode){
         }
       });
       grandVaravu+=supVaravu; grandPatru+=supPatru; grandViyapar+=supViyapar; grandEdai+=supEdai;
+      catVaravu+=supVaravu; catPatru+=supPatru; catViyapar+=supViyapar; catEdai+=supEdai;
       rows+=`<tr style="background:#e8f5e9;font-weight:700"><td colspan="4" style="${tdStyle}"></td><td style="${tdR}">${supEdai>0?supEdai.toFixed(2):''}</td><td style="${tdR}"></td><td style="${tdR}">${supVaravu>0?supVaravu.toFixed(2):''}</td><td style="${tdR}">${supPatru>0?supPatru.toFixed(2):''}</td><td style="${tdR}">${supViyapar>0?supViyapar.toFixed(2):''}</td></tr>`;
       html+=`<div style="margin-bottom:14px"><div style="background:#1a6b3a;color:#fff;padding:4px 8px;font-weight:700;font-size:12px"><b>${name}</b></div><div class="twrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#2d8a50;color:#fff"><th style="${thStyle}">நிர்</th><th style="${thStyle}">தேதி</th><th style="${thStyle}">பெயர்</th><th style="${thStyle}">பொருட்கள்</th><th style="${thStyle};text-align:right">எடை</th><th style="${thStyle};text-align:right">விலை</th><th style="${thStyle};text-align:right">வரவு</th><th style="${thStyle};text-align:right">பற்று</th><th style="${thStyle};text-align:right">வியாபாரசெலவு</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    });
+      html+=`<div style="background:${typeColors[supType]};color:#fff;padding:6px 12px;border-radius:0 0 6px 6px;font-size:11.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>${supType} மொத்தம் — வரவு: ₹${catVaravu.toFixed(2)}</span><span>பற்று: ₹${catPatru.toFixed(2)}</span><span>வியாபாரசெலவு: ₹${catViyapar.toFixed(2)}</span></div>`;
     });
     html+=`<div style="background:#1a6b3a;color:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span>வரவு மொத்தம்: ₹${grandVaravu.toFixed(2)}</span><span>பற்று: ₹${grandPatru.toFixed(2)}</span><span>வியாபாரசெலவு: ₹${grandViyapar.toFixed(2)}</span></div>`;
   }
