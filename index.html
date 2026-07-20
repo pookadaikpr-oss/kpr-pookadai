@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260718-v82';
+  var APP_BUILD = '20260719-v83';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -627,6 +627,11 @@ tbody td{padding:8px 11px}
           <div class="fg"><label>எடுப்பு%</label><input type="number" id="edit-eduppu" placeholder="0" step="0.5" min="0" max="100"></div>
         </div>
       </div>
+    </div>
+    <div id="edit-patru-wrap" style="display:none">
+      <div class="fg" style="margin-bottom:8px"><label>பற்று (ரொக்கம்)</label><input type="number" id="edit-cash" placeholder="0" min="0" oninput="calcEditPaidTotal()"></div>
+      <div id="edit-paiditems"></div>
+      <button class="btn boo bsm" onclick="addEditPaidItem()" style="margin-bottom:10px">+ உரம்/மருந்து/நாத்து சேர்</button>
     </div>
     <div class="frow t3">
       <div class="fg"><label>மொத்தம்</label><input type="number" id="edit-tot" readonly></div>
@@ -1361,6 +1366,7 @@ window.addEventListener('DOMContentLoaded', function(){
 
   // ── STEP 1: Local data இருந்தால் உடனே காட்டு ──
   loadMaster(); loadSettings(); loadLocal(); setTimeout(updateDataLists, 500); dedupDB();
+  setTimeout(checkWeeklyBackup, 6000);
   const hasLocal = (db.purchases.length + db.sales.length) > 0;
   syncMasterFromDB(); updateDash(); renderPL(); renderSL(); renderPay();
   updateSupDL(); updateParDL(); updateAllDataLists();
@@ -2120,8 +2126,22 @@ function openEdit(type,id){
     if(commWrap) commWrap.style.display='contents';
     document.getElementById('edit-comm').value=entry.commPct||0;
     document.getElementById('edit-eduppu').value=entry.eduppuPct||0;
+    // பற்று breakdown — ரொக்கம் + உரம்/மருந்து/நாத்து items
+    const itemsTot=(entry.paidItems||[]).reduce((a,it)=>a+(it.amount||0),0);
+    const cashVal=(entry.paidCash!==undefined&&entry.paidCash!==null)?entry.paidCash:Math.max(0,(entry.paid||0)-itemsTot);
+    document.getElementById('edit-patru-wrap').style.display='block';
+    document.getElementById('edit-cash').value=cashVal||'';
+    document.getElementById('edit-paiditems').innerHTML='';
+    editPaidItemCount=0;
+    (entry.paidItems||[]).forEach(it=>addEditPaidItem(it));
+    calcEditPaidTotal();
+    const ep=document.getElementById('edit-paid');
+    ep.readOnly=true; ep.style.background='#f0f0f0'; ep.style.color='#888';
   } else {
     if(commWrap) commWrap.style.display='none';
+    document.getElementById('edit-patru-wrap').style.display='none';
+    const ep=document.getElementById('edit-paid');
+    ep.readOnly=false; ep.style.background=''; ep.style.color='';
   }
   document.getElementById('edit-items').innerHTML='';
   editItemCount=0;
@@ -2174,11 +2194,12 @@ function saveEdit(){
       const eduppuPct=parseFloat(document.getElementById('edit-eduppu').value)||0;
       const totalCommPct=commPct+eduppuPct;
       const commission=Math.round(total*totalCommPct/100*100)/100;
-      // paidItems (உரம்/நாத்து breakdown) தொகையை கழிச்சு, மீதி amount-ஐ paidCash-ல் sync பண்ணுறோம்
-      // (இல்லைன்னா statement/message-ல் இந்த பற்று தொகை காமிக்காம மறையும்)
-      const existingItemsTotal=(e.paidItems||[]).reduce((a,it)=>a+(it.amount||0),0);
-      const syncedPaidCash=Math.max(0, paid-existingItemsTotal);
-      Object.assign(e,{date,supplier:name,items,total,prev,paid,balance:total-prev-paid,note,commPct,eduppuPct,commission,paidCash:syncedPaidCash});
+      // பற்று = ரொக்கம் + உரம்/மருந்து/நாத்து items — edit modal-ல் இருந்து நேரடியா
+      const cash=parseFloat(document.getElementById('edit-cash').value)||0;
+      const pItems=collectEditPaidItems();
+      const itemsTotal=pItems.reduce((a,it)=>a+(it.amount||0),0);
+      const newPaid=cash+itemsTotal;
+      Object.assign(e,{date,supplier:name,items,total,prev,paid:newPaid,balance:total-prev-newPaid,note,commPct,eduppuPct,commission,paidCash:cash,paidItems:pItems});
     }
   } else {
     const e=db.sales.find(s=>String(s.id)===String(id));
@@ -2191,6 +2212,108 @@ function saveEdit(){
   alert2('✅ Updated!','ok');
 }
 function closeEdit(){ document.getElementById('editMod').classList.remove('on'); }
+
+// ===== EDIT MODAL: உரம்/மருந்து/நாத்து breakdown =====
+let editPaidItemCount=0;
+function addEditPaidItem(item){
+  editPaidItemCount++;
+  const id='epit-'+editPaidItemCount;
+  const d=document.createElement('div');
+  d.className='pi-card'; d.id=id;
+  d.innerHTML=`
+    <div class="pi-head">
+      <select onchange="onEditPaidItemTypeChange('${id}')">
+        <option value="">-- வகை தேர்வு --</option>
+        <option value="உரம்">🧪 உரம்</option>
+        <option value="மருந்து">💊 மருந்து</option>
+        <option value="நாத்து">🌱 நாத்து</option>
+      </select>
+      <button class="rmbtn" onclick="rmEditPaidItem('${id}')">×</button>
+    </div>
+    <div class="fg pit-simple" style="display:none"><label>தொகை</label><input type="number" class="pit-amt-simple" placeholder="0" oninput="calcEditPaidTotal()"></div>
+    <div class="frow t4 pit-nathu" style="display:none">
+      <div class="fg"><label>பொருள்</label>
+        <select class="pit-nathu-item" onchange="calcEditPaidItemAmt('${id}')">
+          <option value="மல்லி">மல்லி</option>
+          <option value="முல்லை">முல்லை</option>
+          <option value="கஞ்சா">கஞ்சா</option>
+          <option value="கனகாம்பரம்">கனகாம்பரம்</option>
+          <option value="கோழி">கோழி</option>
+        </select>
+      </div>
+      <div class="fg"><label>எண்ணிக்கை</label><input type="number" class="pit-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcEditPaidItemAmt('${id}')"></div>
+      <div class="fg"><label>விலை</label><input type="number" class="pit-nathu-price" placeholder="0" min="0" oninput="calcEditPaidItemAmt('${id}')"></div>
+      <div class="fg"><label>தொகை</label><input type="number" class="pit-nathu-amt" placeholder="0" readonly></div>
+    </div>`;
+  document.getElementById('edit-paiditems').appendChild(d);
+  if(item){
+    d.querySelector('.pi-head select').value=item.type||'';
+    onEditPaidItemTypeChange(id);
+    if(item.type==='நாத்து'){
+      const sel=d.querySelector('.pit-nathu-item');
+      if(item.item && !Array.from(sel.options).some(o=>o.value===item.item)){
+        const o=document.createElement('option'); o.value=item.item; o.textContent=item.item; sel.appendChild(o);
+      }
+      if(item.item) sel.value=item.item;
+      d.querySelector('.pit-nathu-qty').value=item.qty||'';
+      d.querySelector('.pit-nathu-price').value=item.price||'';
+      d.querySelector('.pit-nathu-amt').value=(item.amount||0)>0?Number(item.amount).toFixed(2):'';
+    } else if(item.type==='உரம்'||item.type==='மருந்து'){
+      d.querySelector('.pit-amt-simple').value=item.amount||'';
+    }
+  }
+}
+function onEditPaidItemTypeChange(id){
+  const card=document.getElementById(id);
+  const type=card.querySelector('.pi-head select').value;
+  const simple=card.querySelector('.pit-simple');
+  const nathu=card.querySelector('.pit-nathu');
+  if(type==='நாத்து'){ simple.style.display='none'; nathu.style.display=''; }
+  else if(type==='உரம்'||type==='மருந்து'){ simple.style.display=''; nathu.style.display='none'; }
+  else { simple.style.display='none'; nathu.style.display='none'; }
+  calcEditPaidTotal();
+}
+function calcEditPaidItemAmt(id){
+  const card=document.getElementById(id);
+  const qty=parseFloat(card.querySelector('.pit-nathu-qty').value)||0;
+  const price=parseFloat(card.querySelector('.pit-nathu-price').value)||0;
+  const amt=qty*price;
+  card.querySelector('.pit-nathu-amt').value=amt>0?amt.toFixed(2):'';
+  calcEditPaidTotal();
+}
+function rmEditPaidItem(id){
+  const card=document.getElementById(id);
+  if(card) card.remove();
+  calcEditPaidTotal();
+}
+function calcEditPaidTotal(){
+  if(!editData||editData.type!=='pur'){ calcEditBal(); return; }
+  const cash=parseFloat(document.getElementById('edit-cash').value)||0;
+  let itemsTotal=0;
+  document.querySelectorAll('#edit-paiditems .pi-card').forEach(card=>{
+    const type=card.querySelector('.pi-head select').value;
+    if(type==='நாத்து') itemsTotal+=parseFloat(card.querySelector('.pit-nathu-amt').value)||0;
+    else if(type==='உரம்'||type==='மருந்து') itemsTotal+=parseFloat(card.querySelector('.pit-amt-simple').value)||0;
+  });
+  const total=cash+itemsTotal;
+  document.getElementById('edit-paid').value=total.toFixed(2);
+  calcEditBal();
+}
+function collectEditPaidItems(){
+  const items=[];
+  document.querySelectorAll('#edit-paiditems .pi-card').forEach(card=>{
+    const type=card.querySelector('.pi-head select').value;
+    if(type==='நாத்து'){
+      const qty=parseFloat(card.querySelector('.pit-nathu-qty').value)||0;
+      const price=parseFloat(card.querySelector('.pit-nathu-price').value)||0;
+      if(qty>0&&price>0) items.push({type,item:card.querySelector('.pit-nathu-item').value,qty,price,amount:qty*price});
+    } else if(type==='உரம்'||type==='மருந்து'){
+      const amt=parseFloat(card.querySelector('.pit-amt-simple').value)||0;
+      if(amt>0) items.push({type,amount:amt});
+    }
+  });
+  return items;
+}
 
 // ===== PAYMENTS =====
 function monthClose(){
@@ -3630,7 +3753,7 @@ function loadPasswords(){
 
 // ===== HIDDEN FINANCIAL SUMMARY (Rajalakshmi மட்டும்) =====
 let KPR_SUMMARY_PIN = '2580'; // default — Firebase-ல் இருந்து overwrite ஆகும்
-function kprDownloadBackup(){
+function kprDownloadBackup(auto){
   try{
     const snapshot = JSON.parse(JSON.stringify(db));
     const stamp = today || new Date().toISOString().slice(0,10);
@@ -3643,10 +3766,28 @@ function kprDownloadBackup(){
     a.click();
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url),3000);
-    alert2('✅ Backup file download ஆச்சு! WhatsApp/Drive-ல் வெச்சுக்கோங்க','ok');
+    try{ localStorage.setItem('kpr-last-backup', stamp); }catch(e){}
+    if(auto===true){
+      alert2('📥 வாரம் ஒரு Auto-Backup! File download ஆயிடுச்சு — Google Drive-ல் போட்டுடுங்க','warn');
+    } else {
+      alert2('✅ Backup file download ஆச்சு! WhatsApp/Drive-ல் வெச்சுக்கோங்க','ok');
+    }
   }catch(e){
     alert2('⚠️ Backup download ஆகல, மறுபடி try பண்ணுங்க','err');
   }
+}
+// வாரம் ஒரு தடவை (7+ நாள் ஆனா) app திறக்கும்போதே backup தானா download ஆகும் — Admin மட்டும்
+function checkWeeklyBackup(){
+  try{
+    if(currentRole!=='admin') return;
+    if(((db.purchases||[]).length+((db.sales||[]).length))===0) return;
+    const last=localStorage.getItem('kpr-last-backup');
+    if(last){
+      const diff=(new Date(today)-new Date(last))/86400000;
+      if(diff<7) return;
+    }
+    kprDownloadBackup(true);
+  }catch(e){}
 }
 function loadSummaryPin(){
   fetch(FIREBASE_URL+'/settings/summaryPin.json')
