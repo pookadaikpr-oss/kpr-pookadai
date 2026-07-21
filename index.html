@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260721-v89';
+  var APP_BUILD = '20260721-v90';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1304,6 +1304,7 @@ function loadLocal(){
 }
 
 let lastSavedSnapshot={};
+let lastSavedPurById={}, lastSavedSalById={};
 function saveDB(){
   saveLocal();
   const snapshot = JSON.parse(JSON.stringify(db));
@@ -1311,18 +1312,77 @@ function saveDB(){
   // இல்லைன்னா ஒரு device-ல ஒரு field save பண்ணும்போது, அந்த device-ன் stale
   // copy-ல இருக்குற மற்ற fields (எ.கா homeMoney) மேலெழுதப்பட்டு, மற்ற device-ல
   // செய்த மாற்றங்கள் (delete உட்பட) இழக்கப்படும் ரிஸ்க் இருக்கு.
-  const allFields = ['purchases','sales','payments','commissions','misc','balances','homeMoney'];
+  const allFields = ['payments','commissions','misc','balances','homeMoney'];
   // Speed optimization: கடைசியா successfully save ஆன snapshot-உடன் ஒப்பிட்டு,
   // உண்மையில் மாறின fields-ஐ மட்டும் அனுப்புறோம் (automatic diff — manual field
   // குறிப்பிடும் தேவை இல்லை, அதனால தவறா ஒரு field skip ஆகும் ரிஸ்க் இல்லை).
   const fields = allFields.filter(f => JSON.stringify(snapshot[f]) !== JSON.stringify(lastSavedSnapshot[f]));
-  if(fields.length === 0) return Promise.resolve([]);
-  return Promise.all(fields.map(f =>
+  const jobs = fields.map(f =>
     fetch(FIREBASE_URL+'/db/'+f+'.json', {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(snapshot[f] !== undefined ? snapshot[f] : (f==='commissions'?{}:(f==='balances'?{cash:0,bank:0}:[])))
     }).then(r=>{ if(!r.ok) throw new Error('Firebase error ('+f+'): '+r.status); return r.json(); })
-  )).then(results=>{ lastSavedSnapshot=snapshot; return results; });
+  );
+  // purchases/sales — ஒவ்வொரு entry-யும் தனித்தனி Firebase record (purchases_v2/{id}).
+  // இதனால் ஒரே ஒரு entry சேர்த்தாலும்/மாத்தினாலும், அந்த ஒரு entry மட்டும் அனுப்பினா
+  // போதும் — 249+ entries இருந்தாலும் ஒவ்வொரு save-ம் சின்னதா, வேகமா இருக்கும்.
+  jobs.push(...savePerRecord('purchases','purchases_v2',snapshot.purchases||[],lastSavedPurById).map(j=>j.promise));
+  jobs.push(...savePerRecord('sales','sales_v2',snapshot.sales||[],lastSavedSalById).map(j=>j.promise));
+  if(jobs.length===0) return Promise.resolve([]);
+  return Promise.all(jobs).then(results=>{ lastSavedSnapshot=snapshot; return results; });
+}
+// entries-ஐ id-வாரியா ஒப்பிட்டு, மாறின/புதுசா சேர்ந்த entries மட்டும் PUT,
+// நீக்கப்பட்ட entries DELETE — ஒரே field-ஐ முழுசா திரும்ப அனுப்பாம.
+function savePerRecord(key, path, arr, lastById){
+  const jobs=[];
+  const currentIds=new Set();
+  arr.forEach(item=>{
+    const id=String(item.id);
+    currentIds.add(id);
+    const str=JSON.stringify(item);
+    if(lastById[id]!==str){
+      const p=fetch(FIREBASE_URL+'/db/'+path+'/'+encodeURIComponent(id)+'.json', {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body: str
+      }).then(r=>{ if(!r.ok) throw new Error('Firebase error ('+path+'): '+r.status); return r.json(); })
+        .then(res=>{ lastById[id]=str; return res; });
+      jobs.push({id,promise:p});
+    }
+  });
+  Object.keys(lastById).forEach(id=>{
+    if(!currentIds.has(id)){
+      const p=fetch(FIREBASE_URL+'/db/'+path+'/'+encodeURIComponent(id)+'.json', {
+        method:'DELETE'
+      }).then(r=>{ if(!r.ok) throw new Error('Firebase delete error ('+path+'): '+r.status); return null; })
+        .then(res=>{ delete lastById[id]; return res; });
+      jobs.push({id,promise:p});
+    }
+  });
+  return jobs;
+}
+// முதல் தடவை (இந்த update-க்கு அப்புறம்) — பழைய முழு-array structure-ல
+// இருக்குற purchases/sales-ஐ புது per-record structure-க்கு ஒரே தடவை migrate
+// பண்றது. இது migrate ஆனதும் purchases_v2/sales_v2-ல் data இருக்கும்,
+// அடுத்த தடவை load ஆகும்போது இதையே use பண்ணும் (migration மறுபடி நடக்காது).
+// v2Pur/v2Sal — load flow-லேயே ஏற்கனவே fetch பண்ணதை பயன்படுத்துறோம் (extra fetch வேண்டாம்).
+function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal){
+  const needPurMigrate = (!v2Pur || Object.keys(v2Pur).length===0) && purArr.length>0;
+  const needSalMigrate = (!v2Sal || Object.keys(v2Sal).length===0) && salArr.length>0;
+  if(needPurMigrate){
+    savePerRecord('purchases','purchases_v2',purArr,lastSavedPurById).forEach(j=>j.promise.catch(()=>{}));
+  } else if(v2Pur){
+    // ஏற்கனவே v2-ல் இருக்குற entries-ஐ மட்டும் "saved"-ஆ mark பண்ணுறோம் — local-only
+    // (இன்னும் Firebase-க்கு sync ஆகாத) entries-ஐ touch பண்ணாம விடுறோம், அவை அடுத்த
+    // saveDB()-ல் தானா Firebase-க்கு போகும்.
+    Object.keys(v2Pur).forEach(id=>{ lastSavedPurById[id]=JSON.stringify(v2Pur[id]); });
+  }
+  if(needSalMigrate){
+    savePerRecord('sales','sales_v2',salArr,lastSavedSalById).forEach(j=>j.promise.catch(()=>{}));
+  } else if(v2Sal){
+    Object.keys(v2Sal).forEach(id=>{ lastSavedSalById[id]=JSON.stringify(v2Sal[id]); });
+  }
+  if(needPurMigrate||needSalMigrate){
+    console.log('KPR: purchases/sales migrated to per-record storage (purchases_v2/sales_v2)');
+  }
 }
 
 function toArr(v){ if(!v) return []; if(Array.isArray(v)) return v; return Object.values(v); }
@@ -1392,8 +1452,16 @@ window.addEventListener('DOMContentLoaded', function(){
       .then(function(data){
         showFirebaseLoading(false);
         if(data && (data.purchases || data.sales)){
-          const fbPur = toArr(data.purchases);
-          const fbSal = toArr(data.sales||[]);
+          // purchases_v2/sales_v2 — per-record structure (வேகமான save-க்காக, entries
+          // அதிகமாகும்போது ஒவ்வொரு save-ம் slow ஆகாம இருக்க). Migrate ஆகிட்டதுன்னா
+          // இதையே use பண்ணுவோம், இல்லைன்னா பழைய full-array fields fallback.
+          Promise.all([
+            fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
+            fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
+          ]).then(function(v2res){
+          const v2Pur=v2res[0], v2Sal=v2res[1];
+          const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases);
+          const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
           const fbPay = toArr(data.payments||[]);
           const fbComm = data.commissions||{};
           const fbMisc = toArr(data.misc||[]);
@@ -1423,7 +1491,9 @@ window.addEventListener('DOMContentLoaded', function(){
             updateDash(); renderPL(); renderSL(); renderPay();
             updateSupDL(); updateParDL();
             if(!hasLocal) alert2('✅ Firebase data loaded! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
+            migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal);
           }
+          }).catch(()=>{});
         }
       })
       .catch(function(e){
@@ -3493,13 +3563,17 @@ function refreshFromFirebase(){
   loadMasterFirebase(); // master data-வும் reload
   showFirebaseLoading(true);
   const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000));
-  Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2])
-    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(data=>{
+  Promise.all([
+    Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }),
+    fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
+    fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
+  ])
+    .then(function(res){
+      const data=res[0], v2Pur=res[1], v2Sal=res[2];
       showFirebaseLoading(false);
       if(data && (data.purchases || data.sales)){
-        const fbPur=toArr(data.purchases||[]);
-        const fbSal=toArr(data.sales||[]);
+        const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]);
+        const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
         const fbPay=toArr(data.payments||[]);
         const fbComm=data.commissions||{};
         const fbMisc=toArr(data.misc||[]);
@@ -3510,6 +3584,7 @@ function refreshFromFirebase(){
         updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
         alert2('✅ Data refreshed! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
+        migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal);
       } else {
         // Firebase empty — local-ஐயும் clear பண்று
         db={purchases:[],sales:[],payments:[],commissions:{},misc:[]};
