@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260721-v87';
+  var APP_BUILD = '20260721-v88';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -278,8 +278,8 @@ tbody td{padding:8px 11px}
       <button id="pe-paiditem-btn" class="btn boo bsm" onclick="addPaidItem()" style="margin-bottom:10px">+ உரம்/மருந்து/நாத்து சேர்</button>
       <div class="fg" style="margin-bottom:10px"><label>மொத்த பற்று</label><input type="number" id="pe-paid" placeholder="0" readonly></div>
       <div class="btn-row" style="justify-content:space-between">
-        <button class="btn boo" onclick="clearPur()">🔄 Clear</button>
         <button id="pur-save-btn" class="btn bg" onclick="savePur()">💾 Save</button>
+        <button class="btn boo" onclick="clearPur()">🔄 Clear</button>
       </div>
     </div>
   </div>
@@ -371,8 +371,8 @@ tbody td{padding:8px 11px}
       </div>
       <div class="fg" style="margin-bottom:10px"><label>மொத்த பாக்கி</label><input type="number" id="se-grandtot" readonly style="background:#f0f0f0;color:#555;font-weight:700"></div>
       <div class="btn-row" style="justify-content:space-between">
-        <button class="btn boo" onclick="clearSal()">🔄 Clear</button>
         <button id="sal-save-btn" class="btn bo" onclick="saveSal()">💾 Save</button>
+        <button class="btn boo" onclick="clearSal()">🔄 Clear</button>
       </div>
     </div>
   </div>
