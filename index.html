@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260719-v83';
+  var APP_BUILD = '20260721-v85';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2053,7 +2053,7 @@ function renderPL(){
   else{
     tb.innerHTML=list.map(p=>{ st+=p.total; sp+=p.paid; sb+=p.balance;
       const istr=(p.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
-      const bc=p.balance>0?'br2':(p.balance<0?'bo2':'bg2'); const bt=p.balance>0?'₹'+p.balance.toFixed(2):(p.balance<0?'₹'+Math.abs(p.balance).toFixed(2):'Paid ✓');      return`<tr><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${p.total.toFixed(2)}</td><td>₹${p.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${p.balance>0?`<button class="btn bg bsm" onclick="paySupplier('${p.supplier.replace(/'/g,"\\'")}',${p.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
+      const bc=p.balance>0?'br2':(p.balance<0?'bo2':'bg2'); const bt=p.balance>0?'₹'+p.balance.toFixed(2):(p.balance<0?'₹'+Math.abs(p.balance).toFixed(2):'Paid ✓');      return`<tr><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${p.total.toFixed(2)}</td><td>₹${p.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap"><button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
     }).join('');
   }
   document.getElementById('pl-tot').textContent=`மொத்தம்: ₹${st.toFixed(2)} | பற்று: ₹${sp.toFixed(2)} | நிலுவை: ₹${Math.max(0,sb).toFixed(2)}`;
@@ -3182,6 +3182,8 @@ function _genReport(){
       const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
+      const totalCommOnly=entries.reduce((a,e)=>a+Math.round(e.total*(e.commPct||0)/100*100)/100,0);
+      const totalEduppuOnly=entries.reduce((a,e)=>a+Math.round(e.total*(e.eduppuPct||0)/100*100)/100,0);
       // பற்று = paidCash/paidItems (Purchase Entry-ல் நேரடியா போட்ட advance) + db.payments (Payments tab "Pay")
       // இவை இரண்டும் genuinely வேற வேற தொகைகள் — confirmPay() e.paidCash-ஐ touch பண்ணாது,
       // ஆனா e.paid field-ஐ மட்டும் touch பண்ணும் (balance tracking-க்கு). அதனால e.paid-ஐ கூட்டக்கூடாது
@@ -3266,7 +3268,8 @@ function _genReport(){
           </div>
           <div style="border-top:1px solid #ddd;padding-top:8px;font-size:12px">
             <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>பூ வரவு :</span><span>${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span>${totalPatru>0?totalPatru.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</span></div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>கமிசன் :</span><span></span><span>${totalComm.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>கமிசன் :</span><span></span><span>${totalCommOnly.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
+            ${totalEduppuOnly>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>எடுப்பு :</span><span></span><span>${totalEduppuOnly.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             ${munPakki>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
               <span></span>
