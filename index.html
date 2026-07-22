@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260721-v93';
+  var APP_BUILD = '20260722-v94';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1331,7 +1331,7 @@ function saveDB(){
   jobs.push(...savePerRecord('payments','payments_v2',snapshot.payments||[],lastSavedPayById).map(j=>j.promise));
   jobs.push(...savePerRecord('misc','misc_v2',snapshot.misc||[],lastSavedMiscById).map(j=>j.promise));
   if(jobs.length===0) return Promise.resolve([]);
-  return Promise.all(jobs).then(results=>{ lastSavedSnapshot=snapshot; return results; });
+  return Promise.all(jobs).then(results=>{ lastSavedSnapshot=snapshot; saveLocal(); return results; });
 }
 // entries-ஐ id-வாரியா ஒப்பிட்டு, மாறின/புதுசா சேர்ந்த entries மட்டும் PUT,
 // நீக்கப்பட்ட entries DELETE — ஒரே field-ஐ முழுசா திரும்ப அனுப்பாம.
@@ -1341,12 +1341,25 @@ function savePerRecord(key, path, arr, lastById){
   arr.forEach(item=>{
     const id=String(item.id);
     currentIds.add(id);
-    const str=JSON.stringify(item);
+    // 'synced' என்பது local-only bookkeeping field (இந்த entry இன்னும் sync ஆகலையான்னு
+    // தெரிஞ்சுக்க) — Firebase-க்கு இதை அனுப்பவே தேவை இல்ல, அனுப்பினா ஒவ்வொரு தடவை
+    // synced true/false மாறும்போதும் தேவையில்லாம re-save ஆகும். அதனால இதை நீக்கிட்டு
+    // தான் Firebase-க்கு compare/அனுப்புறோம்.
+    const {synced, ...itemForFirebase} = item;
+    const str=JSON.stringify(itemForFirebase);
     if(lastById[id]!==str){
       const p=fetch(FIREBASE_URL+'/db/'+path+'/'+encodeURIComponent(id)+'.json', {
         method:'PUT', headers:{'Content-Type':'application/json'}, body: str
       }).then(r=>{ if(!r.ok) throw new Error('Firebase error ('+path+'): '+r.status); return r.json(); })
-        .then(res=>{ lastById[id]=str; return res; });
+        .then(res=>{
+          lastById[id]=str;
+          // இந்த entry இப்போ confirm-ஆ Firebase-ல் இருக்கு — live db array-ல் synced=true
+          // ஆக்குறோம், இல்லைன்னா வேற device-ல் load ஆகும்போது இது "இன்னும் sync ஆகாத
+          // local-only entry"-ன்னு தப்பா நினைச்சு preserve பண்ணிடும் ரிஸ்க் இருக்கு.
+          const liveArr=db[key];
+          if(liveArr){ const idx=liveArr.findIndex(x=>String(x.id)===id); if(idx>-1) liveArr[idx].synced=true; }
+          return res;
+        });
       jobs.push({id,promise:p});
     }
   });
@@ -1502,12 +1515,24 @@ window.addEventListener('DOMContentLoaded', function(){
           const fbMisc = v2Migrated===true ? toArr(v2Misc) : ((v2Misc && Object.keys(v2Misc).length>0) ? toArr(v2Misc) : toArr(data.misc||[]));
           const fbBalances = data.balances||null;
           const fbHomeMoney = toArr(data.homeMoney||[]);
+          // Firebase-ல் இருந்து confirm-ஆ வந்த entries — இவை "sync ஆகிடுச்சு"-ன்னு
+          // தெளிவா mark பண்றோம். இல்லைன்னா அடுத்த தடவை load ஆகும்போது, இவை வேற
+          // device-ல் delete ஆயிருந்தாலும், synced flag இல்லாததால "sync ஆகாத local
+          // entry"-னு தப்பா நினைச்சு resurrect பண்ணிடும் ரிஸ்க் மறுபடி வரும்.
+          fbPur.forEach(p=>{ p.synced=true; });
+          fbSal.forEach(s=>{ s.synced=true; });
+          fbPay.forEach(p=>{ p.synced=true; });
+          fbMisc.forEach(m=>{ m.synced=true; });
           const fbCount = fbPur.length + fbSal.length;
           if(fbCount > 0){
-            const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
-            const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
-            const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
-            const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
+            // p.synced!==true — sync ஆகி confirm ஆகாத entries மட்டும் preserve பண்றோம்.
+            // "synced" flag இல்லாம வெறும் id-match மட்டும் பாத்தா, வேற device delete
+            // பண்ண entry-ஐ கூட "sync ஆகாத புதுசு local entry"-னு தப்பா நினைச்சு
+            // resurrect பண்ணிடும் ரிஸ்க் இருக்கு.
+            const localPur = db.purchases.filter(p=>p.synced!==true && !fbPur.find(f=>String(f.id)===String(p.id)));
+            const localSal = db.sales.filter(s=>s.synced!==true && !fbSal.find(f=>String(f.id)===String(s.id)));
+            const localPay = db.payments.filter(p=>p.synced!==true && !fbPay.find(f=>String(f.id)===String(p.id)));
+            const localMisc = (db.misc||[]).filter(m=>m.synced!==true && !fbMisc.find(f=>String(f.id)===String(m.id)));
             // வீட்டு பணம் — ஒரே ஒரு நபர் (secret feature) தான் இதை edit பண்றது, அதனால
             // union-merge தேவையில்ல. Firebase-ஐ மட்டும் authoritative-ஆ எடுத்துக்குறோம் —
             // இல்லைன்னா ஒரு stale device local cache-ல் இருந்த delete ஆன entry, திரும்ப
@@ -1958,7 +1983,7 @@ function savePur(){
   const commission=Math.round(total*totalCommPct/100*100)/100;
   const paidCash=parseFloat(document.getElementById('pe-cash').value)||0;
   const paidItems=collectPaidItems();
-  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission,paidCash,paidItems};
+  const newPur={id:'pur_'+Date.now(),date,supplier:sup,supType,items,total,prev,paid,balance:total-prev-paid,src:'manual',note:document.getElementById('pe-note').value,commPct,eduppuPct,commission,paidCash,paidItems,synced:false};
   db.purchases.push(newPur);
   saveLocal();
   updateSupDL(); updateDash();
@@ -2067,7 +2092,7 @@ function saveSal(){
     if(name&&qty>0) items.push({name,qty,price,amount:qty*price});
     else if(!name&&!qty&&!price) r.remove(); // empty row remove
   });
-  const newSal={id:'sal_'+Date.now(),date,party:par,items,total,prev,paid,balance:total+prev-paid,src:'manual',note:''};
+  const newSal={id:'sal_'+Date.now(),date,party:par,items,total,prev,paid,balance:total+prev-paid,src:'manual',note:'',synced:false};
   db.sales.push(newSal);
   saveLocal();
   updateParDL(); updateDash();
@@ -2108,7 +2133,7 @@ function doImportPur(data){
     if(!p.supplier) return;
     const exists=db.purchases.some(x=>x.supplier===p.supplier&&x.date===p.date&&x.total===p.total);
     if(exists) return;
-    db.purchases.push({...p,id:'pur_pdf_'+Date.now()+'_'+Math.floor(Math.random()*10000),src:'pdf'}); added++;
+    db.purchases.push({...p,id:'pur_pdf_'+Date.now()+'_'+Math.floor(Math.random()*10000),src:'pdf',synced:false}); added++;
   });
   saveDB(); updateSupDL(); updateDash();
   show('pur-upload-step',false);
@@ -2123,7 +2148,7 @@ function doImportSal(data){
     if(!s.party) return;
     const exists=db.sales.some(x=>x.party===s.party&&x.date===s.date&&x.total===s.total);
     if(exists) return;
-    db.sales.push({...s,id:'sal_pdf_'+Date.now()+'_'+Math.floor(Math.random()*10000),src:'pdf'}); added++;
+    db.sales.push({...s,id:'sal_pdf_'+Date.now()+'_'+Math.floor(Math.random()*10000),src:'pdf',synced:false}); added++;
   });
   saveDB(); syncMasterFromDB(); updateParDL(); updateDash();
   show('sal-upload-step',false);
@@ -2304,13 +2329,13 @@ function saveEdit(){
       const pItems=collectEditPaidItems();
       const itemsTotal=pItems.reduce((a,it)=>a+(it.amount||0),0);
       const newPaid=cash+itemsTotal;
-      Object.assign(e,{date,supplier:name,items,total,prev,paid:newPaid,balance:total-prev-newPaid,note,commPct,eduppuPct,commission,paidCash:cash,paidItems:pItems});
+      Object.assign(e,{date,supplier:name,items,total,prev,paid:newPaid,balance:total-prev-newPaid,note,commPct,eduppuPct,commission,paidCash:cash,paidItems:pItems,synced:false});
     }
   } else {
     const e=db.sales.find(s=>String(s.id)===String(id));
     if(e){
       const prev=parseFloat((document.getElementById('edit-prev')||{value:'0'}).value)||0;
-      Object.assign(e,{date,party:name,items,total,prev,paid,balance:total+prev-paid,note});
+      Object.assign(e,{date,party:name,items,total,prev,paid,balance:total+prev-paid,note,synced:false});
     }
   }
   saveDB(); closeEdit(); renderPL(); renderSL(); updateDash(); renderPay();
@@ -2754,10 +2779,10 @@ function confirmPay(){
   const amt=enteredAmt>0?enteredAmt:due;
   if(amt<=0) return alert2('வரவு தொகை enter பண்ணுங்க!','err');
   const{type,name}=payData; let remaining=amt;
-  if(type==='pur'){ db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
+  if(type==='pur'){ db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); e.synced=false; remaining-=pay; }); }
   else if(type==='pur_in'){ /* Supplier நமக்கு cash கொடுக்கிறது — purchases entries-ஐ touch பண்ணாது, db.payments-ல் மட்டும் பதிவு */ }
-  else{ db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
-  db.payments.push({id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt,mode:payData.mode||'cash'});
+  else{ db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); e.synced=false; remaining-=pay; }); }
+  db.payments.push({id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt,mode:payData.mode||'cash',synced:false});
   saveDB(); closePay(); renderPay(); renderPL(); renderSL(); updateDash();
   alert2('✅ ₹'+amt.toFixed(2)+' payment பதிவானது!','ok');
 }
@@ -3586,6 +3611,7 @@ function fixMissingCommission(){
     const totalPct=commPct+eduppuPct;
     p.commPct=commPct; p.eduppuPct=eduppuPct;
     p.commission=Math.round(p.total*totalPct/100*100)/100;
+    p.synced=false;
   });
   saveLocal(); updateDash(); renderPL();
   saveDB().then(()=>{
@@ -3667,10 +3693,10 @@ function saveMisc(){
   if(!db.misc) db.misc=[];
   if(editingMiscId){
     const idx=db.misc.findIndex(m=>String(m.id)===String(editingMiscId));
-    if(idx>-1){ db.misc[idx]={...db.misc[idx],date,cat,paid,in:inAmt,note,mode:mxMode||'cash'}; }
+    if(idx>-1){ db.misc[idx]={...db.misc[idx],date,cat,paid,in:inAmt,note,mode:mxMode||'cash',synced:false}; }
     editingMiscId=null;
   } else {
-    db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash'});
+    db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash',synced:false});
   }
   saveLocal(); clearMisc(); renderMisc();
   saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல!','warn'); });
