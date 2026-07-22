@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260721-v92';
+  var APP_BUILD = '20260721-v93';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1366,11 +1366,18 @@ function savePerRecord(key, path, arr, lastById){
 // பண்றது. இது migrate ஆனதும் purchases_v2/sales_v2-ல் data இருக்கும்,
 // அடுத்த தடவை load ஆகும்போது இதையே use பண்ணும் (migration மறுபடி நடக்காது).
 // v2Pur/v2Sal — load flow-லேயே ஏற்கனவே fetch பண்ணதை பயன்படுத்துறோம் (extra fetch வேண்டாம்).
-function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal, payArr, v2Pay, miscArr, v2Misc){
-  const needPurMigrate = (!v2Pur || Object.keys(v2Pur).length===0) && purArr.length>0;
-  const needSalMigrate = (!v2Sal || Object.keys(v2Sal).length===0) && salArr.length>0;
-  const needPayMigrate = (!v2Pay || Object.keys(v2Pay).length===0) && (payArr||[]).length>0;
-  const needMiscMigrate = (!v2Misc || Object.keys(v2Misc).length===0) && (miscArr||[]).length>0;
+function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal, payArr, v2Pay, miscArr, v2Misc, v2Migrated){
+  // v2Migrated — ஒரு தடவை migrate ஆனதும் Firebase-ல் நிரந்தரமா true-ஆ வச்சிருக்கும் flag.
+  // இது இல்லாம "v2 empty-ஆ இருக்கு" என்பதை மட்டும் வச்சு "இன்னும் migrate ஆகல" என
+  // முடிவெடுத்தா, migrate ஆன பிறகு ஒரு collection முழுசா delete ஆகி (எ.கா Clear All
+  // Data) genuinely empty ஆனாலும், அதை "migrate ஆகல" என தப்பா நினைச்சு, load-ல
+  // பழைய stale legacy full-array-ஐ fallback-ஆ காமிச்சு delete ஆன data resurrect
+  // ஆகிடும் ரிஸ்க் இருக்கு. Flag இருந்தா இந்த ரிஸ்க் இல்லை.
+  const alreadyMigrated = v2Migrated===true;
+  const needPurMigrate = !alreadyMigrated && (!v2Pur || Object.keys(v2Pur).length===0) && purArr.length>0;
+  const needSalMigrate = !alreadyMigrated && (!v2Sal || Object.keys(v2Sal).length===0) && salArr.length>0;
+  const needPayMigrate = !alreadyMigrated && (!v2Pay || Object.keys(v2Pay).length===0) && (payArr||[]).length>0;
+  const needMiscMigrate = !alreadyMigrated && (!v2Misc || Object.keys(v2Misc).length===0) && (miscArr||[]).length>0;
   if(needPurMigrate){
     savePerRecord('purchases','purchases_v2',purArr,lastSavedPurById).forEach(j=>j.promise.catch(()=>{}));
   } else if(v2Pur){
@@ -1394,6 +1401,13 @@ function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal, payArr, v2Pay, miscAr
   } else if(v2Misc){
     Object.keys(v2Misc).forEach(id=>{ lastSavedMiscById[id]=JSON.stringify(v2Misc[id]); });
   }
+  // Flag-ஐ இன்னும் set பண்ணல்லனா, இப்போ (migrate ஆனாலும் ஆகாட்டியும்) set பண்ணிடுறோம்
+  // — இனிமேல் இந்த load/refresh-லேயே எப்போவும் v2-ஐ authoritative-ஆ trust பண்ணும்.
+  if(!alreadyMigrated){
+    fetch(FIREBASE_URL+'/db/v2_migrated.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:'true'
+    }).catch(()=>{});
+  }
   if(needPurMigrate||needSalMigrate||needPayMigrate||needMiscMigrate){
     console.log('KPR: data migrated to per-record storage (purchases_v2/sales_v2/payments_v2/misc_v2)');
   }
@@ -1405,6 +1419,7 @@ function dedupDB(){
   const s1=new Set(); db.purchases=(db.purchases||[]).filter(p=>{if(s1.has(String(p.id)))return false;s1.add(String(p.id));return true;});
   const s2=new Set(); db.sales=(db.sales||[]).filter(p=>{if(s2.has(String(p.id)))return false;s2.add(String(p.id));return true;});
   const s3=new Set(); db.payments=(db.payments||[]).filter(p=>{if(s3.has(String(p.id)))return false;s3.add(String(p.id));return true;});
+  const s4=new Set(); db.misc=(db.misc||[]).filter(m=>{if(s4.has(String(m.id)))return false;s4.add(String(m.id));return true;});
   if(!db.commissions) db.commissions={};
   if(!db.balances) db.balances={cash:0,bank:0,home:0};
   if(db.balances.home===undefined) db.balances.home=0;
@@ -1473,14 +1488,18 @@ window.addEventListener('DOMContentLoaded', function(){
             fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
             fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null),
             fetch(FIREBASE_URL+'/db/payments_v2.json').then(r=>r.json()).catch(()=>null),
-            fetch(FIREBASE_URL+'/db/misc_v2.json').then(r=>r.json()).catch(()=>null)
+            fetch(FIREBASE_URL+'/db/misc_v2.json').then(r=>r.json()).catch(()=>null),
+            fetch(FIREBASE_URL+'/db/v2_migrated.json').then(r=>r.json()).catch(()=>null)
           ]).then(function(v2res){
-          const v2Pur=v2res[0], v2Sal=v2res[1], v2Pay=v2res[2], v2Misc=v2res[3];
-          const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases);
-          const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
-          const fbPay = (v2Pay && Object.keys(v2Pay).length>0) ? toArr(v2Pay) : toArr(data.payments||[]);
+          const v2Pur=v2res[0], v2Sal=v2res[1], v2Pay=v2res[2], v2Misc=v2res[3], v2Migrated=v2res[4];
+          // v2Migrated===true ஆனா, v2 collection எப்போவும் authoritative — genuinely
+          // empty-ஆ இருந்தாலும் (எ.கா Clear All Data பண்ணதுக்கு அப்புறம்) stale legacy
+          // full-array-ஐ fallback-ஆ எடுக்காது (இல்லைன்னா delete ஆன data resurrect ஆகும்).
+          const fbPur = v2Migrated===true ? toArr(v2Pur) : ((v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases));
+          const fbSal = v2Migrated===true ? toArr(v2Sal) : ((v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]));
+          const fbPay = v2Migrated===true ? toArr(v2Pay) : ((v2Pay && Object.keys(v2Pay).length>0) ? toArr(v2Pay) : toArr(data.payments||[]));
           const fbComm = data.commissions||{};
-          const fbMisc = (v2Misc && Object.keys(v2Misc).length>0) ? toArr(v2Misc) : toArr(data.misc||[]);
+          const fbMisc = v2Migrated===true ? toArr(v2Misc) : ((v2Misc && Object.keys(v2Misc).length>0) ? toArr(v2Misc) : toArr(data.misc||[]));
           const fbBalances = data.balances||null;
           const fbHomeMoney = toArr(data.homeMoney||[]);
           const fbCount = fbPur.length + fbSal.length;
@@ -1507,7 +1526,7 @@ window.addEventListener('DOMContentLoaded', function(){
             updateDash(); renderPL(); renderSL(); renderPay();
             updateSupDL(); updateParDL();
             if(!hasLocal) alert2('✅ Firebase data loaded! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
-            migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal, db.payments, v2Pay, db.misc, v2Misc);
+            migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal, db.payments, v2Pay, db.misc, v2Misc, v2Migrated);
           }
           }).catch(()=>{});
         }
@@ -3584,17 +3603,18 @@ function refreshFromFirebase(){
     fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
     fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null),
     fetch(FIREBASE_URL+'/db/payments_v2.json').then(r=>r.json()).catch(()=>null),
-    fetch(FIREBASE_URL+'/db/misc_v2.json').then(r=>r.json()).catch(()=>null)
+    fetch(FIREBASE_URL+'/db/misc_v2.json').then(r=>r.json()).catch(()=>null),
+    fetch(FIREBASE_URL+'/db/v2_migrated.json').then(r=>r.json()).catch(()=>null)
   ])
     .then(function(res){
-      const data=res[0], v2Pur=res[1], v2Sal=res[2], v2Pay=res[3], v2Misc=res[4];
+      const data=res[0], v2Pur=res[1], v2Sal=res[2], v2Pay=res[3], v2Misc=res[4], v2Migrated=res[5];
       showFirebaseLoading(false);
       if(data && (data.purchases || data.sales)){
-        const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]);
-        const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
-        const fbPay = (v2Pay && Object.keys(v2Pay).length>0) ? toArr(v2Pay) : toArr(data.payments||[]);
+        const fbPur = v2Migrated===true ? toArr(v2Pur) : ((v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]));
+        const fbSal = v2Migrated===true ? toArr(v2Sal) : ((v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]));
+        const fbPay = v2Migrated===true ? toArr(v2Pay) : ((v2Pay && Object.keys(v2Pay).length>0) ? toArr(v2Pay) : toArr(data.payments||[]));
         const fbComm=data.commissions||{};
-        const fbMisc = (v2Misc && Object.keys(v2Misc).length>0) ? toArr(v2Misc) : toArr(data.misc||[]);
+        const fbMisc = v2Migrated===true ? toArr(v2Misc) : ((v2Misc && Object.keys(v2Misc).length>0) ? toArr(v2Misc) : toArr(data.misc||[]));
         const fbBalances=data.balances||{cash:0,bank:0,home:0};
         const fbHomeMoney=toArr(data.homeMoney||[]);
         db={purchases:fbPur,sales:fbSal,payments:fbPay,commissions:fbComm,misc:fbMisc,balances:fbBalances,homeMoney:fbHomeMoney};
@@ -3602,7 +3622,7 @@ function refreshFromFirebase(){
         updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
         alert2('✅ Data refreshed! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
-        migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal, db.payments, v2Pay, db.misc, v2Misc);
+        migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal, db.payments, v2Pay, db.misc, v2Misc, v2Migrated);
       } else {
         // Firebase empty — local-ஐயும் clear பண்று
         db={purchases:[],sales:[],payments:[],commissions:{},misc:[]};
