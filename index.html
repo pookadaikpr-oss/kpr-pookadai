@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260721-v90';
+  var APP_BUILD = '20260723-v90-fix1';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2817,7 +2817,7 @@ function renderPurMessages(){
     toDate=(document.getElementById('msg-to')||{value:''}).value;
     if(!fromDate||!toDate){ div.innerHTML='<div class="empty"><div class="eico">📆</div>From மற்றும் To date கொடுங்க</div>'; return; }
   } else {
-    const allDates=[...new Set((db.purchases||[]).map(p=>p.date))].sort();
+    const allDates=[...new Set((db.purchases||[]).map(p=>p.date).filter(Boolean))].sort();
     if(!allDates.length){ div.innerHTML='<div class="empty"><div class="eico">💬</div>Purchase data இல்லை</div>'; return; }
     fromDate=toDate=allDates.includes(today)?today:allDates[allDates.length-1];
   }
@@ -2865,7 +2865,7 @@ function renderSalMessages(){
     toDate=(document.getElementById('sal-msg-to')||{value:''}).value;
     if(!fromDate||!toDate){ document.getElementById('sal-msg-list').innerHTML='<div class="empty"><div class="eico">📆</div>From மற்றும் To date கொடுங்க</div>'; return; }
   } else {
-    const allDates=[...new Set(db.sales.map(s=>s.date))].sort();
+    const allDates=[...new Set((db.sales||[]).map(s=>s.date).filter(Boolean))].sort();
     fromDate=toDate=allDates.includes(today)?(allDates[allDates.length-1]||today):(allDates[allDates.length-1]||today);
     if(!fromDate){ document.getElementById('sal-msg-list').innerHTML='<div class="empty"><div class="eico">💬</div>Sales data இல்லை</div>'; return; }
   }
