@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260722-v100';
+  var APP_BUILD = '20260722-v101';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3860,47 +3860,17 @@ function renderMisc(){
 </script>
 
 <script>
-// Service Worker for PWA — Offline support (app shell cache-able, Firebase எப்போவும் network)
+// Service Worker நீக்கப்பட்டது — இது Firebase save (write) requests-ஐ interfere பண்ணி
+// "Failed to fetch" error தந்துச்சு. Offline caching இல்லாம போனாலும் பரவாயில்ல,
+// data entry நம்பகமா வேலை செய்யறதுதான் முக்கியம். ஏற்கனவே இருக்குற எந்த
+// service worker-ஐயும் active-ஆ unregister பண்றோம் (எல்லா devices-லயும்).
 if('serviceWorker' in navigator){
-  const swCode = `
-    const CACHE_NAME = 'kpr-app-cache-v1';
-    const FB_HOST = 'kpr-poo-kadai-default-rtdb.asia-southeast1.firebasedatabase.app';
-    self.addEventListener('install', e => self.skipWaiting());
-    self.addEventListener('activate', e => {
-      clients.claim();
-      e.waitUntil(
-        caches.keys().then(names => Promise.all(
-          names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))
-        ))
-      );
-    });
-    self.addEventListener('fetch', e => {
-      const url = new URL(e.request.url);
-      // Firebase data calls மற்றும் non-GET requests (PUT/DELETE) — இவற்றை
-      // Service Worker-ஏ தொடாது, browser-ஏ நேரடியா handle பண்ண விடுறோம்.
-      // (முன்பு fetch(e.request)-ஆ manually re-fetch பண்ணது, இது சில நேரம்
-      // PUT body-ஐ சரியா பாஸ் பண்ணாம "Failed to fetch" error தந்துச்சு.)
-      if(url.hostname === FB_HOST || e.request.method !== 'GET'){
-        return; // respondWith call பண்ணாம விட்டா, browser default network fetch பண்ணும்
-      }
-      // App shell (HTML/CSS/JS/Fonts): network-first, offline-ல cache-ல இருந்து காமிக்கும்
-      e.respondWith(
-        fetch(e.request).then(res => {
-          if(res && res.status === 200){
-            const resClone = res.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(e.request, resClone));
-          }
-          return res;
-        }).catch(() =>
-          caches.match(e.request).then(cached => cached || new Response('Offline — இணைய இணைப்பு இல்ல', {status:503}))
-        )
-      );
-    });
-  `;
-  const swBlob = new Blob([swCode], {type:'text/javascript'});
-  const swURL = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swURL).then(()=>console.log('SW registered (offline mode)'));
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    regs.forEach(function(r){ r.unregister(); });
+  });
 }
+</script>
+
 
 // ===== LOGIN SYSTEM =====
 function doLogout(){
