@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260722-v99';
+  var APP_BUILD = '20260722-v100';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1555,6 +1555,11 @@ window.addEventListener('DOMContentLoaded', function(){
             homeMoney:fbHomeMoney
           };
           dedupDB(); saveLocal();
+          // முதல் load-லேயே "இது already Firebase-ல் இருக்கு"-ன்னு mark பண்றோம் —
+          // இல்லைன்னா முதல் save-ல் purchase entry-உடன் சேர்த்து commissions/balances/
+          // homeMoney-யும் தேவையில்லாம மறுபடி simultaneous-ஆ அனுப்பி, weak network-ல்
+          // multiple parallel requests fail ஆகும் ரிஸ்க் அதிகமாகும்.
+          lastSavedSnapshot = {commissions:db.commissions, balances:db.balances, homeMoney:db.homeMoney};
           syncMasterFromDB();
           updateDash(); renderPL(); renderSL(); renderPay();
           updateSupDL(); updateParDL();
