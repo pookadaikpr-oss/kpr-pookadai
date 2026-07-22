@@ -1998,9 +1998,10 @@ function savePur(){
   setTimeout(()=>{ if(supField) supField.focus(); },150);
   saveDB().then(()=>{
     alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
-  }).catch(()=>{
+  }).catch((e)=>{
     queueRetry();
-    alert2('⚠️ '+sup+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல்! Network வந்ததும் தானா retry ஆகும்.','warn');
+    console.log('Purchase save error:', e);
+    alert2('⚠️ '+sup+' Local-ல் சேமிக்கப்பட்டது. ['+(e&&e.message?e.message:'unknown error')+']','warn');
   }).finally(()=>{ if(btn) btn.disabled=false; });
 }
 
@@ -2109,9 +2110,10 @@ function saveSal(){
   if(btn) btn.disabled=false;
   saveDB().then(()=>{
     alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
-  }).catch(()=>{
+  }).catch((e)=>{
     queueRetry();
-    alert2('⚠️ '+par+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல்! Network வந்ததும் தானா retry ஆகும்.','warn');
+    console.log('Sales save error:', e);
+    alert2('⚠️ '+par+' Local-ல் சேமிக்கப்பட்டது. ['+(e&&e.message?e.message:'unknown error')+']','warn');
   });
 }
 
