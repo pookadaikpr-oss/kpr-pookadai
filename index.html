@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260722-v94';
+  var APP_BUILD = '20260722-v95';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1993,7 +1993,8 @@ function savePur(){
   saveDB().then(()=>{
     alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
   }).catch(()=>{
-    alert2('⚠️ '+sup+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல!','warn');
+    queueRetry();
+    alert2('⚠️ '+sup+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல்! Network வந்ததும் தானா retry ஆகும்.','warn');
   }).finally(()=>{ if(btn) btn.disabled=false; });
 }
 
@@ -2103,7 +2104,8 @@ function saveSal(){
   saveDB().then(()=>{
     alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
   }).catch(()=>{
-    alert2('⚠️ '+par+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல!','warn');
+    queueRetry();
+    alert2('⚠️ '+par+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல்! Network வந்ததும் தானா retry ஆகும்.','warn');
   });
 }
 
@@ -2211,8 +2213,24 @@ function delEntry(type,id){
   if(!confirm('Delete பண்றீங்களா?')) return;
   if(type==='pur'){ const e=db.purchases.find(p=>String(p.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.purchases=db.purchases.filter(p=>String(p.id)!==String(id)); }
   else{ const e=db.sales.find(s=>String(s.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.sales=db.sales.filter(s=>String(s.id)!==String(id)); }
-  saveDB().then(()=>{ syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar(); });
+  // UI-ஐ உடனே refresh பண்றோம் — Firebase sync fail ஆனாலும் screen stale-ஆ இருக்கக்கூடாது.
+  syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar();
+  saveDB().then(()=>{ alert2('✅ Delete ஆச்சு! ☁️','ok'); })
+    .catch(()=>{ queueRetry(); alert2('⚠️ Local-ல் Delete ஆச்சு, Firebase sync ஆகல்! Network சரியானதும் தானா retry ஆகும்.','warn'); });
 }
+// sync fail ஆனா, network திரும்ப வந்ததும் தானா saveDB()-ஐ retry பண்ணும்.
+let retryTimer=null;
+function queueRetry(){
+  if(retryTimer) clearTimeout(retryTimer);
+  const attempt=()=>{
+    saveDB().then(()=>{ alert2('✅ Sync ஆச்சு! ☁️','ok'); retryTimer=null; })
+      .catch(()=>{ retryTimer=setTimeout(attempt,8000); });
+  };
+  retryTimer=setTimeout(attempt,8000);
+}
+// Phone network திரும்ப வந்ததும் (WiFi/mobile data reconnect) உடனே retry பண்ணும் —
+// 8 second poll வரைக்கும் காத்திருக்க வேண்டாம்.
+window.addEventListener('online',()=>{ if(retryTimer){ clearTimeout(retryTimer); queueRetry(); } });
 function showUndoBar(){
   const old=document.getElementById('undo-bar'); if(old) old.remove();
   if(!lastDeleted) return;
@@ -2770,7 +2788,7 @@ function undoPayment(paymentId){
   db.payments=db.payments.filter(p=>String(p.id)!==String(paymentId));
   saveLocal();
   renderPay(); renderPL(); renderSL(); updateDash(); renderRecentPayments();
-  saveDB().then(()=>{ alert2('✅ Payment undo ஆனது! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் undo ஆச்சு, Firebase sync ஆகல!','warn'); });
+  saveDB().then(()=>{ alert2('✅ Payment undo ஆனது! ☁️','ok'); }).catch(()=>{ queueRetry(); alert2('⚠️ Local-ல் undo ஆச்சு, Firebase sync ஆகல்! Network வந்ததும் retry ஆகும்.','warn'); });
 }
 function confirmPay(){
   const varavyInput=document.getElementById('pm-varavy-input');
@@ -3261,7 +3279,7 @@ function recalcSupplierCommission(normName,from,to){
     p.commission=Math.round((p.total||0)*totalPct/100*100)/100;
   });
   saveLocal();
-  saveDB().then(()=>{ alert2('✅ '+affected.length+' entries-ன் commission % update ஆச்சு!','ok'); genReport(); }).catch(()=>{ alert2('⚠️ Local-ல் update ஆச்சு, Firebase sync ஆகல!','warn'); genReport(); });
+  saveDB().then(()=>{ alert2('✅ '+affected.length+' entries-ன் commission % update ஆச்சு!','ok'); genReport(); }).catch(()=>{ queueRetry(); alert2('⚠️ Local-ல் update ஆச்சு, Firebase sync ஆகல்! Network வந்ததும் retry ஆகும்.','warn'); genReport(); });
 }
 function genReport(){
   // Fresh master data fetch பண்ணிட்டு report generate பண்றோம்
@@ -3617,7 +3635,8 @@ function fixMissingCommission(){
   saveDB().then(()=>{
     alert2('✅ '+affected.length+' entries கமிஷன் Fix ஆயிடுச்சு! ☁️','ok');
   }).catch(()=>{
-    alert2('⚠️ Local-ல் Fix ஆச்சு, Firebase sync ஆகல!','warn');
+    queueRetry();
+    alert2('⚠️ Local-ல் Fix ஆச்சு, Firebase sync ஆகல்! Network வந்ததும் retry ஆகும்.','warn');
   });
 }
 function refreshFromFirebase(){
@@ -3699,7 +3718,7 @@ function saveMisc(){
     db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash',synced:false});
   }
   saveLocal(); clearMisc(); renderMisc();
-  saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல!','warn'); });
+  saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ queueRetry(); alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல்! Network வந்ததும் retry ஆகும்.','warn'); });
 }
 function editMisc(id){
   const m=(db.misc||[]).find(x=>String(x.id)===String(id));
@@ -4042,7 +4061,7 @@ function kprAddHomeEntry(){
   document.getElementById('kpr-home-amt').value='';
   saveLocal();
   kprOpenSummary();
-  saveDB().catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல!','warn'); });
+  saveDB().catch(()=>{ queueRetry(); alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல்! Network வந்ததும் retry ஆகும்.','warn'); });
 }
 function kprDeleteHomeEntry(id){
   db.homeMoney=(db.homeMoney||[]).filter(h=>String(h.id)!==String(id));
@@ -4056,7 +4075,7 @@ function kprSaveBalances(){
   db.balances={cash,bank,lastUpdated:today};
   saveLocal();
   kprOpenSummary(); // totals refresh
-  saveDB().then(()=>{ alert2('✅ Balance Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல!','warn'); });
+  saveDB().then(()=>{ alert2('✅ Balance Save ஆச்சு! ☁️','ok'); }).catch(()=>{ queueRetry(); alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல்! Network வந்ததும் retry ஆகும்.','warn'); });
 }
 
 function doLogin(){
