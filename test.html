@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firebase Exact Path Test</title>
+<style>
+body{font-family:sans-serif;padding:20px;font-size:16px;line-height:1.6}
+button{font-size:18px;padding:16px 24px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;margin:10px 0;width:100%}
+#out{white-space:pre-wrap;background:#f2f2f2;padding:14px;border-radius:8px;margin-top:14px;font-size:14px;word-break:break-all}
+</style>
+</head>
+<body>
+<h2>🔥 Exact Path Test</h2>
+<button onclick="runTest()">Test பண்ணு</button>
+<div id="out">இங்க result வரும்...</div>
+<script>
+const FIREBASE_URL = 'https://kpr-poo-kadai-default-rtdb.asia-southeast1.firebasedatabase.app';
+async function runTest(){
+  const out = document.getElementById('out');
+  out.innerHTML = 'Testing...';
+  let log = '';
+  const testId = 'pur_test_' + Date.now();
+  try{
+    const r = await fetch(FIREBASE_URL+'/db/purchases_v2/'+encodeURIComponent(testId)+'.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({test:1})
+    });
+    const t = await r.text();
+    log += '✅ TEST A — status ' + r.status + ' — ' + t + '\n\n';
+  }catch(e){
+    log += '❌ TEST A FAILED — ' + e.name + ': ' + e.message + '\n\n';
+  }
+  out.innerHTML = log;
+}
+</script>
+</body>
+</html>
