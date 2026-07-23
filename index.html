@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix1';
+  var APP_BUILD = '20260723-v90-fix2';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2780,9 +2780,9 @@ function updateDash(){
   document.getElementById('d-sal-c').textContent=ts.length+' bills';
   document.getElementById('d-pur').textContent='₹'+tpa.toFixed(2);
   document.getElementById('d-pur-c').textContent=tp.length+' entries';
-  const rs=[...db.sales].sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
+  const rs=[...db.sales].filter(s=>s.date).sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
   document.getElementById('d-stbl').innerHTML=rs.length?rs.map(s=>`<tr><td>${fmtDate(s.date)}</td><td>${s.party}</td><td>₹${s.total.toFixed(2)}</td><td><span class="bdg ${s.balance>0?'br2':(s.balance<0?'bo2':'bg2')}">${s.balance>0?'₹'+s.balance.toFixed(2):(s.balance<0?'முன்பாக்கி':'Paid ✓')}</span></td></tr>`).join(''):'<tr><td colspan="4" class="empty">No sales</td></tr>';
-  const rp=[...db.purchases].sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
+  const rp=[...db.purchases].filter(p=>p.date).sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
   document.getElementById('d-ptbl').innerHTML=rp.length?rp.map(p=>`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td>${(p.items||[]).map(i=>i.name).join(', ')}</td><td>₹${p.total.toFixed(2)}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No purchases</td></tr>';
 }
 
