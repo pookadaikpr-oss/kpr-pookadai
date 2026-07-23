@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix8';
+  var APP_BUILD = '20260723-v90-fix9';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2119,7 +2119,10 @@ function resetSalUpload(){ document.getElementById('sal-json-input').value=''; s
 function renderPL(){
   const fd=(document.getElementById('pl-date').value||'').trim();
   const fs=(document.getElementById('pl-sup').value||'').trim().toLowerCase();
-  let list=db.purchases.filter(p=>{ if(fd&&p.date!==fd) return false; if(fs&&!(p.supplier||'').toLowerCase().includes(fs)) return false; return true; }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
+  let list=db.purchases.filter(p=>{
+    if(!p||typeof p.total!=='number'||!p.date||!p.supplier) return false; // தப்பான/incomplete entries (test data) skip
+    if(fd&&p.date!==fd) return false; if(fs&&!(p.supplier||'').toLowerCase().includes(fs)) return false; return true;
+  }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('pl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
@@ -2134,7 +2137,10 @@ function renderPL(){
 function renderSL(){
   const fd=(document.getElementById('sl-date').value||'').trim();
   const fp=(document.getElementById('sl-par').value||'').trim().toLowerCase();
-  let list=db.sales.filter(s=>{ if(fd&&s.date!==fd) return false; if(fp&&!(s.party||'').toLowerCase().includes(fp)) return false; return true; }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
+  let list=db.sales.filter(s=>{
+    if(!s||typeof s.total!=='number'||!s.date||!s.party) return false; // தப்பான/incomplete entries (test data) skip
+    if(fd&&s.date!==fd) return false; if(fp&&!(s.party||'').toLowerCase().includes(fp)) return false; return true;
+  }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('sl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
