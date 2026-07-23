@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix3';
+  var APP_BUILD = '20260723-v90-fix4';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -940,14 +940,14 @@ function mstTab(tab, btn){
 }
 
 let editingSupIdx=-1;
-function saveMasterSup(){
+async function saveMasterSup(){
  try{
   const name=document.getElementById('ms-sup-name').value.trim();
   if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
   if(editingSupIdx<0){
     const existingIdx=master.suppliers.findIndex(s=>s.name===name);
     if(existingIdx>=0){
-      const ok=confirm('"'+name+'" ஏற்கனவே இருக்கு! Edit பண்ணாம நேரடியா Save பண்ணா, அவங்க முன்பாக்கி/மற்ற details இப்போ இந்த form-ல இருக்குறது (பெரும்பாலும் 0/காலி) ஆல மாறிடும். இதனால பழைய data இழக்கலாம்.\n\nதொடரணுமா? (இல்லைன்னா Cancel பண்ணி, அந்த supplier-ன் ✏️ Edit பட்டனை தட்டி update பண்ணுங்க)');
+      const ok=await confirm2('"'+name+'" ஏற்கனவே இருக்கு! Edit பண்ணாம நேரடியா Save பண்ணா, அவங்க முன்பாக்கி/மற்ற details இப்போ இந்த form-ல இருக்குறது (பெரும்பாலும் 0/காலி) ஆல மாறிடும். இதனால பழைய data இழக்கலாம்.<br><br>தொடரணுமா? (இல்லைன்னா Cancel பண்ணி, அந்த supplier-ன் ✏️ Edit பட்டனை தட்டி update பண்ணுங்க)');
       if(!ok) return;
     }
   }
@@ -1047,8 +1047,8 @@ function saveMasterItem(){
   });
 }
 
-function deleteMasterSup(idx){
-  if(!confirm('Delete பண்ணவா?')) return;
+async function deleteMasterSup(idx){
+  if(!(await confirm2('Delete பண்ணவா?'))) return;
   master.suppliers.splice(idx,1);
   saveMasterLocal(); saveMasterFirebase('suppliers'); renderMaster();
 }
@@ -1067,8 +1067,8 @@ function editMasterCust(idx){
     alert2(c.name+' — edit பண்ணலாம்! Save பண்ணினா update ஆகும்','ok');
   },100);
 }
-function deleteMasterCust(idx){
-  if(!confirm('Delete பண்ணவா?')) return;
+async function deleteMasterCust(idx){
+  if(!(await confirm2('Delete பண்ணவா?'))) return;
   master.customers.splice(idx,1);
   saveMasterLocal(); saveMasterFirebase('customers'); renderMaster();
 }
@@ -2149,8 +2149,8 @@ function renderSL(){
 
 // ===== UNDO =====
 let lastDeleted=null;
-function delEntry(type,id){
-  if(!confirm('Delete பண்றீங்களா?')) return;
+async function delEntry(type,id){
+  if(!(await confirm2('Delete பண்றீங்களா?'))) return;
   if(type==='pur'){ const e=db.purchases.find(p=>String(p.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.purchases=db.purchases.filter(p=>String(p.id)!==String(id)); }
   else{ const e=db.sales.find(s=>String(s.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.sales=db.sales.filter(s=>String(s.id)!==String(id)); }
   saveDB().then(()=>{ syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar(); });
@@ -2388,11 +2388,11 @@ function collectEditPaidItems(){
 }
 
 // ===== PAYMENTS =====
-function monthClose(){
+async function monthClose(){
   const from=document.getElementById('mc-from').value;
   const to=document.getElementById('mc-to').value;
   if(!from||!to) return alert2('From/To தேதி தேர்வு பண்ணுங்க!','err');
-  const ok=confirm('மாதம் முடி: '+from+' முதல் '+to+' வரைக்கும் data வெச்சு, தோட்டம் Suppliers-ன் முன்பாக்கி மட்டும் Auto-update ஆகும் (வெளியூர்/வெளிகடை, Customers தொடாது). இதை Undo பண்ண முடியாது. Backup எடுத்து இருக்கீங்களா? தொடரணுமா?');
+  const ok=await confirm2('மாதம் முடி: '+from+' முதல் '+to+' வரைக்கும் data வெச்சு, தோட்டம் Suppliers-ன் முன்பாக்கி மட்டும் Auto-update ஆகும் (வெளியூர்/வெளிகடை, Customers தொடாது). இதை Undo பண்ண முடியாது. Backup எடுத்து இருக்கீங்களா? தொடரணுமா?');
   if(!ok) return;
 
   const supChanges=[];
@@ -2698,10 +2698,10 @@ function renderRecentPayments(){
   } else { div.innerHTML=''; }
   div.innerHTML+=list.map(p=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--muted)">${fmtDate(p.date)} · ${p.type==='pur'?'💸 Pay':'💰 Receive'} · ₹${p.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}${p.mode==='gpay'?' · 📱 GPay':' · 💵 Cash'}</div></div><button class="btn br bsm" onclick="undoPayment('${p.id}')">↩️ Undo</button></div>`).join('');
 }
-function undoPayment(paymentId){
+async function undoPayment(paymentId){
   const pay=(db.payments||[]).find(p=>String(p.id)===String(paymentId));
   if(!pay) return;
-  if(!confirm('₹'+pay.amount.toFixed(2)+' payment ('+pay.name+') delete பண்ணி, நிலுவை-ஆ மறுபடி மாத்தலாமா?')) return;
+  if(!(await confirm2('₹'+pay.amount.toFixed(2)+' payment ('+pay.name+') delete பண்ணி, நிலுவை-ஆ மறுபடி மாத்தலாமா?'))) return;
   let remaining=pay.amount;
   const list=pay.type==='pur_in'
     ? []
@@ -3187,14 +3187,14 @@ function updateRptPartyDL(){
   const dl=document.getElementById('rpt-party-dl');
   if(dl){ dl.innerHTML=''; names.sort().forEach(n=>{ const o=document.createElement('option'); o.value=n; dl.appendChild(o); }); }
 }
-function recalcSupplierCommission(normName,from,to){
+async function recalcSupplierCommission(normName,from,to){
   const masterSup=findMasterSupplier(normName);
   if(!masterSup){ alert2('இந்த supplier Master Data-ல் இல்ல!','err'); return; }
   const newCommPct=masterSup.comm!=null?masterSup.comm:0;
   const newEduppuPct=masterSup.eduppu||0;
   const affected=db.purchases.filter(p=>p.supplier&&normName_(p.supplier)===normName&&p.date>=from&&p.date<=to);
   if(!affected.length){ alert2('இந்த காலத்துல entries இல்ல!','err'); return; }
-  const ok=confirm('இந்த காலத்துல ('+affected.length+' entries) commission % இப்போ Master Data-ல் இருக்குற '+newCommPct+'% + '+newEduppuPct+'% ஆக மாத்தணுமா? இது பழைய entries-ஐ மாத்திடும்.');
+  const ok=await confirm2('இந்த காலத்துல ('+affected.length+' entries) commission % இப்போ Master Data-ல் இருக்குற '+newCommPct+'% + '+newEduppuPct+'% ஆக மாத்தணுமா? இது பழைய entries-ஐ மாத்திடும்.');
   if(!ok) return;
   affected.forEach(p=>{
     p.commPct=newCommPct;
@@ -3489,6 +3489,31 @@ function alert2(msg,type='ok'){
   setTimeout(()=>{ div.style.opacity='0'; setTimeout(()=>div.remove(),400); },4000);
 }
 
+// installed PWA (standalone) context-ல் native confirm()/window.confirm() சில நேரம்
+// silent-ஆ fail ஆகி, ஒண்ணும் நடக்காம இருக்கும் (dialog தெரியாம). அதனால இதே
+// வேலையை பண்ற ஒரு custom confirm dialog — Promise-ஆ true/false தரும்.
+function confirm2(msg){
+  return new Promise(resolve=>{
+    document.querySelectorAll('.confirm2-overlay').forEach(e=>e.remove());
+    const overlay=document.createElement('div');
+    overlay.className='confirm2-overlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+    const box=document.createElement('div');
+    box.style.cssText='background:#fff;border-radius:14px;padding:22px;max-width:340px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.3);font-family:inherit';
+    box.innerHTML=`<div style="font-size:15px;font-weight:600;color:#222;margin-bottom:18px;line-height:1.5">${msg}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button id="c2-no" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">இல்ல</button>
+        <button id="c2-yes" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">ஆமா</button>
+      </div>`;
+    overlay.appendChild(box); document.body.appendChild(overlay);
+    function cleanup(result){ overlay.remove(); resolve(result); }
+    box.querySelector('#c2-yes').onclick=()=>cleanup(true);
+    box.querySelector('#c2-no').onclick=()=>cleanup(false);
+    overlay.onclick=(e)=>{ if(e.target===overlay) cleanup(false); };
+  });
+}
+
+
 function updateSupDL(){ try{ const s=new Set([...(master.suppliers||[]).map(x=>x.name), ...db.purchases.map(p=>p.supplier)]); const dl=document.getElementById('sup-dl'); if(dl){ dl.innerHTML=''; s.forEach(v=>{ if(!v) return; const o=document.createElement('option'); o.value=v; dl.appendChild(o); }); } }catch(e){} }
 function findMasterCustomer(name){
   const n=normName_(name);
@@ -3534,7 +3559,7 @@ function syncMasterFromDB(){
   if(changed){ saveMasterLocal(); updateAllDataLists(); }
 }
 
-function fixMissingCommission(){
+async function fixMissingCommission(){
   const affected=(db.purchases||[]).filter(p=>{
     if(!(p.total>0)) return false;
     const ms=findMasterSupplier(p.supplier);
@@ -3545,7 +3570,7 @@ function fixMissingCommission(){
     return currentPct!==shouldTotalPct;
   });
   if(!affected.length){ alert2('கமிஷன் mismatch entries எதுவும் இல்லை ✅','ok'); return; }
-  if(!confirm(affected.length+' purchase entries-ல் கமிஷன் master data-ல் இருந்து வித்தியாசமா இருக்கு (0→10% அல்லது 10%→0% ரெண்டு directions-லயும்). Recalculate பண்ணி Firebase-ல் update பண்ணலாமா?')) return;
+  if(!(await confirm2(affected.length+' purchase entries-ல் கமிஷன் master data-ல் இருந்து வித்தியாசமா இருக்கு (0→10% அல்லது 10%→0% ரெண்டு directions-லயும்). Recalculate பண்ணி Firebase-ல் update பண்ணலாமா?'))) return;
   affected.forEach(p=>{
     const ms=findMasterSupplier(p.supplier);
     const commPct=ms?(ms.comm!=null?ms.comm:10):((p.supType==='வெளிகடை'||p.supType==='வெளியூர்')?0:10);
@@ -3664,8 +3689,8 @@ function clearMisc(){
   document.getElementById('mx-note').value='';
   mxSetMode('cash');
 }
-function delMisc(id){
-  if(!confirm('இந்த entry delete பண்றீங்களா?')) return;
+async function delMisc(id){
+  if(!(await confirm2('இந்த entry delete பண்றீங்களா?'))) return;
   db.misc=(db.misc||[]).filter(m=>String(m.id)!==String(id));
   saveLocal(); renderMisc();
   saveDB().catch(()=>{});
@@ -3795,8 +3820,8 @@ if('serviceWorker' in navigator){
 }
 
 // ===== LOGIN SYSTEM =====
-function doLogout(){
-  if(!confirm('Logout பண்ணணுமா?')) return;
+async function doLogout(){
+  if(!(await confirm2('Logout பண்ணணுமா?'))) return;
   try{ localStorage.removeItem('kpr-role'); }catch(e){}
   currentRole = null;
   document.getElementById('login-overlay').style.display='flex';
