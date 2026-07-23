@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix7';
+  var APP_BUILD = '20260723-v90-fix8';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1537,8 +1537,8 @@ function goPage(id, btn){
   btn.classList.add('on');
   if(id==='dash') updateDash();
   if(id==='pay') renderPay();
-  if(id==='purchase') renderPL();
-  if(id==='sales') renderSL();
+  if(id==='purchase'){ const pd=document.getElementById('pl-date'), ps=document.getElementById('pl-sup'); if(pd) pd.value=''; if(ps) ps.value=''; renderPL(); }
+  if(id==='sales'){ const sd=document.getElementById('sl-date'), sp=document.getElementById('sl-par'); if(sd) sd.value=''; if(sp) sp.value=''; renderSL(); }
   if(id==='misc'){ document.getElementById('mx-date').value=today; renderMisc(); }
 }
 
@@ -1549,8 +1549,8 @@ function stab(page, tab, btn){
   pg.querySelectorAll('.stab').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   panels[page].forEach(t=>{ const el=document.getElementById(prefix+t); if(el) el.style.display=t===tab?'block':'none'; });
-  if(page==='pur'&&tab==='list') renderPL();
-  if(page==='sal'&&tab==='list') renderSL();
+  if(page==='pur'&&tab==='list'){ document.getElementById('pl-date').value=''; document.getElementById('pl-sup').value=''; renderPL(); }
+  if(page==='sal'&&tab==='list'){ document.getElementById('sl-date').value=''; document.getElementById('sl-par').value=''; renderSL(); }
   if(page==='pay'){ const lb=document.getElementById('ledger-toggle-btn'); if(lb) lb.textContent=tab==='ledger'?'🔙 திரும்பு':'📋 Ledger காண்க'; }
 }
 
@@ -2117,9 +2117,9 @@ function resetSalUpload(){ document.getElementById('sal-json-input').value=''; s
 
 // ===== LISTS =====
 function renderPL(){
-  const fd=document.getElementById('pl-date').value;
-  const fs=document.getElementById('pl-sup').value.toLowerCase();
-  let list=db.purchases.filter(p=>{ if(fd&&p.date!==fd) return false; if(fs&&!p.supplier.toLowerCase().includes(fs)) return false; return true; }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
+  const fd=(document.getElementById('pl-date').value||'').trim();
+  const fs=(document.getElementById('pl-sup').value||'').trim().toLowerCase();
+  let list=db.purchases.filter(p=>{ if(fd&&p.date!==fd) return false; if(fs&&!(p.supplier||'').toLowerCase().includes(fs)) return false; return true; }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('pl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
@@ -2132,9 +2132,9 @@ function renderPL(){
 }
 
 function renderSL(){
-  const fd=document.getElementById('sl-date').value;
-  const fp=document.getElementById('sl-par').value.toLowerCase();
-  let list=db.sales.filter(s=>{ if(fd&&s.date!==fd) return false; if(fp&&!s.party.toLowerCase().includes(fp)) return false; return true; }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
+  const fd=(document.getElementById('sl-date').value||'').trim();
+  const fp=(document.getElementById('sl-par').value||'').trim().toLowerCase();
+  let list=db.sales.filter(s=>{ if(fd&&s.date!==fd) return false; if(fp&&!(s.party||'').toLowerCase().includes(fp)) return false; return true; }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('sl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
