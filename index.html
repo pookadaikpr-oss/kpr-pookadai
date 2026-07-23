@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix4';
+  var APP_BUILD = '20260723-v90-fix7';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -222,7 +222,7 @@ tbody td{padding:8px 11px}
   <!-- FIREBASE LOADING BANNER -->
   <div id="fb-loading"><span class="spinner"></span>Firebase இணைகிறது... தரவு வருகிறது</div>
   <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-    <button class="btn bsm" onclick="refreshFromFirebase()" style="font-size:12px;background:#e6f7ed;color:#1a6b3a;border:1.5px solid #27ae60;font-weight:700">🔄 Refresh</button>
+    <button class="btn bsm" onclick="refreshFromFirebase()" style="font-size:12px;background:#e6f7ed;color:#1a6b3a;border:1.5px solid #27ae60;font-weight:700">🔄 Sync Now</button>
     <button class="btn bsm" onclick="kprDownloadBackup()" style="font-size:12px;background:#eef5fb;color:#154a75;border:1.5px solid #2980b9;font-weight:700">📥 Backup</button>
     <button class="btn bsm" onclick="fixMissingCommission()" style="font-size:11px;background:#fff8e6;color:#b8860b;border:1.5px solid #d4af37;font-weight:700">🔧 கமிஷன் Fix</button>
   </div>
@@ -1933,9 +1933,9 @@ function savePur(){
   const supField=document.getElementById('pe-sup');
   setTimeout(()=>{ if(supField) supField.focus(); },150);
   saveDB().then(()=>{
-    alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
+    alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது!','ok');
   }).catch(()=>{
-    alert2('⚠️ '+sup+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல!','warn');
+    alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! (Network வந்ததும் "🔄 Sync Now" தட்டுங்க)','ok');
   }).finally(()=>{ if(btn) btn.disabled=false; });
 }
 
@@ -2043,9 +2043,9 @@ function saveSal(){
   setTimeout(()=>{ if(parField) parField.focus(); },150);
   if(btn) btn.disabled=false;
   saveDB().then(()=>{
-    alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! ☁️','ok');
+    alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது!','ok');
   }).catch(()=>{
-    alert2('⚠️ '+par+' Local-ல் சேமிக்கப்பட்டது. Firebase sync ஆகல!','warn');
+    alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! (Network வந்ததும் "🔄 Sync Now" தட்டுங்க)','ok');
   });
 }
 
@@ -2153,7 +2153,9 @@ async function delEntry(type,id){
   if(!(await confirm2('Delete பண்றீங்களா?'))) return;
   if(type==='pur'){ const e=db.purchases.find(p=>String(p.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.purchases=db.purchases.filter(p=>String(p.id)!==String(id)); }
   else{ const e=db.sales.find(s=>String(s.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.sales=db.sales.filter(s=>String(s.id)!==String(id)); }
-  saveDB().then(()=>{ syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar(); });
+  saveLocal();
+  syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar();
+  saveDB().catch(()=>{});
 }
 function showUndoBar(){
   const old=document.getElementById('undo-bar'); if(old) old.remove();
@@ -2169,7 +2171,9 @@ function undoDelete(){
   const{type,entry}=lastDeleted;
   if(type==='pur') db.purchases.push(entry); else db.sales.push(entry);
   lastDeleted=null; const bar=document.getElementById('undo-bar'); if(bar) bar.remove();
-  saveDB().then(()=>{ renderPL(); renderSL(); updateDash(); alert2('✅ Restored!','ok'); });
+  saveLocal();
+  renderPL(); renderSL(); updateDash();
+  saveDB().then(()=>{ alert2('✅ Restored!','ok'); }).catch(()=>{ alert2('✅ Local-ல் Restored! (Sync Now தட்டுங்க)','ok'); });
 }
 
 // ===== EDIT MODAL =====
@@ -2712,7 +2716,7 @@ async function undoPayment(paymentId){
   db.payments=db.payments.filter(p=>String(p.id)!==String(paymentId));
   saveLocal();
   renderPay(); renderPL(); renderSL(); updateDash(); renderRecentPayments();
-  saveDB().then(()=>{ alert2('✅ Payment undo ஆனது! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் undo ஆச்சு, Firebase sync ஆகல!','warn'); });
+  saveDB().then(()=>{ alert2('✅ Payment undo ஆனது!','ok'); }).catch(()=>{ alert2('✅ Local-ல் undo ஆனது! (Sync Now தட்டுங்க)','ok'); });
 }
 function confirmPay(){
   const varavyInput=document.getElementById('pm-varavy-input');
@@ -3203,7 +3207,7 @@ async function recalcSupplierCommission(normName,from,to){
     p.commission=Math.round((p.total||0)*totalPct/100*100)/100;
   });
   saveLocal();
-  saveDB().then(()=>{ alert2('✅ '+affected.length+' entries-ன் commission % update ஆச்சு!','ok'); genReport(); }).catch(()=>{ alert2('⚠️ Local-ல் update ஆச்சு, Firebase sync ஆகல!','warn'); genReport(); });
+  saveDB().then(()=>{ alert2('✅ '+affected.length+' entries-ன் commission % update ஆச்சு!','ok'); genReport(); }).catch(()=>{ alert2('✅ Local-ல் update ஆச்சு! (Sync Now தட்டுங்க)','ok'); genReport(); });
 }
 function genReport(){
   // Fresh master data fetch பண்ணிட்டு report generate பண்றோம்
@@ -3581,20 +3585,23 @@ async function fixMissingCommission(){
   });
   saveLocal(); updateDash(); renderPL();
   saveDB().then(()=>{
-    alert2('✅ '+affected.length+' entries கமிஷன் Fix ஆயிடுச்சு! ☁️','ok');
+    alert2('✅ '+affected.length+' entries கமிஷன் Fix ஆயிடுச்சு!','ok');
   }).catch(()=>{
-    alert2('⚠️ Local-ல் Fix ஆச்சு, Firebase sync ஆகல!','warn');
+    alert2('✅ Local-ல் Fix ஆச்சு! (Sync Now தட்டுங்க)','ok');
   });
 }
 function refreshFromFirebase(){
   loadMasterFirebase(); // master data-வும் reload
   showFirebaseLoading(true);
   const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000));
-  Promise.all([
-    Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }),
-    fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
-    fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
-  ])
+  // முதல்ல, இந்த device-ல் இன்னும் Firebase-க்கு போகாத entries இருந்தா, அதை முதல்ல அனுப்பறோம்
+  // (network fail ஆன entries இதுல retry ஆகும் — saveDB() தானா மாறாத fields skip பண்ணும்).
+  saveDB().catch(()=>{}).then(()=>{
+    Promise.all([
+      Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }),
+      fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
+      fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
+    ])
     .then(function(res){
       const data=res[0], v2Pur=res[1], v2Sal=res[2];
       showFirebaseLoading(false);
@@ -3606,24 +3613,29 @@ function refreshFromFirebase(){
         const fbMisc=toArr(data.misc||[]);
         const fbBalances=data.balances||{cash:0,bank:0,home:0};
         const fbHomeMoney=toArr(data.homeMoney||[]);
-        db={purchases:fbPur,sales:fbSal,payments:fbPay,commissions:fbComm,misc:fbMisc,balances:fbBalances,homeMoney:fbHomeMoney};
+        // Safe merge — Firebase-ல் இருக்குறதுடன், இந்த device-ல் மட்டும் இருக்கிற
+        // (இன்னும் Firebase-க்கு போகாத) entries-யும் சேர்த்துக்குறோம். இதனால
+        // weak network-ல் sync ஆகாத entries "Sync Now" தட்டும்போது தப்பா அழியாது.
+        // Purchases/Sales/Payments/Misc — எல்லாமே ID-வாரியா merge பண்றோம்.
+        const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
+        const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
+        const localPay = (db.payments||[]).filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
+        const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
+        db={purchases:[...fbPur,...localPur],sales:[...fbSal,...localSal],payments:[...fbPay,...localPay],commissions:fbComm,misc:[...fbMisc,...localMisc],balances:fbBalances,homeMoney:fbHomeMoney};
         dedupDB(); saveLocal();
         updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
-        alert2('✅ Data refreshed! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
+        alert2('✅ Sync ஆச்சு! ('+fbPur.length+' purchases, '+fbSal.length+' sales — எல்லா devices-லும் ஒரே data)','ok');
         migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal);
       } else {
-        // Firebase empty — local-ஐயும் clear பண்று
-        db={purchases:[],sales:[],payments:[],commissions:{},misc:[]};
-        saveLocal();
-        updateDash(); renderPL(); renderSL(); renderPay();
-        alert2('⚠️ Firebase-ல் data இல்லை — Local data-உம் clear ஆச்சு','warn');
+        alert2('⚠️ Firebase-ல் data இல்லை (local data தொடராம் இருக்கு)','warn');
       }
     })
     .catch(e=>{
       showFirebaseLoading(false);
-      alert2('❌ Firebase connect ஆகல — ' + (e.message==='timeout'?'30sec timeout ஆச்சு':'internet பாருங்க'),'err');
+      alert2('❌ Sync ஆகல — ' + (e.message==='timeout'?'network slow, மறுபடி try பண்ணுங்க':'internet பாருங்க')+'. உங்க entries local-ல் safe-ஆ இருக்கு.','err');
     });
+  });
 }
 
 function clearAllData(){
@@ -3662,7 +3674,7 @@ function saveMisc(){
     db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash'});
   }
   saveLocal(); clearMisc(); renderMisc();
-  saveDB().then(()=>{ alert2('✅ Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, Firebase sync ஆகல!','warn'); });
+  saveDB().then(()=>{ alert2('✅ Save ஆச்சு!','ok'); }).catch(()=>{ alert2('✅ Local-ல் Save ஆச்சு! (Sync Now தட்டுங்க)','ok'); });
 }
 function editMisc(id){
   const m=(db.misc||[]).find(x=>String(x.id)===String(id));
@@ -4005,7 +4017,7 @@ function kprAddHomeEntry(){
   document.getElementById('kpr-home-amt').value='';
   saveLocal();
   kprOpenSummary();
-  saveDB().catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல!','warn'); });
+  saveDB().catch(()=>{});
 }
 function kprDeleteHomeEntry(id){
   db.homeMoney=(db.homeMoney||[]).filter(h=>String(h.id)!==String(id));
@@ -4019,7 +4031,7 @@ function kprSaveBalances(){
   db.balances={cash,bank,lastUpdated:today};
   saveLocal();
   kprOpenSummary(); // totals refresh
-  saveDB().then(()=>{ alert2('✅ Balance Save ஆச்சு! ☁️','ok'); }).catch(()=>{ alert2('⚠️ Local-ல் save ஆச்சு, sync ஆகல!','warn'); });
+  saveDB().then(()=>{ alert2('✅ Balance Save ஆச்சு!','ok'); }).catch(()=>{ alert2('✅ Local-ல் Save ஆச்சு! (Sync Now தட்டுங்க)','ok'); });
 }
 
 function doLogin(){
