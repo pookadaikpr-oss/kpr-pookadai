@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix2';
+  var APP_BUILD = '20260723-v90-fix3';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1451,16 +1451,18 @@ window.addEventListener('DOMContentLoaded', function(){
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
       .then(function(data){
         showFirebaseLoading(false);
-        if(data && (data.purchases || data.sales)){
+        if(data){
           // purchases_v2/sales_v2 — per-record structure (வேகமான save-க்காக, entries
-          // அதிகமாகும்போது ஒவ்வொரு save-ம் slow ஆகாம இருக்க). Migrate ஆகிட்டதுன்னா
-          // இதையே use பண்ணுவோம், இல்லைன்னா பழைய full-array fields fallback.
+          // அதிகமாகும்போது ஒவ்வொரு save-ம் slow ஆகாம இருக்க). இந்த v2 fetch-ஐ
+          // எப்போவும் பண்றோம் — பழைய "purchases"/"sales" top-level fields இல்லாட்டியும்
+          // (முழுசா migrate ஆனா அது இல்லாம போயிடும்), வேற device-ல் save ஆன புது
+          // entries இந்த device-க்கு load ஆகணும்.
           Promise.all([
             fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
             fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
           ]).then(function(v2res){
           const v2Pur=v2res[0], v2Sal=v2res[1];
-          const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases);
+          const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]);
           const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
           const fbPay = toArr(data.payments||[]);
           const fbComm = data.commissions||{};
@@ -3571,7 +3573,7 @@ function refreshFromFirebase(){
     .then(function(res){
       const data=res[0], v2Pur=res[1], v2Sal=res[2];
       showFirebaseLoading(false);
-      if(data && (data.purchases || data.sales)){
+      if(data){
         const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]);
         const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
         const fbPay=toArr(data.payments||[]);
