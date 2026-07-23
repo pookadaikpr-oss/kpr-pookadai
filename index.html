@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix9';
+  var APP_BUILD = '20260723-v90-fix10';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2120,7 +2120,7 @@ function renderPL(){
   const fd=(document.getElementById('pl-date').value||'').trim();
   const fs=(document.getElementById('pl-sup').value||'').trim().toLowerCase();
   let list=db.purchases.filter(p=>{
-    if(!p||typeof p.total!=='number'||!p.date||!p.supplier) return false; // தப்பான/incomplete entries (test data) skip
+    if(!p||p.deleted||typeof p.total!=='number'||!p.date||!p.supplier) return false; // தப்பான/incomplete/deleted entries skip
     if(fd&&p.date!==fd) return false; if(fs&&!(p.supplier||'').toLowerCase().includes(fs)) return false; return true;
   }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('pl-body'); let st=0,sp=0,sb=0;
@@ -2138,7 +2138,7 @@ function renderSL(){
   const fd=(document.getElementById('sl-date').value||'').trim();
   const fp=(document.getElementById('sl-par').value||'').trim().toLowerCase();
   let list=db.sales.filter(s=>{
-    if(!s||typeof s.total!=='number'||!s.date||!s.party) return false; // தப்பான/incomplete entries (test data) skip
+    if(!s||s.deleted||typeof s.total!=='number'||!s.date||!s.party) return false; // தப்பான/incomplete/deleted entries skip
     if(fd&&s.date!==fd) return false; if(fp&&!(s.party||'').toLowerCase().includes(fp)) return false; return true;
   }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('sl-body'); let st=0,sp=0,sb=0;
@@ -2157,8 +2157,13 @@ function renderSL(){
 let lastDeleted=null;
 async function delEntry(type,id){
   if(!(await confirm2('Delete பண்றீங்களா?'))) return;
-  if(type==='pur'){ const e=db.purchases.find(p=>String(p.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.purchases=db.purchases.filter(p=>String(p.id)!==String(id)); }
-  else{ const e=db.sales.find(s=>String(s.id)===String(id)); if(e) lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; db.sales=db.sales.filter(s=>String(s.id)!==String(id)); }
+  if(type==='pur'){
+    const e=db.purchases.find(p=>String(p.id)===String(id));
+    if(e){ lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; e.deleted=true; }
+  } else {
+    const e=db.sales.find(s=>String(s.id)===String(id));
+    if(e){ lastDeleted={type,entry:JSON.parse(JSON.stringify(e))}; e.deleted=true; }
+  }
   saveLocal();
   syncMasterFromDB(); renderPL(); renderSL(); updateDash(); showUndoBar();
   saveDB().catch(()=>{});
@@ -2175,7 +2180,9 @@ function showUndoBar(){
 function undoDelete(){
   if(!lastDeleted) return;
   const{type,entry}=lastDeleted;
-  if(type==='pur') db.purchases.push(entry); else db.sales.push(entry);
+  const arr = type==='pur' ? db.purchases : db.sales;
+  const existing = arr.find(x=>String(x.id)===String(entry.id));
+  if(existing){ delete existing.deleted; } else { delete entry.deleted; arr.push(entry); }
   lastDeleted=null; const bar=document.getElementById('undo-bar'); if(bar) bar.remove();
   saveLocal();
   renderPL(); renderSL(); updateDash();
@@ -2784,17 +2791,17 @@ function updateDash(){
   // Use local date (IST safe)
   const _n=new Date(); const localToday=_n.getFullYear()+'-'+String(_n.getMonth()+1).padStart(2,'0')+'-'+String(_n.getDate()).padStart(2,'0');
   today=localToday;
-  const ts=db.sales.filter(s=>s.date===localToday);
-  const tp=db.purchases.filter(p=>p.date===localToday);
+  const ts=db.sales.filter(s=>s.date===localToday&&!s.deleted);
+  const tp=db.purchases.filter(p=>p.date===localToday&&!p.deleted);
   const tsa=ts.reduce((a,b)=>a+b.total,0);
   const tpa=tp.reduce((a,b)=>a+b.total,0);
   document.getElementById('d-sal').textContent='₹'+tsa.toFixed(2);
   document.getElementById('d-sal-c').textContent=ts.length+' bills';
   document.getElementById('d-pur').textContent='₹'+tpa.toFixed(2);
   document.getElementById('d-pur-c').textContent=tp.length+' entries';
-  const rs=[...db.sales].filter(s=>s.date).sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
+  const rs=[...db.sales].filter(s=>s.date&&!s.deleted).sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
   document.getElementById('d-stbl').innerHTML=rs.length?rs.map(s=>`<tr><td>${fmtDate(s.date)}</td><td>${s.party}</td><td>₹${s.total.toFixed(2)}</td><td><span class="bdg ${s.balance>0?'br2':(s.balance<0?'bo2':'bg2')}">${s.balance>0?'₹'+s.balance.toFixed(2):(s.balance<0?'முன்பாக்கி':'Paid ✓')}</span></td></tr>`).join(''):'<tr><td colspan="4" class="empty">No sales</td></tr>';
-  const rp=[...db.purchases].filter(p=>p.date).sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
+  const rp=[...db.purchases].filter(p=>p.date&&!p.deleted).sort((a,b)=>{ const td=b.date.localeCompare(a.date); return td!==0?td:String(b.id).localeCompare(String(a.id)); }).slice(0,5);
   document.getElementById('d-ptbl').innerHTML=rp.length?rp.map(p=>`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td>${(p.items||[]).map(i=>i.name).join(', ')}</td><td>₹${p.total.toFixed(2)}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No purchases</td></tr>';
 }
 
@@ -2835,7 +2842,7 @@ function renderPurMessages(){
   }
   const filterName=isRange?(document.getElementById('msg-search-range')||{value:''}).value.trim().toLowerCase():(document.getElementById('msg-search')||{value:''}).value.trim().toLowerCase();
   const map={};
-  (db.purchases||[]).forEach(p=>{ if(!p.date||p.date<fromDate||p.date>toDate) return; const sup=p.supplier||''; if(filterName&&!sup.toLowerCase().includes(filterName)) return; if(!map[sup]) map[sup]={}; if(!map[sup][p.date]) map[sup][p.date]={items:[],total:0,prev:0,paid:0,paidCash:0,paidItems:[]}; (p.items||[]).forEach(i=>map[sup][p.date].items.push({...i})); map[sup][p.date].total+=(p.total||0); map[sup][p.date].prev+=(p.prev||0); map[sup][p.date].paid+=(p.paid||0); map[sup][p.date].paidCash+=legacyPaidCash(p); map[sup][p.date].paidItems=map[sup][p.date].paidItems.concat(p.paidItems||[]); });
+  (db.purchases||[]).forEach(p=>{ if(p.deleted||!p.date||p.date<fromDate||p.date>toDate) return; const sup=p.supplier||''; if(filterName&&!sup.toLowerCase().includes(filterName)) return; if(!map[sup]) map[sup]={}; if(!map[sup][p.date]) map[sup][p.date]={items:[],total:0,prev:0,paid:0,paidCash:0,paidItems:[]}; (p.items||[]).forEach(i=>map[sup][p.date].items.push({...i})); map[sup][p.date].total+=(p.total||0); map[sup][p.date].prev+=(p.prev||0); map[sup][p.date].paid+=(p.paid||0); map[sup][p.date].paidCash+=legacyPaidCash(p); map[sup][p.date].paidItems=map[sup][p.date].paidItems.concat(p.paidItems||[]); });
   const suppliers=Object.keys(map).sort();
   if(!suppliers.length){ div.innerHTML='<div class="empty"><div class="eico">💬</div>'+fromDate.split('-').reverse().join('/')+' — Data இல்லை</div>'; return; }
   const dateLabel=!isRange?'<div style="text-align:center;font-size:12px;color:#888;margin-bottom:8px">📅 '+fromDate.split('-').reverse().join('/')+' data</div>':'';
@@ -2882,7 +2889,7 @@ function renderSalMessages(){
     if(!fromDate){ document.getElementById('sal-msg-list').innerHTML='<div class="empty"><div class="eico">💬</div>Sales data இல்லை</div>'; return; }
   }
   const map={};
-  db.sales.forEach(s=>{ if(s.date<fromDate||s.date>toDate) return; if(filterName&&!s.party.toLowerCase().includes(filterName)) return; if(!map[s.party]) map[s.party]={}; if(!map[s.party][s.date]) map[s.party][s.date]={items:[],total:0,prev:0,paid:0}; s.items.forEach(i=>map[s.party][s.date].items.push({...i})); map[s.party][s.date].total+=s.total; map[s.party][s.date].prev+=(s.prev||0); map[s.party][s.date].paid+=s.paid; });
+  db.sales.forEach(s=>{ if(s.deleted||!s.date||!s.party||typeof s.total!=='number'||s.date<fromDate||s.date>toDate) return; if(filterName&&!s.party.toLowerCase().includes(filterName)) return; if(!map[s.party]) map[s.party]={}; if(!map[s.party][s.date]) map[s.party][s.date]={items:[],total:0,prev:0,paid:0}; (s.items||[]).forEach(i=>map[s.party][s.date].items.push({...i})); map[s.party][s.date].total+=s.total; map[s.party][s.date].prev+=(s.prev||0); map[s.party][s.date].paid+=s.paid; });
   const parties=Object.keys(map).sort();
   const div=document.getElementById('sal-msg-list');
   if(!parties.length){ div.innerHTML='<div class="empty"><div class="eico">💬</div>Data இல்லை</div>'; return; }
