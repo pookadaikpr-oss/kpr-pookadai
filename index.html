@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix10';
+  var APP_BUILD = '20260723-v90-fix11';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1412,6 +1412,7 @@ let piCount=0, siCount=0, today='', payData={};
 
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded', function(){
+  try{ history.replaceState({navPage:'dash'}, '', ''); }catch(e){}
   const _now = new Date();
   today = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
   document.getElementById('pe-date').value = today;
@@ -1517,6 +1518,27 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 
 // ===== PAGE NAV =====
+// ===== BACK BUTTON NAVIGATION (safe, touches only navigation — no data logic) =====
+window.__navSkipPush = false;
+function pushNav(state){ if(!window.__navSkipPush){ try{ history.pushState(state,'',''); }catch(e){} } }
+function findNavBtn(id){ return document.querySelector('.nav-btn[onclick*="\''+id+'\'"]'); }
+function findStabBtn(page, tab){
+  const pg = document.getElementById('pg-'+(page==='pur'?'purchase':page==='sal'?'sales':'pay'));
+  if(!pg) return null;
+  return pg.querySelector('.stab[onclick*="\''+page+'\',\''+tab+'\'"]');
+}
+window.addEventListener('popstate', function(e){
+  const state = e.state;
+  if(!state || !state.navPage) return; // state இல்லைன்னா, browser default (exit) நடக்கட்டும்
+  window.__navSkipPush = true;
+  try{
+    const pageBtn = findNavBtn(state.navPage);
+    if(pageBtn) goPage(state.navPage, pageBtn);
+    if(state.navSub){ const sb=findStabBtn(state.navSub.page, state.navSub.tab); if(sb) stab(state.navSub.page, state.navSub.tab, sb); }
+  }catch(err){}
+  window.__navSkipPush = false;
+});
+
 function goPage(id, btn){
   if(id==='settings'){ setTimeout(()=>{ renderSettings(); updateAllDataLists(); },50); }
   if(id==='master'){ 
@@ -1540,6 +1562,7 @@ function goPage(id, btn){
   if(id==='purchase'){ const pd=document.getElementById('pl-date'), ps=document.getElementById('pl-sup'); if(pd) pd.value=''; if(ps) ps.value=''; renderPL(); }
   if(id==='sales'){ const sd=document.getElementById('sl-date'), sp=document.getElementById('sl-par'); if(sd) sd.value=''; if(sp) sp.value=''; renderSL(); }
   if(id==='misc'){ document.getElementById('mx-date').value=today; renderMisc(); }
+  pushNav({navPage:id});
 }
 
 function stab(page, tab, btn){
@@ -1552,6 +1575,7 @@ function stab(page, tab, btn){
   if(page==='pur'&&tab==='list'){ document.getElementById('pl-date').value=''; document.getElementById('pl-sup').value=''; renderPL(); }
   if(page==='sal'&&tab==='list'){ document.getElementById('sl-date').value=''; document.getElementById('sl-par').value=''; renderSL(); }
   if(page==='pay'){ const lb=document.getElementById('ledger-toggle-btn'); if(lb) lb.textContent=tab==='ledger'?'🔙 திரும்பு':'📋 Ledger காண்க'; }
+  pushNav({navPage:(page==='pur'?'purchase':page==='sal'?'sales':'pay'), navSub:{page,tab}});
 }
 
 // ===== PURCHASE ITEMS =====
