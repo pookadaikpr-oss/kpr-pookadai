@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260723-v90-fix11';
+  var APP_BUILD = '20260723-v90-fix12';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1557,6 +1557,14 @@ function goPage(id, btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('pg-'+id).classList.add('on');
   btn.classList.add('on');
+  if(id==='purchase'||id==='sales'||id==='pay'){
+    const p=id==='purchase'?'pur':id==='sales'?'sal':'pay';
+    const defTab=p==='pay'?'sup':'entry';
+    const wasSkip=window.__navSkipPush; window.__navSkipPush=true;
+    const defBtn=findStabBtn(p,defTab);
+    if(defBtn) stab(p,defTab,defBtn);
+    window.__navSkipPush=wasSkip;
+  }
   if(id==='dash') updateDash();
   if(id==='pay') renderPay();
   if(id==='purchase'){ const pd=document.getElementById('pl-date'), ps=document.getElementById('pl-sup'); if(pd) pd.value=''; if(ps) ps.value=''; renderPL(); }
