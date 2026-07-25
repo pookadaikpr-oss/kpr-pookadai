@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260724-v90-fix14';
+  var APP_BUILD = '20260725-v90-fix16';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1472,8 +1472,8 @@ window.addEventListener('DOMContentLoaded', function(){
           const fbHomeMoney = toArr(data.homeMoney||[]);
           const fbCount = fbPur.length + fbSal.length;
           if(fbCount > 0){
-            const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
-            const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
+            const localPur = db.purchases.filter(p=>!p.deleted&&(!fbPur.find(f=>String(f.id)===String(p.id))));
+            const localSal = db.sales.filter(s=>!s.deleted&&(!fbSal.find(f=>String(f.id)===String(s.id))));
             const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
             const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
             // வீட்டு பணம் — ஒரே ஒரு நபர் (secret feature) தான் இதை edit பண்றது, அதனால
@@ -1547,7 +1547,7 @@ window.addEventListener('popstate', function(e){
   confirm2('App-ஐ விட்டு வெளியேறணுமா?').then(function(yes){
     __exitConfirmOpen = false;
     if(yes){
-      try{ history.back(); }catch(e){}
+      // இது stack-ன் கடைசி — இதுக்கு மேல போக முடியாது, அடுத்த Back-ல் தானா exit ஆகும்
     } else {
       try{ history.pushState({navPage:'dash-base'}, '', ''); }catch(e){}
     }
@@ -2460,13 +2460,13 @@ async function monthClose(){
   if(!ok) return;
 
   const supChanges=[];
-  const supNames=[...new Set(db.purchases.filter(p=>p.date>=from&&p.date<=to).map(p=>p.supplier).filter(Boolean))];
+  const supNames=[...new Set(db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to)).map(p=>p.supplier).filter(Boolean))];
   supNames.forEach(name=>{
     const masterSup=findMasterSupplier(name);
     // தோட்டம் category suppliers மட்டும் — வெளியூர்/வெளிகடை skip
     const supTypeVal=masterSup&&masterSup.type?masterSup.type:'தோட்டம்';
     if(supTypeVal!=='தோட்டம்') return;
-    const entries=db.purchases.filter(p=>p.supplier===name&&p.date>=from&&p.date<=to);
+    const entries=db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.date>=from&&p.date<=to));
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
@@ -2516,7 +2516,7 @@ function generateMonthSlips(){
   const supNames=[...new Set(db.purchases.map(p=>p.supplier).filter(Boolean))].sort();
   
   supNames.forEach((name,si)=>{
-    const entries=db.purchases.filter(p=>p.supplier===name).sort((a,b)=>a.date.localeCompare(b.date));
+    const entries=db.purchases.filter(p=>!p.deleted&&(p.supplier===name)).sort((a,b)=>a.date.localeCompare(b.date));
     const masterSup=findMasterSupplier(name);
     const oldPrev=masterSup?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
@@ -2581,7 +2581,7 @@ function generateMonthSlips(){
 function renderPay(){
   if(!db.commissions) db.commissions={};
   const sm={};
-  db.purchases.forEach(p=>{ if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0}; sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0); });
+  db.purchases.forEach(p=>{ if(p.deleted) return; if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0}; sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0); });
   const sdiv=document.getElementById('sup-due-list');
   const supSearchEl=document.getElementById('sup-due-search');
   const supSearch=supSearchEl?normName_(supSearchEl.value):'';
@@ -2596,7 +2596,7 @@ function renderPay(){
     return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${received>0?`<div style="display:flex;justify-content:space-between"><span>Received (பாக்கி குறைப்பு)</span><span style="color:var(--gold)">₹${received.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}</div>${btn}</div>`;
   }).join(''):`<div class="empty"><div class="eico">${supSearch?'🔍':'✅'}</div>${supSearch?'இந்த பெயர்-ல supplier இல்லை':'Supplier data இல்லை'}</div>`;
   const cm={};
-  db.sales.forEach(s=>{ if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
+  db.sales.forEach(s=>{ if(s.deleted) return; if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
   const cdiv=document.getElementById('cust-due-list');
   const custSearchEl=document.getElementById('cust-due-search');
   const custSearch=custSearchEl?normName_(custSearchEl.value):'';
@@ -2617,14 +2617,14 @@ function setCommission(supplier,pct){
 }
 
 function paySupplier(name,netPay){
-  const entries=db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+  const entries=db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   openPay('pur',entries[0]?entries[0].id:null,name,netPay);
 }
 function receiveFromSupplier(name,amt){
   openPay('pur_in',null,name,amt);
 }
 function collectCust(name,due){
-  const entries=db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+  const entries=db.sales.filter(s=>!s.deleted&&(s.party===name&&s.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   openPay('sal',entries[0]?entries[0].id:null,name,due);
 }
 
@@ -2640,7 +2640,7 @@ function openPay(type,id,name,due){
   document.getElementById('pm-amt').value='';
   document.getElementById('pm-date').value=today;
   document.getElementById('payMod').classList.add('on');
-  const entries=(type==='pur'||type==='pur_in')?db.purchases.filter(p=>p.supplier===name):db.sales.filter(s=>s.party===name);
+  const entries=(type==='pur'||type==='pur_in')?db.purchases.filter(p=>!p.deleted&&(p.supplier===name)):db.sales.filter(s=>!s.deleted&&(s.party===name));
   const gross=entries.reduce((a,e)=>a+e.total,0);
   let prev;
   if(type==='sal'){
@@ -2714,7 +2714,7 @@ function paidBreakdownParts(p){
   return parts;
 }
 function buildSupplierLedger(supplier,fromDate,toDate){
-  const entries=db.purchases.filter(p=>p.supplier===supplier&&p.date>=fromDate&&p.date<=toDate).sort((a,b)=>a.date.localeCompare(b.date));
+  const entries=db.purchases.filter(p=>!p.deleted&&(p.supplier===supplier&&p.date>=fromDate&&p.date<=toDate)).sort((a,b)=>a.date.localeCompare(b.date));
   if(!entries.length) return 'இந்த period-ல் data இல்லை';
   const dates=[...new Set(entries.map(p=>p.date))].sort();
   const byDate={};
@@ -2770,8 +2770,8 @@ async function undoPayment(paymentId){
   const list=pay.type==='pur_in'
     ? []
     : pay.type==='pur'
-    ? db.purchases.filter(p=>p.supplier===pay.name&&p.paid>0).sort((a,b)=>String(b.id).localeCompare(String(a.id)))
-    : db.sales.filter(s=>s.party===pay.name&&s.paid>0).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+    ? db.purchases.filter(p=>!p.deleted&&(p.supplier===pay.name&&p.paid>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)))
+    : db.sales.filter(s=>!s.deleted&&(s.party===pay.name&&s.paid>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
   list.forEach(e=>{ if(remaining<=0) return; const revert=Math.min(remaining,e.paid); e.paid-=revert; e.balance=(e.balance||0)+revert; remaining-=revert; });
   db.payments=db.payments.filter(p=>String(p.id)!==String(paymentId));
   saveLocal();
@@ -2785,9 +2785,9 @@ function confirmPay(){
   const amt=enteredAmt>0?enteredAmt:due;
   if(amt<=0) return alert2('வரவு தொகை enter பண்ணுங்க!','err');
   const{type,name}=payData; let remaining=amt;
-  if(type==='pur'){ db.purchases.filter(p=>p.supplier===name&&p.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
+  if(type==='pur'){ db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   else if(type==='pur_in'){ /* Supplier நமக்கு cash கொடுக்கிறது — purchases entries-ஐ touch பண்ணாது, db.payments-ல் மட்டும் பதிவு */ }
-  else{ db.sales.filter(s=>s.party===name&&s.balance>0).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
+  else{ db.sales.filter(s=>!s.deleted&&(s.party===name&&s.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   db.payments.push({id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt,mode:payData.mode||'cash'});
   saveDB(); closePay(); renderPay(); renderPL(); renderSL(); updateDash();
   alert2('✅ ₹'+amt.toFixed(2)+' payment பதிவானது!','ok');
@@ -2817,7 +2817,7 @@ function renderLedger(){
   } else {
     const names=[...new Set(db.sales.map(s=>s.party))].filter(n=>!search||n.toLowerCase().includes(search)).sort();
     div.innerHTML=names.map(n=>{
-      const entries=db.sales.filter(s=>s.party===n&&s.date>=from&&s.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
+      const entries=db.sales.filter(s=>!s.deleted&&(s.party===n&&s.date>=from&&s.date<=to)).sort((a,b)=>a.date.localeCompare(b.date));
       if(!entries.length) return '';
       const dates=[...new Set(entries.map(s=>s.date))].sort();
       const byDate={};
@@ -3025,7 +3025,7 @@ function genKiloReport(){
   if(!date) return alert2('தேதி தேர்வு பண்ணுங்க!','err');
   const DIRECT_KG=['பச்சை','கஞ்சா','துளசி','செவ்வந்தி','கோழி','நந்தி','அருகு','தாமரை','ரோஸ்'];
   const map={};
-  db.purchases.filter(p=>p.date===date).forEach(p=>{
+  db.purchases.filter(p=>!p.deleted&&(p.date===date)).forEach(p=>{
     (p.items||[]).forEach(it=>{
       if(!it.name) return;
       const isDirect=DIRECT_KG.some(k=>it.name.includes(k));
@@ -3062,7 +3062,7 @@ function genTopSuppliers(){
   const to=document.getElementById('rpt-topsup-to').value;
   if(!from||!to) return alert2('From, To தேதி இரண்டையும் தேர்வு பண்ணுங்க!','err');
   const map={};
-  db.purchases.filter(p=>p.date>=from&&p.date<=to).forEach(p=>{
+  db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to)).forEach(p=>{
     const n=p.supplier;
     if(!map[n]) map[n]={total:0,qty:0,commission:0,count:0,supType:p.supType};
     map[n].total+=p.total||0;
@@ -3095,8 +3095,8 @@ function genFullReport(mode){
   else if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
   else { from=document.getElementById('rpt-full-from').value; to=document.getElementById('rpt-full-to').value; }
   if(!from||!to){ alert2('Date கொடுங்க!','err'); return; }
-  const purs=db.purchases.filter(p=>p.date>=from&&p.date<=to);
-  const sals=db.sales.filter(s=>s.date>=from&&s.date<=to);
+  const purs=db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to));
+  const sals=db.sales.filter(s=>!s.deleted&&(s.date>=from&&s.date<=to));
   if(!purs.length&&!sals.length){ out.innerHTML='<div class="empty">Data இல்லை</div>'; return; }
   const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
   const dl=from.split('-').reverse().join('/')+' — '+to.split('-').reverse().join('/');
@@ -3256,7 +3256,7 @@ async function recalcSupplierCommission(normName,from,to){
   if(!masterSup){ alert2('இந்த supplier Master Data-ல் இல்ல!','err'); return; }
   const newCommPct=masterSup.comm!=null?masterSup.comm:0;
   const newEduppuPct=masterSup.eduppu||0;
-  const affected=db.purchases.filter(p=>p.supplier&&normName_(p.supplier)===normName&&p.date>=from&&p.date<=to);
+  const affected=db.purchases.filter(p=>!p.deleted&&(p.supplier&&normName_(p.supplier)===normName&&p.date>=from&&p.date<=to));
   if(!affected.length){ alert2('இந்த காலத்துல entries இல்ல!','err'); return; }
   const ok=await confirm2('இந்த காலத்துல ('+affected.length+' entries) commission % இப்போ Master Data-ல் இருக்குற '+newCommPct+'% + '+newEduppuPct+'% ஆக மாத்தணுமா? இது பழைய entries-ஐ மாத்திடும்.');
   if(!ok) return;
@@ -3302,8 +3302,8 @@ function _genReport(){
     to=p2d(rawTo)||(_y+'-'+_m+'-'+String(_lastDay).padStart(2,'0'));
     const normName=name.trim();
     const entries=rptPartyType==='sup'
-      ?db.purchases.filter(p=>p.supplier&&p.supplier.trim()===normName&&p.date>=from&&p.date<=to)
-      :db.sales.filter(s=>s.party&&s.party.trim()===normName&&s.date>=from&&s.date<=to);
+      ?db.purchases.filter(p=>!p.deleted&&(p.supplier&&p.supplier.trim()===normName&&p.date>=from&&p.date<=to))
+      :db.sales.filter(s=>!s.deleted&&(s.party&&s.party.trim()===normName&&s.date>=from&&s.date<=to));
     if(!entries.length){ out.innerHTML='<div class="empty"><div class="eico">📋</div>Data இல்லை</div>'; return; }
     const printBtn=document.getElementById('rpt-print-btn-row');
     if(printBtn) printBtn.style.display='block';
@@ -3536,8 +3536,8 @@ function _genReport(){
     }
     return;
   }
-  const purs=db.purchases.filter(p=>p.date>=from&&p.date<=to);
-  const sals=db.sales.filter(s=>s.date>=from&&s.date<=to);
+  const purs=db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to));
+  const sals=db.sales.filter(s=>!s.deleted&&(s.date>=from&&s.date<=to));
   const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
   document.getElementById('rpt-print-btn-row').style.display='block';
   out.innerHTML=`<div class="card"><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="margin-bottom:12px"><div class="plbl">லாபம் (Sales - Purchase)</div><div class="pval">${profit>=0?'+':''}₹${profit.toFixed(2)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toFixed(2)}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toFixed(2)}</div><div class="sub">${sals.length} bills</div></div></div></div><div class="card"><div class="sec" style="margin-top:0">🌿 Supplier Breakdown</div><div class="twrap"><table><thead><tr><th>Supplier</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(purs.map(p=>p.supplier))].sort().map(n=>{ const t=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.total,0),b=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div><div class="card"><div class="sec" style="margin-top:0">🛒 Customer Breakdown</div><div class="twrap"><table><thead><tr><th>Party</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(sals.map(s=>s.party))].sort().map(n=>{ const t=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.total,0),b=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div>`;
@@ -3677,8 +3677,8 @@ function refreshFromFirebase(){
         // (இன்னும் Firebase-க்கு போகாத) entries-யும் சேர்த்துக்குறோம். இதனால
         // weak network-ல் sync ஆகாத entries "Sync Now" தட்டும்போது தப்பா அழியாது.
         // Purchases/Sales/Payments/Misc — எல்லாமே ID-வாரியா merge பண்றோம்.
-        const localPur = db.purchases.filter(p=>!fbPur.find(f=>String(f.id)===String(p.id)));
-        const localSal = db.sales.filter(s=>!fbSal.find(f=>String(f.id)===String(s.id)));
+        const localPur = db.purchases.filter(p=>!p.deleted&&(!fbPur.find(f=>String(f.id)===String(p.id))));
+        const localSal = db.sales.filter(s=>!s.deleted&&(!fbSal.find(f=>String(f.id)===String(s.id))));
         const localPay = (db.payments||[]).filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
         const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
         db={purchases:[...fbPur,...localPur],sales:[...fbSal,...localSal],payments:[...fbPay,...localPay],commissions:fbComm,misc:[...fbMisc,...localMisc],balances:fbBalances,homeMoney:fbHomeMoney};
