@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260725-v90-fix17';
+  var APP_BUILD = '20260725-v90-fix19';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -656,7 +656,7 @@ tbody td{padding:8px 11px}
       <button class="stab" id="rpt-party-btn" onclick="setRptMode('party')">👤 தனியார்</button>
       <button class="stab" id="rpt-full-btn" onclick="setRptMode('full')" style="font-size:11px">📋 Full</button>
       <button class="stab" id="rpt-kilo-btn" onclick="setRptMode('kilo')" style="font-size:11px">🌸 பூ கிலோ</button>
-      <button class="stab" id="rpt-topsup-btn" onclick="setRptMode('topsup')" style="font-size:11px">🏆 Top Suppliers</button>
+      <button class="stab" id="rpt-topsup-btn" onclick="setRptMode('topsup')" style="font-size:11px">🏆 Top</button>
     </div>
     <div id="rpt-month-filter">
       <div class="frow">
@@ -711,12 +711,16 @@ tbody td{padding:8px 11px}
       </div>
     </div>
     <div id="rpt-topsup-filter" style="display:none">
-      <div style="font-size:12px;color:#777;margin-bottom:8px">தேர்ந்தெடுத்த தேதி வரம்பில் அதிக சரக்கு கொடுத்த Suppliers, இறங்கு வரிசையில்</div>
+      <div class="stabs" style="margin-bottom:10px">
+        <button class="stab on" id="rpt-topsup-type-sup" onclick="setRptTopType('sup')">🌿 Supplier</button>
+        <button class="stab" id="rpt-topsup-type-cust" onclick="setRptTopType('cust')">🛒 Customer</button>
+      </div>
+      <div style="font-size:12px;color:#777;margin-bottom:8px" id="rpt-topsup-hint">தேர்ந்தெடுத்த தேதி வரம்பில் அதிக சரக்கு கொடுத்த Suppliers, இறங்கு வரிசையில்</div>
       <div class="frow">
         <div class="fg"><label>From</label><input type="date" id="rpt-topsup-from"></div>
         <div class="fg"><label>To</label><input type="date" id="rpt-topsup-to"></div>
       </div>
-      <button class="btn bg" style="width:100%;margin-top:4px" onclick="genTopSuppliers()">📊 Generate</button>
+      <button class="btn bg" style="width:100%;margin-top:4px" onclick="genTopReport()">📊 Generate</button>
     </div>
   </div>
   <div id="rpt-out"></div>
@@ -3059,6 +3063,18 @@ function setFullMonth(val){
   document.getElementById('rpt-full-from').value=from;
   document.getElementById('rpt-full-to').value=d.toISOString().split('T')[0];
 }
+let rptTopType='sup';
+function setRptTopType(t){
+  rptTopType=t;
+  document.getElementById('rpt-topsup-type-sup').classList.toggle('on',t==='sup');
+  document.getElementById('rpt-topsup-type-cust').classList.toggle('on',t==='cust');
+  document.getElementById('rpt-topsup-hint').textContent = t==='sup'
+    ? 'தேர்ந்தெடுத்த தேதி வரம்பில் அதிக சரக்கு கொடுத்த Suppliers, இறங்கு வரிசையில்'
+    : 'தேர்ந்தெடுத்த தேதி வரம்பில் அதிகம் வாங்கின Customers, இறங்கு வரிசையில்';
+}
+function genTopReport(){
+  if(rptTopType==='cust') genTopCustomers(); else genTopSuppliers();
+}
 function genTopSuppliers(){
   const from=document.getElementById('rpt-topsup-from').value;
   const to=document.getElementById('rpt-topsup-to').value;
@@ -3085,6 +3101,33 @@ function genTopSuppliers(){
     <table><thead><tr><th>Supplier</th><th style="text-align:right">எடை</th><th style="text-align:right">மொத்த வரவு</th><th style="text-align:right">கமிஷன்</th></tr></thead><tbody>
     ${rows.map(([name,v])=>`<tr><td>${name}${v.supType?`<br><span style="font-size:10px;color:#999">${v.supType}</span>`:''}</td><td style="text-align:right">${v.qty?v.qty.toLocaleString('en-IN',{maximumFractionDigits:2}):'-'}</td><td style="text-align:right">₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="text-align:right">₹${v.commission.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr>`).join('')}
     </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td>மொத்தம் (${rows.length} suppliers)</td><td></td><td style="text-align:right">₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
+  if(printRow) printRow.style.display='block';
+}
+function genTopCustomers(){
+  const from=document.getElementById('rpt-topsup-from').value;
+  const to=document.getElementById('rpt-topsup-to').value;
+  if(!from||!to) return alert2('From, To தேதி இரண்டையும் தேர்வு பண்ணுங்க!','err');
+  const map={};
+  db.sales.filter(s=>!s.deleted&&(s.date>=from&&s.date<=to)).forEach(s=>{
+    const n=s.party;
+    if(!map[n]) map[n]={total:0,qty:0,count:0};
+    map[n].total+=s.total||0;
+    map[n].count++;
+    (s.items||[]).forEach(it=>{ map[n].qty+=it.qty||0; });
+  });
+  const rows=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
+  const out=document.getElementById('rpt-out');
+  const printRow=document.getElementById('rpt-print-btn-row');
+  if(!rows.length){
+    out.innerHTML='<div class="empty"><div class="eico">🏆</div>இந்த தேதி வரம்பில் entries இல்லை</div>';
+    if(printRow) printRow.style.display='none';
+    return;
+  }
+  const grandTotal=rows.reduce((a,r)=>a+r[1].total,0);
+  out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">🏆 Top Customers — ${fmtDate(from)} முதல் ${fmtDate(to)} வரை</div>
+    <table><thead><tr><th>Customer</th><th style="text-align:right">எடை</th><th style="text-align:right">மொத்த விற்பனை</th><th style="text-align:right">Bills</th></tr></thead><tbody>
+    ${rows.map(([name,v])=>`<tr><td>${name}</td><td style="text-align:right">${v.qty?v.qty.toLocaleString('en-IN',{maximumFractionDigits:2}):'-'}</td><td style="text-align:right">₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="text-align:right">${v.count}</td></tr>`).join('')}
+    </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td>மொத்தம் (${rows.length} customers)</td><td></td><td style="text-align:right">₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
   if(printRow) printRow.style.display='block';
 }
 function genFullReport(mode){
