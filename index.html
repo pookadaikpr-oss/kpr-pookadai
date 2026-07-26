@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260725-v90-fix16';
+  var APP_BUILD = '20260725-v90-fix17';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2589,11 +2589,13 @@ function renderPay(){
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
     const received=(db.payments||[]).filter(p=>p.type==='pur_in'&&p.name===n).reduce((a,p)=>a+(p.amount||0),0);
-    const adjustedDue=v.total-v.comm-v.paid+received;
+    const masterSup=findMasterSupplier(n);
+    const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
+    const adjustedDue=v.total-v.comm-v.paid+received+munPakki;
     const btn=adjustedDue>=0
       ? `<button class="btn bg bsm" style="width:100%" onclick="paySupplier('${n.replace(/'/g,"\\'")}',${adjustedDue})">💸 Pay</button>`
       : `<button class="btn bo bsm" style="width:100%" onclick="receiveFromSupplier('${n.replace(/'/g,"\\'")}',${-adjustedDue})">💰 Receive (அதிக பற்று)</button>`;
-    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div><div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${v.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${received>0?`<div style="display:flex;justify-content:space-between"><span>Received (பாக்கி குறைப்பு)</span><span style="color:var(--gold)">₹${received.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}</div>${btn}</div>`;
+    return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${munPakki>0?`<div style="display:flex;justify-content:space-between"><span>முன் பாக்கி</span><span>₹${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}<div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${adjustedDue.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${received>0?`<div style="display:flex;justify-content:space-between"><span>Received (பாக்கி குறைப்பு)</span><span style="color:var(--gold)">₹${received.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}</div>${btn}</div>`;
   }).join(''):`<div class="empty"><div class="eico">${supSearch?'🔍':'✅'}</div>${supSearch?'இந்த பெயர்-ல supplier இல்லை':'Supplier data இல்லை'}</div>`;
   const cm={};
   db.sales.forEach(s=>{ if(s.deleted) return; if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
