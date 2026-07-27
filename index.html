@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260725-v90-fix19';
+  var APP_BUILD = '20260727-v90-fix21';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -225,6 +225,7 @@ tbody td{padding:8px 11px}
     <button class="btn bsm" onclick="refreshFromFirebase()" style="font-size:12px;background:#e6f7ed;color:#1a6b3a;border:1.5px solid #27ae60;font-weight:700">🔄 Sync Now</button>
     <button class="btn bsm" onclick="kprDownloadBackup()" style="font-size:12px;background:#eef5fb;color:#154a75;border:1.5px solid #2980b9;font-weight:700">📥 Backup</button>
     <button class="btn bsm" onclick="fixMissingCommission()" style="font-size:11px;background:#fff8e6;color:#b8860b;border:1.5px solid #d4af37;font-weight:700">🔧 கமிஷன் Fix</button>
+    <button class="btn bsm" onclick="fixItemNames()" style="font-size:11px;background:#f0f7ff;color:#1a5b8c;border:1.5px solid #4a90d9;font-weight:700">🔧 பொருள் பேர் Fix</button>
   </div>
   <div class="dash-grid">
     <div class="dash-card gold"><div class="lbl">இன்றைய Sales</div><div class="val" id="d-sal">₹0</div><div class="sub" id="d-sal-c">0 bills</div><div class="ico">🛒</div></div>
@@ -1287,6 +1288,22 @@ function salItemInput(inp){
   // Number resolve only on Enter/Tab — not while typing
   calcST();
 }
+function checkItemNameWarning(inp){
+  const val=(inp.value||'').trim();
+  const parent=inp.parentElement;
+  const old=parent.querySelector('.item-warn-msg');
+  if(old) old.remove();
+  inp.style.borderColor='';
+  if(!val || val.length>2) return;
+  const list=(master.items&&master.items.length)?master.items:(settings.items||[]);
+  if(list.includes(val)) return; // சின்னதா இருந்தாலும் real item பேர் என்றால் பரவாயில்ல
+  inp.style.borderColor='#c0392b';
+  const msg=document.createElement('div');
+  msg.className='item-warn-msg';
+  msg.style.cssText='color:#c0392b;font-size:10px;margin-top:2px;line-height:1.3';
+  msg.textContent='⚠️ பேர் குறைவா இருக்கு ("'+val+'") — முழுசா type ஆச்சான்னு சரி பாருங்க';
+  parent.appendChild(msg);
+}
 function resolveItemShortcut(val){
   const trimmed=(val||'').trim();
   const num=parseInt(trimmed);
@@ -1612,7 +1629,7 @@ function addPI(){
   const id='pi-'+piCount;
   const d=document.createElement('div');
   d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="purItemInput(this);calcPT()" onkeydown="purItemKey(event,'${id}',0)" onblur="this.value=resolveItemShortcut(this.value.trim());calcPT()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcPT)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="purItemInput(this);calcPT()" onkeydown="purItemKey(event,'${id}',0)" onblur="this.value=resolveItemShortcut(this.value.trim());checkItemNameWarning(this);calcPT()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcPT()" onkeydown="purItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcPT)">×</button>`;
   document.getElementById('pe-items').appendChild(d); calcPT();
   const row=document.getElementById(id);
   if(row){
@@ -1997,7 +2014,7 @@ function addSI(){
   const id='si-'+siCount;
   const d=document.createElement('div');
   d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="salItemInput(this);calcST()" onkeydown="salItemKey(event,'${id}',0)" onblur="this.value=resolveItemShortcut(this.value.trim());calcST()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcST()" onkeydown="salItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcST()" onkeydown="salItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcST)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள் / 1,2,3..." list="flower-dl" oninput="salItemInput(this);calcST()" onkeydown="salItemKey(event,'${id}',0)" onblur="this.value=resolveItemShortcut(this.value.trim());checkItemNameWarning(this);calcST()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" oninput="calcST()" onkeydown="salItemKey(event,'${id}',1)"></div><div class="fg"><input type="number" placeholder="0" min="0" oninput="calcST()" onkeydown="salItemKey(event,'${id}',2)"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888"></div><button class="rmbtn" onclick="rmRow('${id}',calcST)">×</button>`;
   document.getElementById('se-items').appendChild(d); calcST();
   const row=document.getElementById(id);
   if(row){
@@ -2293,7 +2310,7 @@ function addEditItem(item){
   editItemCount++;
   const id='ei-'+editItemCount;
   const d=document.createElement('div'); d.className='irow'; d.id=id;
-  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள்" list="flower-dl" value="${item?item.name:''}" oninput="calcEditTot()"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" value="${item?item.qty:''}" oninput="calcEditTot()"></div><div class="fg"><input type="number" placeholder="0" min="0" value="${item?item.price:''}" oninput="calcEditTot()"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888" value="${item?item.amount:''}"></div><button class="rmbtn" onclick="rmRow('${id}',calcEditTot)">×</button>`;
+  d.innerHTML=`<div class="fg"><input type="text" placeholder="பொருள்" list="flower-dl" value="${item?item.name:''}" oninput="calcEditTot()" onblur="checkItemNameWarning(this)"></div><div class="fg"><input type="number" placeholder="0" min="0" step="0.5" value="${item?item.qty:''}" oninput="calcEditTot()"></div><div class="fg"><input type="number" placeholder="0" min="0" value="${item?item.price:''}" oninput="calcEditTot()"></div><div class="fg"><input type="number" placeholder="0" readonly style="background:#f0f0f0;color:#888" value="${item?item.amount:''}"></div><button class="rmbtn" onclick="rmRow('${id}',calcEditTot)">×</button>`;
   document.getElementById('edit-items').appendChild(d);
 }
 function calcEditTot(){
@@ -3691,6 +3708,40 @@ async function fixMissingCommission(){
   saveLocal(); updateDash(); renderPL();
   saveDB().then(()=>{
     alert2('✅ '+affected.length+' entries கமிஷன் Fix ஆயிடுச்சு!','ok');
+  }).catch(()=>{
+    alert2('✅ Local-ல் Fix ஆச்சு! (Sync Now தட்டுங்க)','ok');
+  });
+}
+async function fixItemNames(){
+  // இங்க mapping-ஐ மாத்தி வேற பெயர் திருத்தங்களுக்கும் use பண்ணலாம்
+  const nameMap = {'மு':'முல்லை','னக':'கனகாம்பரம்','ம':'மல்லி'};
+  const affected = []; // {type, id, date, partyOrSup, oldName, newName}
+  db.purchases.forEach(p=>{
+    if(p.deleted) return;
+    (p.items||[]).forEach(it=>{
+      if(nameMap[it.name]) affected.push({type:'pur',id:p.id,date:p.date,who:p.supplier,oldName:it.name,newName:nameMap[it.name],itemRef:it});
+    });
+  });
+  db.sales.forEach(s=>{
+    if(s.deleted) return;
+    (s.items||[]).forEach(it=>{
+      if(nameMap[it.name]) affected.push({type:'sal',id:s.id,date:s.date,who:s.party,oldName:it.name,newName:nameMap[it.name],itemRef:it});
+    });
+  });
+  if(!affected.length){ alert2('சரி பண்ண எதுவும் இல்லை — தப்பான item பெயர்கள் entries-ல் இல்ல ✅','ok'); return; }
+  // Preview — எத்தனை entries, எந்த mapping
+  const summary = {};
+  affected.forEach(a=>{ const k=a.oldName+' → '+a.newName; summary[k]=(summary[k]||0)+1; });
+  const previewLines = Object.entries(summary).map(([k,c])=>`• ${k} (${c} இடங்களில்)`).join('<br>');
+  const ok = await confirm2(
+    affected.length+' item entries-ல் பெயர் மாத்தப்படும் (qty/price/total எதுவும் மாறாது):<br><br>'+previewLines+
+    '<br><br>இதை Firebase-க்கும் அனுப்பப்படும். தொடரணுமா?'
+  );
+  if(!ok) return;
+  affected.forEach(a=>{ a.itemRef.name = a.newName; });
+  saveLocal(); updateDash(); renderPL(); renderSL();
+  saveDB().then(()=>{
+    alert2('✅ '+affected.length+' இடங்களில் பொருள் பேர் Fix ஆயிடுச்சு!','ok');
   }).catch(()=>{
     alert2('✅ Local-ல் Fix ஆச்சு! (Sync Now தட்டுங்க)','ok');
   });
