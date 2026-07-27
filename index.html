@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260727-v90-fix21';
+  var APP_BUILD = '20260727-v90-fix22';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3714,7 +3714,7 @@ async function fixMissingCommission(){
 }
 async function fixItemNames(){
   // இங்க mapping-ஐ மாத்தி வேற பெயர் திருத்தங்களுக்கும் use பண்ணலாம்
-  const nameMap = {'மு':'முல்லை','னக':'கனகாம்பரம்','ம':'மல்லி'};
+  const nameMap = {'மு':'முல்லை','னக':'கனகாம்பரம்','ம':'மல்லி','மல':'மல்லி'};
   const affected = []; // {type, id, date, partyOrSup, oldName, newName}
   db.purchases.forEach(p=>{
     if(p.deleted) return;
