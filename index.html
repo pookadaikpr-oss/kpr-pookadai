@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix29';
+  var APP_BUILD = '20260728-v90-fix30';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3168,6 +3168,15 @@ function setSupStmtMonth(val){
   document.getElementById('rpt-supstmt-to').value=d.toISOString().split('T')[0];
 }
 function genSupplierMonthlyStatement(){
+  Promise.all([
+    fetch(FIREBASE_URL+'/master/suppliers.json').then(r=>r.json()).catch(()=>null)
+  ]).then(([supData])=>{
+    if(Array.isArray(supData) && supData.length) master.suppliers=supData;
+    saveMasterLocal();
+    _genSupplierMonthlyStatement();
+  }).catch(()=>_genSupplierMonthlyStatement());
+}
+function _genSupplierMonthlyStatement(){
   const out=document.getElementById('rpt-out');
   const printRow=document.getElementById('rpt-print-btn-row');
   const month=document.getElementById('rpt-supstmt-month').value;
