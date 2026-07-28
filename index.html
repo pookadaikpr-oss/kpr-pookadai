@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260727-v90-fix22';
+  var APP_BUILD = '20260728-v90-fix23';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -658,6 +658,7 @@ tbody td{padding:8px 11px}
       <button class="stab" id="rpt-full-btn" onclick="setRptMode('full')" style="font-size:11px">📋 Full</button>
       <button class="stab" id="rpt-kilo-btn" onclick="setRptMode('kilo')" style="font-size:11px">🌸 பூ கிலோ</button>
       <button class="stab" id="rpt-topsup-btn" onclick="setRptMode('topsup')" style="font-size:11px">🏆 Top</button>
+      <button class="stab" id="rpt-supstmt-btn" onclick="setRptMode('supstmt')" style="font-size:11px">📒 மாத சிட்டை</button>
     </div>
     <div id="rpt-month-filter">
       <div class="frow">
@@ -722,6 +723,18 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>To</label><input type="date" id="rpt-topsup-to"></div>
       </div>
       <button class="btn bg" style="width:100%;margin-top:4px" onclick="genTopReport()">📊 Generate</button>
+    </div>
+    <div id="rpt-supstmt-filter" style="display:none">
+      <div style="font-size:12px;color:#777;margin-bottom:8px">எல்லா தோட்டம் Suppliers-க்கும் ஒரு அறிக்கை — மாத பூ வரவு, நிலுவை, Fixed Target</div>
+      <div class="fg" style="margin-bottom:8px">
+        <label>மாதம்</label>
+        <input type="month" id="rpt-supstmt-month" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit" oninput="setSupStmtMonth(this.value)">
+      </div>
+      <div class="frow">
+        <div class="fg"><label>From</label><input type="date" id="rpt-supstmt-from" onchange="document.getElementById('rpt-supstmt-month').value=''"></div>
+        <div class="fg"><label>To</label><input type="date" id="rpt-supstmt-to" onchange="document.getElementById('rpt-supstmt-month').value=''"></div>
+      </div>
+      <button class="btn bg" style="width:100%;margin-top:4px" onclick="genSupplierMonthlyStatement()">📊 Generate</button>
     </div>
   </div>
   <div id="rpt-out"></div>
@@ -3035,7 +3048,7 @@ function copyMsgById(btn){
 let rptMode='month', rptPartyType='sup';
 function setRptMode(m){
   rptMode=m;
-  ['month','range','party','full','kilo','topsup'].forEach(x=>{
+  ['month','range','party','full','kilo','topsup','supstmt'].forEach(x=>{
     const f=document.getElementById('rpt-'+x+'-filter');
     const b=document.getElementById('rpt-'+x+'-btn');
     if(f) f.style.display=x===m?'block':'none';
@@ -3145,6 +3158,53 @@ function genTopCustomers(){
     <table><thead><tr><th>Customer</th><th style="text-align:right">எடை</th><th style="text-align:right">மொத்த விற்பனை</th><th style="text-align:right">Bills</th></tr></thead><tbody>
     ${rows.map(([name,v])=>`<tr><td>${name}</td><td style="text-align:right">${v.qty?v.qty.toLocaleString('en-IN',{maximumFractionDigits:2}):'-'}</td><td style="text-align:right">₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="text-align:right">${v.count}</td></tr>`).join('')}
     </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td>மொத்தம் (${rows.length} customers)</td><td></td><td style="text-align:right">₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
+  if(printRow) printRow.style.display='block';
+}
+function setSupStmtMonth(val){
+  if(!val) return;
+  const from=val+'-01';
+  const d=new Date(val+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0);
+  document.getElementById('rpt-supstmt-from').value=from;
+  document.getElementById('rpt-supstmt-to').value=d.toISOString().split('T')[0];
+}
+function genSupplierMonthlyStatement(){
+  const out=document.getElementById('rpt-out');
+  const printRow=document.getElementById('rpt-print-btn-row');
+  const month=document.getElementById('rpt-supstmt-month').value;
+  let from=document.getElementById('rpt-supstmt-from').value, to=document.getElementById('rpt-supstmt-to').value;
+  if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
+  if(!from||!to){ alert2('மாதம் அல்லது Date range கொடுங்க!','err'); return; }
+  const toduSups=(master.suppliers||[]).filter(s=>s.supType==='தோட்டம்');
+  const rows=[];
+  let grandVaravu=0, grandBal=0;
+  toduSups.forEach(masterSup=>{
+    const name=masterSup.name;
+    const entries=db.purchases.filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===normName_(name)&&p.date>=from&&p.date<=to);
+    const prevDateOk=!masterSup.prevDate||(masterSup.prevDate<=from);
+    const munPakki=masterSup.prev>0&&prevDateOk?masterSup.prev:0;
+    if(!entries.length&&!munPakki&&!(masterSup.floatTarget>0)) return; // activity இல்லாத suppliers தவிர்க்கவும்
+    const pooVaravu=entries.reduce((a,e)=>a+(e.total||0),0);
+    const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
+    const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
+    const paymentsPaid=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName_(name)&&p.date>=from&&p.date<=to).reduce((a,p)=>a+(p.amount||0),0);
+    const totalPatru=paidCashTotal+paymentsPaid;
+    const netBal=pooVaravu-(totalPatru+munPakki+totalComm); // + = இருப்பு (பாக்கி கொடுக்கணும்), - = அதிக பற்று
+    const isFloat=masterSup.floatTarget>0;
+    const col3 = isFloat ? masterSup.floatTarget : (netBal!==0 ? Math.abs(netBal) : null);
+    grandVaravu+=pooVaravu; grandBal+=netBal;
+    rows.push({name, pooVaravu, netBal, col3, isFloat});
+  });
+  if(!rows.length){ out.innerHTML='<div class="empty"><div class="eico">📒</div>இந்த காலத்துக்கு Data இல்லை</div>'; if(printRow) printRow.style.display='none'; return; }
+  const d1=fmtDate(from), d2=fmtDate(to);
+  const thS='padding:4px 5px;font-size:10.5px;text-align:left;white-space:nowrap';
+  const tdS='padding:3px 5px;font-size:10.5px;border-bottom:1px solid #eee;white-space:nowrap';
+  const tdR='padding:3px 5px;font-size:10.5px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
+  out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">📒 மாத சப்ளையர் சிட்டை — ${d1} முதல் ${d2} வரை</div>
+    <table><thead><tr><th style="${thS}">S.NO</th><th style="${thS}">பெயர்</th><th style="${thS};text-align:right">மொத்த பூ வரவு</th><th style="${thS};text-align:right">ரொக்க பற்று+கமிஷன் (நிலுவை)</th><th style="${thS};text-align:right">Fixed / பற்று தொகை</th></tr></thead><tbody>
+    ${rows.map((r,i)=>`<tr><td style="${tdS}">${i+1}</td><td style="${tdS}">${r.name}${r.isFloat?' 🎯':''}</td><td style="${tdR}">${r.pooVaravu?r.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};color:${r.netBal>0?'#1a6b3a':r.netBal<0?'#c0392b':'#333'}">${r.netBal?Math.abs(r.netBal).toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};font-weight:${r.col3?700:400}">${r.col3?r.col3.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td></tr>`).join('')}
+    </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td style="${tdS}" colspan="2">மொத்தம் (${rows.length} suppliers)</td><td style="${tdR}">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR}">${Math.abs(grandBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td></td></tr></tfoot></table>
+    <div style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. நிலுவை column: பச்சை=இருப்பு (பாக்கி கொடுக்கணும்), சிவப்பு=அதிக பற்று (over-paid).</div>
+    </div>`;
   if(printRow) printRow.style.display='block';
 }
 function genFullReport(mode){
