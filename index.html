@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix23';
+  var APP_BUILD = '20260728-v90-fix24';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3174,7 +3174,10 @@ function genSupplierMonthlyStatement(){
   let from=document.getElementById('rpt-supstmt-from').value, to=document.getElementById('rpt-supstmt-to').value;
   if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=d.toISOString().split('T')[0]; }
   if(!from||!to){ alert2('மாதம் அல்லது Date range கொடுங்க!','err'); return; }
-  const toduSups=(master.suppliers||[]).filter(s=>s.supType==='தோட்டம்');
+  const toduSups=(master.suppliers||[]).filter(s=>{
+    const t=(s.type||'தோட்டம்').normalize('NFC').trim();
+    return t==='தோட்டம்';
+  });
   const rows=[];
   let grandVaravu=0, grandBal=0;
   toduSups.forEach(masterSup=>{
