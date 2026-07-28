@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix31';
+  var APP_BUILD = '20260728-v90-fix32-debug';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3215,7 +3215,7 @@ function _genSupplierMonthlyStatement(){
       col3 = netBal<0 ? Math.abs(netBal) : null; // அதிக பற்று (சிவப்பு) மட்டும்
     }
     grandVaravu+=pooVaravu; if(col2) grandCol2+=col2; if(col3&&!isFloat) grandCol3+=col3;
-    rows.push({name, pooVaravu, col2, col3, isFloat});
+    rows.push({name, pooVaravu, col2, col3, isFloat, _dbg:isFloat?{netBal,munPakki,totalPatru,totalComm,prevDate:masterSup.prevDate||'(காலி)',floatTarget:masterSup.floatTarget}:null});
   });
   if(!rows.length){ out.innerHTML='<div class="empty"><div class="eico">📒</div>இந்த காலத்துக்கு Data இல்லை</div>'; if(printRow) printRow.style.display='none'; return; }
   const d1=fmtDate(from), d2=fmtDate(to);
@@ -3227,6 +3227,7 @@ function _genSupplierMonthlyStatement(){
     ${rows.map((r,i)=>`<tr><td style="${tdS}">${i+1}</td><td style="${tdS}">${r.name}${r.isFloat?' 🎯':''}</td><td style="${tdR}">${r.pooVaravu?r.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};color:#1a6b3a">${r.col2?r.col2.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};font-weight:700;color:${r.isFloat?'#333':'#c0392b'}">${r.col3?r.col3.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td></tr>`).join('')}
     </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td style="${tdS}" colspan="2">மொத்தம் (${rows.length})</td><td style="${tdR}">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR};color:#1a6b3a">${grandCol2.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR};color:#c0392b">${grandCol3.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot></table>
     <div style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. ரொக்க சிட்டை = இருப்பு (பாக்கி கொடுக்கணும், பச்சை). பற்று சிட்டை = 🎯 suppliers-க்கு Target அடைய இன்னும் Pay பண்ணனும்-ற தொகை; மற்றவங்களுக்கு அதிக பற்று (சிவப்பு).</div>
+    <div style="font-size:10px;color:#c0392b;margin-top:10px;border-top:1px dashed #ccc;padding-top:8px">🔧 DEBUG (Fixed suppliers மட்டும்):<br>${rows.filter(r=>r.isFloat).map(r=>`${r.name}: netBal=${r._dbg.netBal.toFixed(2)}, munPakki(prev)=${r._dbg.munPakki}, prevDate=${r._dbg.prevDate}, totalPatru=${r._dbg.totalPatru.toFixed(2)}, totalComm=${r._dbg.totalComm.toFixed(2)}, floatTarget=${r._dbg.floatTarget}`).join('<br>')}</div>
     </div>`;
   if(printRow) printRow.style.display='block';
 }
