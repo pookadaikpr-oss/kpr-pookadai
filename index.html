@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix25';
+  var APP_BUILD = '20260728-v90-fix26';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3185,7 +3185,6 @@ function genSupplierMonthlyStatement(){
     const entries=db.purchases.filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===normName_(name)&&p.date>=from&&p.date<=to);
     const prevDateOk=!masterSup.prevDate||(masterSup.prevDate<=from);
     const munPakki=masterSup.prev>0&&prevDateOk?masterSup.prev:0;
-    if(!entries.length&&!munPakki&&!(masterSup.floatTarget>0)) return; // activity இல்லாத suppliers தவிர்க்கவும்
     const pooVaravu=entries.reduce((a,e)=>a+(e.total||0),0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
