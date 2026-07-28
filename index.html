@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix32-debug';
+  var APP_BUILD = '20260728-v90-fix34';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3205,17 +3205,20 @@ function _genSupplierMonthlyStatement(){
     const totalPatru=paidCashTotal+paymentsPaid;
     const netBal=pooVaravu-(totalPatru+munPakki+totalComm); // + = இருப்பு (பாக்கி கொடுக்கணும்), - = அதிக பற்று
     const isFloat=masterSup.floatTarget>0;
-    const col2 = netBal>0 ? netBal : null; // நிலுவை column — இருப்பு (பச்சை) மட்டும்
-    let col3;
+    let col2, col3Text, col3;
     if(isFloat){
       const currentFloat=-netBal;
-      const diff=masterSup.floatTarget-currentFloat; // Target அடைய இன்னும் pay பண்ணனும்-ற தொகை
-      col3 = diff>0 ? diff : null; // Target-ஐ அடைஞ்சிட்டா (அல்லது தாண்டிட்டா) காலி
+      const diff=masterSup.floatTarget-currentFloat; // Target அடைய இன்னும் pay பண்ணனும்-ற தொகை (+ஆ) அல்லது Target-ஐ தாண்டி pay பண்ணிட்டது (-ஆ)
+      col2 = diff;
+      col3 = masterSup.floatTarget; // Fixed suppliers-க்கு எப்போவும் static Target amount
+      col3Text = '₹'+masterSup.floatTarget.toLocaleString('en-IN');
     } else {
+      col2 = netBal>0 ? netBal : null; // நிலுவை — இருப்பு (பச்சை) மட்டும்
       col3 = netBal<0 ? Math.abs(netBal) : null; // அதிக பற்று (சிவப்பு) மட்டும்
+      col3Text = col3 ? col3.toLocaleString('en-IN',{minimumFractionDigits:2}) : '';
     }
-    grandVaravu+=pooVaravu; if(col2) grandCol2+=col2; if(col3&&!isFloat) grandCol3+=col3;
-    rows.push({name, pooVaravu, col2, col3, isFloat, _dbg:isFloat?{netBal,munPakki,totalPatru,totalComm,prevDate:masterSup.prevDate||'(காலி)',floatTarget:masterSup.floatTarget}:null});
+    grandVaravu+=pooVaravu; if(col2&&!isFloat) grandCol2+=col2; if(col3&&!isFloat) grandCol3+=col3;
+    rows.push({name, pooVaravu, col2, col3, col3Text, isFloat, _dbg:isFloat?{netBal,munPakki,totalPatru,totalComm,prevDate:masterSup.prevDate||'(காலி)',floatTarget:masterSup.floatTarget}:null});
   });
   if(!rows.length){ out.innerHTML='<div class="empty"><div class="eico">📒</div>இந்த காலத்துக்கு Data இல்லை</div>'; if(printRow) printRow.style.display='none'; return; }
   const d1=fmtDate(from), d2=fmtDate(to);
@@ -3224,10 +3227,9 @@ function _genSupplierMonthlyStatement(){
   const tdR='padding:3px 3px;font-size:10px;border-bottom:1px solid #eee;text-align:right;overflow:hidden';
   out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">📒 மாத சப்ளையர் சிட்டை — ${d1} முதல் ${d2} வரை</div>
     <table style="table-layout:fixed;width:100%"><colgroup><col style="width:8%"><col style="width:30%"><col style="width:20%"><col style="width:22%"><col style="width:20%"></colgroup><thead><tr><th style="${thS}">S.NO</th><th style="${thS}">பெயர்</th><th style="${thS};text-align:right">பூ வரவு</th><th style="${thS};text-align:right">ரொக்க சிட்டை</th><th style="${thS};text-align:right">பற்று சிட்டை</th></tr></thead><tbody>
-    ${rows.map((r,i)=>`<tr><td style="${tdS}">${i+1}</td><td style="${tdS}">${r.name}${r.isFloat?' 🎯':''}</td><td style="${tdR}">${r.pooVaravu?r.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};color:#1a6b3a">${r.col2?r.col2.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};font-weight:700;color:${r.isFloat?'#333':'#c0392b'}">${r.col3?r.col3.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td></tr>`).join('')}
+    ${rows.map((r,i)=>`<tr><td style="${tdS}">${i+1}</td><td style="${tdS}">${r.name}${r.isFloat?' 🎯':''}</td><td style="${tdR}">${r.pooVaravu?r.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};color:${r.isFloat?(r.col2>0?'#1a6b3a':'#c0392b'):'#1a6b3a'}">${r.isFloat?Math.abs(r.col2).toLocaleString('en-IN',{minimumFractionDigits:2}):(r.col2?r.col2.toLocaleString('en-IN',{minimumFractionDigits:2}):'')}</td><td style="${tdR};font-weight:700;color:${r.isFloat?'#333':'#c0392b'}">${r.col3Text}</td></tr>`).join('')}
     </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td style="${tdS}" colspan="2">மொத்தம் (${rows.length})</td><td style="${tdR}">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR};color:#1a6b3a">${grandCol2.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR};color:#c0392b">${grandCol3.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot></table>
-    <div style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. ரொக்க சிட்டை = இருப்பு (பாக்கி கொடுக்கணும், பச்சை). பற்று சிட்டை = 🎯 suppliers-க்கு Target அடைய இன்னும் Pay பண்ணனும்-ற தொகை; மற்றவங்களுக்கு அதிக பற்று (சிவப்பு).</div>
-    <div style="font-size:10px;color:#c0392b;margin-top:10px;border-top:1px dashed #ccc;padding-top:8px">🔧 DEBUG (Fixed suppliers மட்டும்):<br>${rows.filter(r=>r.isFloat).map(r=>`${r.name}: netBal=${r._dbg.netBal.toFixed(2)}, munPakki(prev)=${r._dbg.munPakki}, prevDate=${r._dbg.prevDate}, totalPatru=${r._dbg.totalPatru.toFixed(2)}, totalComm=${r._dbg.totalComm.toFixed(2)}, floatTarget=${r._dbg.floatTarget}`).join('<br>')}</div>
+    <div style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. ரொக்க சிட்டை = சாதாரண suppliers-க்கு இருப்பு (பச்சை); 🎯 suppliers-க்கு Target அடைய இன்னும் Pay பண்ணனும்-ற தொகை (பச்சை) அல்லது Target தாண்டி pay பண்ணிட்டது (சிவப்பு). பற்று சிட்டை = 🎯 suppliers-க்கு அவங்க Target amount (எப்போவும் static); மற்றவங்களுக்கு அதிக பற்று (சிவப்பு).</div>
     </div>`;
   if(printRow) printRow.style.display='block';
 }
