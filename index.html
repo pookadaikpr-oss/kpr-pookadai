@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix36';
+  var APP_BUILD = '20260728-v90-fix37';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3228,7 +3228,8 @@ function _genSupplierMonthlyStatement(){
   out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">📒 மாத சப்ளையர் சிட்டை — ${d1} முதல் ${d2} வரை</div>
     <table style="table-layout:fixed;width:100%"><colgroup><col style="width:8%"><col style="width:30%"><col style="width:20%"><col style="width:22%"><col style="width:20%"></colgroup><thead><tr><th style="${thS}">S.NO</th><th style="${thS}">பெயர்</th><th style="${thS};text-align:right">பூ வரவு</th><th style="${thS};text-align:right">ரொக்க சிட்டை</th><th style="${thS};text-align:right">பற்று சிட்டை</th></tr></thead><tbody>
     ${rows.map((r,i)=>`<tr><td style="${tdS}">${i+1}</td><td style="${tdS}">${r.name}${r.isFloat?' 🎯':''}</td><td style="${tdR}">${r.pooVaravu?r.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};color:${r.isFloat?(r.col2>0?'#1a6b3a':'#c0392b'):'#1a6b3a'}">${r.isFloat?Math.abs(r.col2).toLocaleString('en-IN',{minimumFractionDigits:2}):(r.col2?r.col2.toLocaleString('en-IN',{minimumFractionDigits:2}):'')}</td><td style="${tdR};font-weight:700;color:${r.isFloat?'#333':'#c0392b'}">${r.col3Text}</td></tr>`).join('')}
-    </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td style="${tdS}" colspan="2">மொத்தம் (${rows.length})</td><td style="${tdR}">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR};color:#1a6b3a">${grandCol2.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="${tdR};color:#c0392b">${grandCol3.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot></table>
+    </tbody></table>
+    <div style="font-weight:700;background:#f5f3ee;display:flex;justify-content:space-between;padding:6px 3px;margin-top:2px;font-size:10px"><span style="width:38%">மொத்தம் (${rows.length})</span><span style="width:20%;text-align:right">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span style="width:22%;text-align:right;color:#1a6b3a">${grandCol2.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span style="width:20%;text-align:right;color:#c0392b">${grandCol3.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
     <div class="rpt-legend-note" style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. ரொக்க சிட்டை = சாதாரண suppliers-க்கு இருப்பு (பச்சை); 🎯 suppliers-க்கு Target அடைய இன்னும் Pay பண்ணனும்-ற தொகை (பச்சை) அல்லது Target தாண்டி pay பண்ணிட்டது (சிவப்பு). பற்று சிட்டை = 🎯 suppliers-க்கு அவங்க Target amount (எப்போவும் static); மற்றவங்களுக்கு அதிக பற்று (சிவப்பு).</div>
     </div>`;
   if(printRow) printRow.style.display='block';
