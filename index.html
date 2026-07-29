@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260728-v90-fix38';
+  var APP_BUILD = '20260729-v90-fix39';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -473,6 +473,12 @@ tbody td{padding:8px 11px}
     <div class="stabs" style="margin-bottom:10px">
       <button class="stab on" id="ledger-sup-btn" onclick="setLedgerType('sup')">🌿 Supplier</button>
       <button class="stab" id="ledger-cust-btn" onclick="setLedgerType('cust')">🛒 Customer</button>
+    </div>
+    <div class="stabs" id="ledger-suptype-filter" style="margin-bottom:10px">
+      <button class="stab on" id="ledger-suptype-all" onclick="setLedgerSupType('all')" style="font-size:11px">எல்லாம்</button>
+      <button class="stab" id="ledger-suptype-todam" onclick="setLedgerSupType('தோட்டம்')" style="font-size:11px">தோட்டம்</button>
+      <button class="stab" id="ledger-suptype-veliyur" onclick="setLedgerSupType('வெளியூர்')" style="font-size:11px">வெளியூர்</button>
+      <button class="stab" id="ledger-suptype-velikadai" onclick="setLedgerSupType('வெளிகடை')" style="font-size:11px">வெளிகடை</button>
     </div>
     <div class="frow" style="margin-bottom:8px">
       <div class="fg"><label style="font-size:11px">From</label><input type="date" id="ledger-from" oninput="renderLedger()"></div>
@@ -2831,10 +2837,22 @@ function confirmPay(){
 
 // ===== LEDGER =====
 let ledgerType='sup';
+let ledgerSupType='all';
 function setLedgerType(t){
   ledgerType=t;
   document.getElementById('ledger-sup-btn').classList.toggle('on',t==='sup');
   document.getElementById('ledger-cust-btn').classList.toggle('on',t==='cust');
+  const filterRow=document.getElementById('ledger-suptype-filter');
+  if(filterRow) filterRow.style.display=t==='sup'?'flex':'none';
+  renderLedger();
+}
+function setLedgerSupType(t){
+  ledgerSupType=t;
+  ['all','தோட்டம்','வெளியூர்','வெளிகடை'].forEach(x=>{
+    const idMap={'all':'ledger-suptype-all','தோட்டம்':'ledger-suptype-todam','வெளியூர்':'ledger-suptype-veliyur','வெளிகடை':'ledger-suptype-velikadai'};
+    const el=document.getElementById(idMap[x]);
+    if(el) el.classList.toggle('on',x===t);
+  });
   renderLedger();
 }
 function renderLedger(){
@@ -2844,7 +2862,14 @@ function renderLedger(){
   const div=document.getElementById('ledger-list');
   if(!from||!to){ div.innerHTML='<div class="empty">From/To date கொடுங்க</div>'; return; }
   if(ledgerType==='sup'){
-    const names=[...new Set(db.purchases.map(p=>p.supplier))].filter(n=>!search||n.toLowerCase().includes(search)).sort();
+    let names=[...new Set(db.purchases.map(p=>p.supplier))].filter(n=>!search||n.toLowerCase().includes(search)).sort();
+    if(ledgerSupType!=='all'){
+      names=names.filter(n=>{
+        const ms=findMasterSupplier(n);
+        const t=(ms&&ms.type?ms.type:'தோட்டம்').normalize('NFC').trim();
+        return t===ledgerSupType;
+      });
+    }
     div.innerHTML=names.map(n=>{
       const msg=buildSupplierLedger(n,from,to);
       const safeId='led_'+Math.random().toString(36).slice(2);
