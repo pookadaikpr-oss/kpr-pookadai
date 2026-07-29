@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260729-v90-fix39';
+  var APP_BUILD = '20260729-v90-fix41';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2713,7 +2713,17 @@ function openPay(type,id,name,due){
   if(!document.getElementById('pm-due')){ const inp=document.createElement('input'); inp.type='hidden'; inp.id='pm-due'; document.querySelector('#payMod .modal').appendChild(inp); }
   document.getElementById('pm-due').value=Math.abs(netDue).toFixed(2);
   const confirmBtn=document.querySelector('#payMod .btn.bg');
-  if(confirmBtn) confirmBtn.disabled=false;
+  let disableForZero=Math.abs(netDue)<0.01;
+  if(disableForZero&&(type==='pur'||type==='pur_in')){
+    const ms=findMasterSupplier(name);
+    const supType=(ms&&ms.type?ms.type:'தோட்டம்').normalize('NFC').trim();
+    if(supType==='தோட்டம்') disableForZero=false; // தோட்டம் suppliers-க்கு advance கொடுக்கும் வழக்கம் இருப்பதால் restrict பண்ணக்கூடாது
+  }
+  const isZeroBalance=disableForZero;
+  if(confirmBtn){ confirmBtn.disabled=isZeroBalance; confirmBtn.style.opacity=isZeroBalance?'0.5':'1'; confirmBtn.style.cursor=isZeroBalance?'not-allowed':'pointer'; }
+  const cashBtn=document.getElementById('pm-mode-cash'), gpayBtn=document.getElementById('pm-mode-gpay');
+  [cashBtn,gpayBtn].forEach(b=>{ if(b){ b.disabled=isZeroBalance; b.style.opacity=isZeroBalance?'0.5':'1'; b.style.cursor=isZeroBalance?'not-allowed':'pointer'; } });
+  if(varavyInput) varavyInput.disabled=isZeroBalance;
   const ledgerSection=document.getElementById('pm-ledger-section');
   if(type==='pur'){
     ledgerSection.style.display='block';
