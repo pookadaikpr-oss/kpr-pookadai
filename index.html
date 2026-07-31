@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260729-v90-fix41';
+  var APP_BUILD = '20260731-v90-fix42';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4238,8 +4238,11 @@ function kprOpenSummary(){
   const miscToday=(db.misc||[]).filter(m=>m.date>=sinceDate&&m.date<=today);
   const recvCash=payToday.filter(p=>p.type==='sal'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
   const recvBank=payToday.filter(p=>p.type==='sal'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
-  const paidCash=payToday.filter(p=>p.type==='pur'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
+  const paidCashPayments=payToday.filter(p=>p.type==='pur'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
   const paidBank=payToday.filter(p=>p.type==='pur'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
+  // Purchase Entry-க்குள்ளேயே நேரடியா கொடுத்த "பற்று (ரொக்கம்)" advance — எப்போவும் Cash (GPay option இதுக்கு கிடையாது)
+  const paidCashAdvance=purs.filter(p=>!p.deleted).reduce((a,p)=>a+legacyPaidCash(p),0);
+  const paidCash=paidCashPayments+paidCashAdvance;
   const miscCash=miscToday.filter(m=>(m.mode||'cash')==='cash').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
   const miscBank=miscToday.filter(m=>m.mode==='gpay').reduce((a,m)=>a+((m.paid||0)-(m.in||0)),0);
   document.getElementById('kpr-sum-profit').textContent=(profit>=0?'+':'')+'₹'+profit.toLocaleString('en-IN');
