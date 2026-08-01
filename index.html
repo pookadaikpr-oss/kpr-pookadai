@@ -3878,6 +3878,11 @@ function showFixToolsMenu(){
     {label:'கமிஷன் Fix', desc:'Master data-ஓட commission% match ஆகாத entries சரி பண்ணும்', fn:'fixMissingCommission', color:'#b8860b'},
     {label:'பொருள் பேர் Fix', desc:'தப்பா type ஆன பொருள் பேர்களை சரியா மாற்றும்', fn:'fixItemNames', color:'#1a5b8c'}
   ];
+  // "பழைய Entries Cleanup" — permanent delete tool, Admin மட்டும் பாக்க முடியும்.
+  // Staff/View role-ல் இந்த option-ஏ menu-ல தெரியாது.
+  if(currentRole==='admin'){
+    tools.push({label:'பழைய Entries Cleanup ⚠️', desc:'Trial/தப்பான entries-ஐ select பண்ணி நிரந்தரமா நீக்க — Admin மட்டும்', fn:'showCleanupTool', color:'#c0392b'});
+  }
   const overlay=document.createElement('div');
   overlay.className='fixmenu-overlay';
   overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -3943,6 +3948,100 @@ function showCommissionFixPreview(affected){
     box.querySelector('#cfix-no').onclick=()=>cleanup(false);
     overlay.onclick=(e)=>{ if(e.target===overlay) cleanup(false); };
   });
+}
+// பழைய trial/தப்பான entries-ஐ date range வைச்சு தேடி, select பண்ணி
+// நிரந்தரமா (soft-delete இல்ல, முழுசா) நீக்கறதுக்கான tool.
+function showCleanupTool(){
+  // Double protection — role check + OWNER-ONLY secret PIN (இதே app-ல Cash/Bank/home
+  // expense area-க்கு பயன்படுத்துற அதே PIN, Anu/தம்பி-க்கு தெரியாதது) + typed confirmation.
+  // இப்போ எல்லாருமே admin password-லயே login ஆகுறதால, ஒரே admin password-ஐ இங்கயும்
+  // கேட்டா அது real protection தராது — அதனால தனி secret PIN-ஐ பயன்படுத்துறோம்.
+  if(currentRole!=='admin') return alert2('❌ இது Admin மட்டும் பண்ண முடியும்!','err');
+  const pin=prompt('⚠️ இது PERMANENT DELETE tool — தப்பா பண்ணா data திரும்ப கிடைக்காது!\n\nSecret PIN enter பண்ணுங்க:');
+  if(pin===null) return;
+  if(pin.trim()!==KPR_SUMMARY_PIN) return alert2('❌ PIN தப்பு!','err');
+  document.querySelectorAll('.cleanup-overlay').forEach(e=>e.remove());
+  const overlay=document.createElement('div');
+  overlay.className='cleanup-overlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:18px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.3);font-family:inherit';
+  box.innerHTML=`
+    <div style="font-size:15px;font-weight:800;color:#222;margin-bottom:6px">🗑 பழைய Entries Cleanup</div>
+    <div style="font-size:12px;color:#666;margin-bottom:10px">Date range போட்டு "தேடு" பண்ணுங்க, அப்புறம் நீக்க வேண்டியதை select பண்ணி Delete பண்ணுங்க. இது permanent-ஆ Firebase-ல் இருந்தும் நீக்கிடும் — திரும்ப பெற முடியாது.</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1"><label style="font-size:11px;color:#666">From</label><input type="date" id="clean-from" style="width:100%;padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit"></div>
+      <div style="flex:1"><label style="font-size:11px;color:#666">To</label><input type="date" id="clean-to" style="width:100%;padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit"></div>
+    </div>
+    <button id="clean-search" style="width:100%;background:#1a6b3a;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;margin-bottom:10px">🔍 தேடு</button>
+    <div id="clean-results"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+      <button id="clean-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">மூடு</button>
+      <button id="clean-delete" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:none">🗑 Selected Delete</button>
+    </div>`;
+  overlay.appendChild(box); document.body.appendChild(overlay);
+  overlay.onclick=(e)=>{ if(e.target===overlay) overlay.remove(); };
+  box.querySelector('#clean-close').onclick=()=>overlay.remove();
+  box.querySelector('#clean-search').onclick=()=>renderCleanupResults(box);
+  box.querySelector('#clean-delete').onclick=()=>doCleanupDelete(box,overlay);
+}
+function renderCleanupResults(box){
+  const from=box.querySelector('#clean-from').value;
+  const to=box.querySelector('#clean-to').value;
+  if(!from||!to) return alert2('From, To தேதி இரண்டையும் தேர்வு பண்ணுங்க!','err');
+  const purs=(db.purchases||[]).filter(p=>!p.deleted&&p.date>=from&&p.date<=to);
+  const sals=(db.sales||[]).filter(s=>!s.deleted&&s.date>=from&&s.date<=to);
+  const resultsDiv=box.querySelector('#clean-results');
+  if(!purs.length&&!sals.length){
+    resultsDiv.innerHTML='<div style="text-align:center;color:#999;padding:16px;font-size:13px">இந்த தேதி வரம்பில் entries இல்லை</div>';
+    box.querySelector('#clean-delete').style.display='none';
+    return;
+  }
+  let html='<div style="border:1px solid #eee;border-radius:8px;max-height:320px;overflow-y:auto">';
+  if(purs.length){
+    html+='<div style="background:#fff8e6;padding:6px 10px;font-weight:700;font-size:12px;color:#8a6d1a;position:sticky;top:0">🌿 Purchases ('+purs.length+')</div>';
+    purs.forEach(p=>{
+      html+=`<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid #f5f5f5;font-size:12.5px;cursor:pointer">
+        <input type="checkbox" class="clean-chk" data-kind="purchases" data-id="${p.id}">
+        <span style="flex:1">${fmtDate(p.date)} · ${p.supplier}</span>
+        <span style="font-weight:700">₹${(p.total||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+      </label>`;
+    });
+  }
+  if(sals.length){
+    html+='<div style="background:#f0f7ff;padding:6px 10px;font-weight:700;font-size:12px;color:#1a5b8c;position:sticky;top:0">🛒 Sales ('+sals.length+')</div>';
+    sals.forEach(s=>{
+      html+=`<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid #f5f5f5;font-size:12.5px;cursor:pointer">
+        <input type="checkbox" class="clean-chk" data-kind="sales" data-id="${s.id}">
+        <span style="flex:1">${fmtDate(s.date)} · ${s.party}</span>
+        <span style="font-weight:700">₹${(s.total||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+      </label>`;
+    });
+  }
+  html+='</div><label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;font-weight:700;cursor:pointer"><input type="checkbox" id="clean-select-all"> எல்லாத்தையும் Select பண்ணு</label>';
+  resultsDiv.innerHTML=html;
+  box.querySelector('#clean-delete').style.display='inline-block';
+  box.querySelector('#clean-select-all').onchange=(e)=>{
+    box.querySelectorAll('.clean-chk').forEach(c=>{c.checked=e.target.checked;});
+  };
+}
+async function doCleanupDelete(box,overlay){
+  const checked=[...box.querySelectorAll('.clean-chk:checked')];
+  if(!checked.length) return alert2('எதுவும் select பண்ணல!','err');
+  const typed=prompt('⚠️ '+checked.length+' entries PERMANENT-ஆ நீக்கப்படும் — திரும்ப பெற முடியாது!\n\nஉறுதியா நீக்கணும்னா கீழே "நீக்கு" னு type பண்ணுங்க:');
+  if(typed===null) return;
+  if(typed.trim().normalize('NFC')!=='நீக்கு'.normalize('NFC')) return alert2('❌ சரியா type பண்ணல — எதுவும் நீக்கல். பாதுகாப்பா இருக்கு.','warn');
+  const purIds=new Set(checked.filter(c=>c.getAttribute('data-kind')==='purchases').map(c=>c.getAttribute('data-id')));
+  const salIds=new Set(checked.filter(c=>c.getAttribute('data-kind')==='sales').map(c=>c.getAttribute('data-id')));
+  db.purchases=(db.purchases||[]).filter(p=>!purIds.has(String(p.id)));
+  db.sales=(db.sales||[]).filter(s=>!salIds.has(String(s.id)));
+  saveLocal(); updateDash(); renderPL(); renderSL();
+  saveDB().then(()=>{
+    alert2('✅ '+checked.length+' entries permanent-ஆ நீக்கப்பட்டது!','ok');
+  }).catch(()=>{
+    alert2('✅ Local-ல் நீக்கப்பட்டது! (Sync Now தட்டுங்க)','ok');
+  });
+  overlay.remove();
 }
 async function fixMissingCommission(){
   const affected=(db.purchases||[]).filter(p=>{
@@ -4075,8 +4174,25 @@ function clearAllData(){
   if(typed===null) return;
   if(typed.trim().normalize('NFC')!=='அழிக்க'.normalize('NFC')) return alert2('❌ சரியா type பண்ணல — data அழியல. பாதுகாப்பா இருக்கு.','warn');
   db={purchases:[],sales:[],payments:[],commissions:{},misc:[]};
-  saveDB(); updateDash(); renderPL(); renderSL(); renderPay();
-  alert2('🗑 All data cleared!','warn');
+  saveLocal(); updateDash(); renderPL(); renderSL(); renderPay();
+  // முக்கியம்: purchases_v2/sales_v2-ஐ இந்த device-க்கு தெரிஞ்ச entries மட்டும்
+  // (lastSavedPurById/lastSavedSalById) வைச்சு ஒவ்வொண்ணா delete பண்ணாம, முழு
+  // path-ஐயும் நேரடியா ஒரே DELETE-ஆ அனுப்புறோம். இல்லன்னா, வேற device-ல் சேர்த்த
+  // ஆனா இந்த device sync ஆகி தெரியாத entries Firebase-ல் தங்கிடும், அப்புறம் எப்போ
+  // வேணா திரும்ப வந்துடும்.
+  Promise.all([
+    fetch(FIREBASE_URL+'/db/purchases_v2.json',{method:'DELETE'}),
+    fetch(FIREBASE_URL+'/db/sales_v2.json',{method:'DELETE'}),
+    fetch(FIREBASE_URL+'/db/payments.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:'[]'}),
+    fetch(FIREBASE_URL+'/db/commissions.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:'{}'}),
+    fetch(FIREBASE_URL+'/db/misc.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:'[]'})
+  ]).then(()=>{
+    lastSavedPurById={}; lastSavedSalById={};
+    lastSavedSnapshot=JSON.parse(JSON.stringify(db));
+    alert2('🗑 All data cleared — Firebase-லயும் முழுசா அழிஞ்சிடுச்சு!','warn');
+  }).catch(()=>{
+    alert2('⚠️ Local-ல் அழிஞ்சது, ஆனா Firebase-க்கு போகல (network) — நல்ல network-ல் மறுபடி Clear All Data பண்ணுங்க.','err');
+  });
 }
 let mxMode='cash';
 function mxSetMode(mode){
