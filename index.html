@@ -93,6 +93,13 @@ body{font-family:'Noto Sans Tamil',sans-serif;background:var(--bg);color:var(--t
 .sec{font-size:14px;font-weight:700;color:var(--green);margin:16px 0 10px;display:flex;align-items:center;gap:8px}
 .sec::after{content:'';flex:1;height:1px;background:var(--border)}
 .stabs{display:flex;border-radius:10px;overflow:hidden;border:2px solid var(--green);margin-bottom:14px}
+/* Report tab-ல் 7 buttons ஒரே row-ல fit ஆகாம, கடைசி button ("மாத சிட்டை") screen
+   சிறியதா இருக்கும்போது cut ஆகி காணாம போகும் பிரச்சனை-ஐ சரி பண்ண — இதை horizontal
+   scroll பண்ண முடிற மாதிரி மாத்தறோம். மற்ற .stabs (2-3 buttons மட்டும் இருக்குற இடங்கள்)
+   இதுல தொடப்படல, அதனால அங்க பழைய behaviour அப்படியே இருக்கும். */
+.stabs-scroll{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:10px;border:2px solid var(--green);margin-bottom:14px}
+.stabs-scroll::-webkit-scrollbar{display:none}
+.stabs-scroll .stab{flex:0 0 auto;padding:9px 14px;white-space:nowrap}
 .stab{flex:1;padding:9px;text-align:center;font-size:13px;font-weight:700;color:var(--green);background:var(--white);border:none;cursor:pointer;font-family:inherit;transition:all .2s}
 .stab.on{background:var(--green);color:#fff}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
@@ -657,7 +664,7 @@ tbody td{padding:8px 11px}
 <div class="pg" id="pg-report">
   <div class="card">
     <div class="sec" style="margin-top:0">📈 Report</div>
-    <div class="stabs" style="margin-bottom:12px">
+    <div class="stabs-scroll" style="margin-bottom:12px">
       <button class="stab on" id="rpt-month-btn" onclick="setRptMode('month')">📅 மாதம்</button>
       <button class="stab" id="rpt-range-btn" onclick="setRptMode('range')">📆 Date Range</button>
       <button class="stab" id="rpt-party-btn" onclick="setRptMode('party')">👤 தனியார்</button>
