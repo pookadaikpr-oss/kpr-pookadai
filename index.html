@@ -3181,10 +3181,11 @@ function genTopSuppliers(){
     return;
   }
   const grandTotal=rows.reduce((a,r)=>a+r[1].total,0);
+  const grandComm=rows.reduce((a,r)=>a+r[1].commission,0);
   out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">🏆 Top Suppliers — ${fmtDate(from)} முதல் ${fmtDate(to)} வரை</div>
-    <table><thead><tr><th>Supplier</th><th style="text-align:right">எடை</th><th style="text-align:right">மொத்த வரவு</th><th style="text-align:right">கமிஷன்</th></tr></thead><tbody>
-    ${rows.map(([name,v])=>`<tr><td>${name}${v.supType?`<br><span style="font-size:10px;color:#999">${v.supType}</span>`:''}</td><td style="text-align:right">${v.qty?v.qty.toLocaleString('en-IN',{maximumFractionDigits:2}):'-'}</td><td style="text-align:right">₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="text-align:right">₹${v.commission.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr>`).join('')}
-    </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td>மொத்தம் (${rows.length} suppliers)</td><td></td><td style="text-align:right">₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
+    <table><thead><tr><th>Supplier</th><th style="text-align:right">மொத்த வரவு</th><th style="text-align:right">கமிஷன்</th></tr></thead><tbody>
+    ${rows.map(([name,v])=>`<tr><td>${name}${v.supType?`<br><span style="font-size:10px;color:#999">${v.supType}</span>`:''}</td><td style="text-align:right">₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="text-align:right">${v.commission>0?'₹'+v.commission.toLocaleString('en-IN',{minimumFractionDigits:2}):'-'}</td></tr>`).join('')}
+    </tbody><tfoot><tr style="font-weight:700;background:#f5f3ee"><td>மொத்தம் (${rows.length} suppliers)</td><td style="text-align:right">₹${grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="text-align:right">₹${grandComm.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot></table></div>`;
   if(printRow) printRow.style.display='block';
 }
 function genTopCustomers(){
@@ -3495,6 +3496,37 @@ function genReport(){
   }).catch(()=>_genReport());
 }
 
+// தனியார் report generate பண்ணும்போது, top-right corner-ல் ஒரு சின்ன box —
+// போன மாசம் (report-ஓட from date-க்கு முந்தின calendar மாசம்) இந்த supplier/customer-ஓட
+// மொத்த transaction + மொத்த வரவு (payments) எவ்வளவுன்னு காட்டும். போன மாசம் data
+// இல்லன்னா box காட்டாது.
+function prevMonthSummaryBox(type,name,fromDateStr){
+  const tamilMonths=['ஜனவரி','பிப்ரவரி','மார்ச்','ஏப்ரல்','மே','ஜூன்','ஜூலை','ஆகஸ்ட்','செப்டம்பர்','அக்டோபர்','நவம்பர்','டிசம்பர்'];
+  const d=new Date(fromDateStr+'T00:00:00');
+  d.setDate(1); d.setMonth(d.getMonth()-1);
+  const y=d.getFullYear(), m=d.getMonth();
+  const pFrom=y+'-'+String(m+1).padStart(2,'0')+'-01';
+  const pTo=new Date(y,m+1,0).toISOString().split('T')[0];
+  const label=tamilMonths[m]+' '+y;
+  let total=0, payments=0;
+  if(type==='sup'){
+    const entries=(db.purchases||[]).filter(p=>!p.deleted&&p.supplier&&p.supplier.trim()===name&&p.date>=pFrom&&p.date<=pTo);
+    total=entries.reduce((a,e)=>a+e.total,0);
+    const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
+    const paymentsPaid=(db.payments||[]).filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===name.toLowerCase()&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount,0);
+    payments=paidCashTotal+paymentsPaid;
+  } else {
+    const entries=(db.sales||[]).filter(s=>!s.deleted&&s.party&&s.party.trim()===name&&s.date>=pFrom&&s.date<=pTo);
+    total=entries.reduce((a,e)=>a+e.total,0);
+    payments=(db.payments||[]).filter(p=>p.type==='sal'&&p.name&&p.name.trim().toLowerCase()===name.toLowerCase()&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount+(p.less||0),0);
+  }
+  if(total===0&&payments===0) return '';
+  return `<div style="position:absolute;top:8px;right:8px;background:#fff8e6;border:1.5px solid #d4af37;border-radius:8px;padding:5px 9px;font-size:9.5px;line-height:1.55;color:#8a6d1a;text-align:right;max-width:135px">
+    <div style="font-weight:700">${label}</div>
+    <div>Total: ₹${total.toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+    <div>வரவு: ₹${payments.toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+  </div>`;
+}
 function _genReport(){
   const out=document.getElementById('rpt-out');
 
@@ -3588,7 +3620,8 @@ function _genReport(){
       });
       flushDateSubtotal();
       out.innerHTML=`
-        <div style="background:#fff;border:2px solid #1a6b3a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
+        <div style="position:relative;background:#fff;border:2px solid #1a6b3a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
+          ${prevMonthSummaryBox('sup',normName,from)}
           <div style="text-align:center;border-bottom:2px solid #1a6b3a;padding-bottom:10px;margin-bottom:12px">
             <div style="font-size:15px;font-weight:700;color:#1a6b3a">KPR வன்னிசெந்தூர் புதுமலரகம்</div>
             <div style="font-size:11px;color:#555;margin-top:2px">புஷ்ப கமிஷன் வியாபாரம்</div>
@@ -3705,7 +3738,8 @@ function _genReport(){
         }
       });
       out.innerHTML=`
-        <div style="background:#fff;border:2px solid #c8860a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
+        <div style="position:relative;background:#fff;border:2px solid #c8860a;border-radius:12px;padding:16px;font-family:'Noto Sans Tamil',sans-serif">
+          ${prevMonthSummaryBox('cust',normName,from)}
           <div style="text-align:center;border-bottom:2px solid #c8860a;padding-bottom:10px;margin-bottom:12px">
             <div style="font-size:15px;font-weight:700;color:#c8860a">KPR வன்னிசெந்தூர் புதுமலரகம்</div>
             <div style="font-size:11px;color:#555;margin-top:2px">புஷ்ப கமிஷன் வியாபாரம்</div>
