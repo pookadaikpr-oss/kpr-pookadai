@@ -3894,13 +3894,18 @@ async function fixMissingCommission(){
   const affected=(db.purchases||[]).filter(p=>{
     if(!(p.total>0)) return false;
     const ms=findMasterSupplier(p.supplier);
+    // Already மாதம்-முடி (month-close) ஆன entries-ஐ தொடமாட்டோம் — அந்த supplier-க்கு
+    // prevDate வெச்சு settle ஆகி முடிஞ்ச தேதி வரைக்கும் இருக்குற entries skip.
+    // இல்லன்னா, அடுத்த மாசம் commission % மாறினா, இப்போ closed ஆன பழைய மாசத்தையும்
+    // "mismatch"-ன்னு காட்டி, தவறுதலா Fix பண்ணா already settle ஆன history மாறிடும் ரிஸ்க்.
+    if(ms&&ms.prevDate&&p.date<=ms.prevDate) return false;
     const shouldComm=ms?(ms.comm!=null?ms.comm:10):((p.supType==='வெளிகடை'||p.supType==='வெளியூர்')?0:10);
     const shouldEduppu=ms?(ms.eduppu||0):0;
     const shouldTotalPct=shouldComm+shouldEduppu;
     const currentPct=(p.commPct||0)+(p.eduppuPct||0);
     return currentPct!==shouldTotalPct;
   });
-  if(!affected.length){ alert2('கமிஷன் mismatch entries எதுவும் இல்லை ✅','ok'); return; }
+  if(!affected.length){ alert2('கமிஷன் mismatch entries எதுவும் இல்லை ✅ (already closed மாசங்கள் இதுல பாக்கல)','ok'); return; }
   if(!(await showCommissionFixPreview(affected))) return;
   affected.forEach(p=>{
     const ms=findMasterSupplier(p.supplier);
@@ -3957,7 +3962,10 @@ function refreshFromFirebase(){
   const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000));
   // முதல்ல, இந்த device-ல் இன்னும் Firebase-க்கு போகாத entries இருந்தா, அதை முதல்ல அனுப்பறோம்
   // (network fail ஆன entries இதுல retry ஆகும் — saveDB() தானா மாறாத fields skip பண்ணும்).
-  saveDB().catch(()=>{}).then(()=>{
+  // முக்கியம்: இந்த push FAIL ஆனா, கீழே இருக்குற pull/merge-ஐ SKIP பண்றோம் — இல்லன்னா
+  // network weak-ஆ இருக்கும்போது local-ல் இப்போதான் பண்ண fix/entry, Firebase-ல் இருக்குற
+  // பழைய data-வால் மேலெழுதப்பட்டு அமைதியா இழக்கப்படும் ரிஸ்க் இருக்கு.
+  saveDB().then(()=>{
     Promise.all([
       Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }),
       fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
@@ -3996,6 +4004,12 @@ function refreshFromFirebase(){
       showFirebaseLoading(false);
       alert2('❌ Sync ஆகல — ' + (e.message==='timeout'?'network slow, மறுபடி try பண்ணுங்க':'internet பாருங்க')+'. உங்க entries local-ல் safe-ஆ இருக்கு.','err');
     });
+  }).catch(()=>{
+    // push (உங்க local unsynced changes Firebase-க்கு அனுப்றது) FAIL ஆயிடுச்சு —
+    // இப்போ pull பண்ணா உங்க local fix/entry, Firebase-ல் இருக்குற பழைய data-வால்
+    // மேலெழுதப்படும். அதனால pull-ஐ SKIP பண்ணி, network சரி பண்ணி மறுபடி try பண்ணச் சொல்றோம்.
+    showFirebaseLoading(false);
+    alert2('⚠️ Network weak-ஆ இருக்கு — உங்க local changes இன்னும் Firebase-க்கு போகல. இப்போ Sync பண்ணல (data பாதுகாப்பா இருக்கு). நல்ல network கிடைச்சதும் மறுபடி Sync Now தட்டுங்க.','warn');
   });
 }
 
