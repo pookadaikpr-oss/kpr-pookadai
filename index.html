@@ -3581,6 +3581,10 @@ function _genReport(){
       const periodPaymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
       const periodPatru=paidCashTotal+periodPaymentsPaid;
       const laterPatru=totalPatru-periodPatru; // period முடிஞ்ச பிறகு pay பண்ணது (எ.கா. report July-க்கு, payment August-ல்)
+      // period முடிஞ்ச பிறகு பண்ண payments-ஐ தேதி வாரியா பட்டியலிட (ஒரே தேதியில் பல payment இருந்தா ஒன்றா சேர்த்து)
+      const laterPaymentsByDate={};
+      db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
+      const laterPaymentsList=Object.keys(laterPaymentsByDate).sort().map(dt=>({date:dt,amount:laterPaymentsByDate[dt]}));
       // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
       const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
       const isOutside=outsideCount>entries.length/2;
@@ -3667,10 +3671,10 @@ function _genReport(){
               <span style="font-weight:700">${(isOutside?(pooVaravu+munPakki):pooVaravu).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
               <span style="font-weight:700">${(isOutside?(totalComm+periodPatru):(totalComm+munPakki+periodPatru)).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
-            ${laterPatru>0.001?`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:#555;background:#f2f2f2;padding:6px 10px;border-radius:8px">
-              <span>+ ${d2}-க்கு பிறகு pay பண்ணது</span>
-              <span style="font-weight:700">${laterPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
-            </div>`:''}
+            ${laterPaymentsList.map(lp=>`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:#555;background:#f2f2f2;padding:6px 10px;border-radius:8px">
+              <span>+ ${fmtDate(lp.date)} அன்று pay பண்ணது</span>
+              <span style="font-weight:700">${lp.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>`).join('')}
             <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
               <span>${netBal>0?'இப்போதைய இருப்பு :':'இப்போதைய அதிக பற்று :'}</span>
               <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
