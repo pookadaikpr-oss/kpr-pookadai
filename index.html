@@ -1631,7 +1631,7 @@ function goPage(id, btn){
   if(id==='pay') renderPay();
   if(id==='purchase'){ const pd=document.getElementById('pl-date'), ps=document.getElementById('pl-sup'); if(pd) pd.value=''; if(ps) ps.value=''; renderPL(); }
   if(id==='sales'){ const sd=document.getElementById('sl-date'), sp=document.getElementById('sl-par'); if(sd) sd.value=''; if(sp) sp.value=''; renderSL(); }
-  if(id==='misc'){ document.getElementById('mx-date').value=today; renderMisc(); }
+  if(id==='misc'){ const mxd=document.getElementById('mx-date'); if(mxd&&!mxd.value) mxd.value=today; renderMisc(); }
   pushNav({navPage:id});
 }
 
