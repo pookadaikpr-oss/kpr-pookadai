@@ -3576,6 +3576,11 @@ function _genReport(){
       // இன்னும் active-ஆவே காட்டி, தவறுதலா இரண்டாம் தடவை pay பண்ண ரிஸ்க் வரும்.
       const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from).reduce((a,p)=>a+p.amount,0);
       const totalPatru=paidCashTotal+paymentsPaid;
+      // period-க்குள் மட்டும் கொடுத்த பற்று (table-ல தெரியுற entries-க்கு exact match ஆகணும்).
+      // totalPatru-ல இருந்து period-க்கு வெளியே (to தேதிக்கு அப்புறம்) பண்ண payment-ஐ பிரிச்சு காட்ட இது தேவை.
+      const periodPaymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      const periodPatru=paidCashTotal+periodPaymentsPaid;
+      const laterPatru=totalPatru-periodPatru; // period முடிஞ்ச பிறகு pay பண்ணது (எ.கா. report July-க்கு, payment August-ல்)
       // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
       const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
       const isOutside=outsideCount>entries.length/2;
@@ -3653,17 +3658,21 @@ function _genReport(){
             </table>
           </div>
           <div style="border-top:1px solid #ddd;padding-top:8px;font-size:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>பூ வரவு :</span><span>${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span>${totalPatru>0?totalPatru.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</span></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>பூ வரவு :</span><span>${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span>${periodPatru>0?periodPatru.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</span></div>
             <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>கமிசன் :</span><span></span><span>${totalCommOnly.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
             ${totalEduppuOnly>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>எடுப்பு :</span><span></span><span>${totalEduppuOnly.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             ${munPakki>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
               <span></span>
               <span style="font-weight:700">${(isOutside?(pooVaravu+munPakki):pooVaravu).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
-              <span style="font-weight:700">${(isOutside?(totalComm+totalPatru):(totalComm+munPakki+totalPatru)).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(isOutside?(totalComm+periodPatru):(totalComm+munPakki+periodPatru)).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
+            ${laterPatru>0.001?`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:#555;background:#f2f2f2;padding:6px 10px;border-radius:8px">
+              <span>+ ${d2}-க்கு பிறகு pay பண்ணது</span>
+              <span style="font-weight:700">${laterPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>`:''}
             <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
-              <span>${netBal>0?'இருப்பு :':'அதிக பற்று :'}</span>
+              <span>${netBal>0?'இப்போதைய இருப்பு :':'இப்போதைய அதிக பற்று :'}</span>
               <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
             ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal})" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
