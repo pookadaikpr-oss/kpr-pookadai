@@ -4033,11 +4033,18 @@ async function doCleanupDelete(box,overlay){
   if(typed.trim().normalize('NFC')!=='நீக்கு'.normalize('NFC')) return alert2('❌ சரியா type பண்ணல — எதுவும் நீக்கல். பாதுகாப்பா இருக்கு.','warn');
   const purIds=new Set(checked.filter(c=>c.getAttribute('data-kind')==='purchases').map(c=>c.getAttribute('data-id')));
   const salIds=new Set(checked.filter(c=>c.getAttribute('data-kind')==='sales').map(c=>c.getAttribute('data-id')));
-  db.purchases=(db.purchases||[]).filter(p=>!purIds.has(String(p.id)));
-  db.sales=(db.sales||[]).filter(s=>!salIds.has(String(s.id)));
+  // முக்கியம்: array-ல் இருந்து முழுசா எடுத்துடாம (hard-delete), சாதாரண Trash icon
+  // delete மாதிரியே deleted:true flag (soft-delete/tombstone) வெச்சு மட்டும் mark
+  // பண்றோம். இல்லன்னா, வேற device-ல் (Anu/தம்பி phone) இதே entries local-ல்
+  // இன்னும் இருந்தா, அவங்க Sync Now பண்ணும்போது "இது புதுசா இருக்கு"ன்னு நினைச்சு
+  // திரும்ப Firebase-க்கு தள்ளிடுவாங்க (resurrection). deleted:true flag வெச்சா,
+  // Firebase-ல் இருந்து இந்த flag அவங்க device-க்கும் சரியா propagate ஆகி, அவங்க
+  // local stale copy-ஐ overwrite பண்ணிடும்.
+  (db.purchases||[]).forEach(p=>{ if(purIds.has(String(p.id))) p.deleted=true; });
+  (db.sales||[]).forEach(s=>{ if(salIds.has(String(s.id))) s.deleted=true; });
   saveLocal(); updateDash(); renderPL(); renderSL();
   saveDB().then(()=>{
-    alert2('✅ '+checked.length+' entries permanent-ஆ நீக்கப்பட்டது!','ok');
+    alert2('✅ '+checked.length+' entries நீக்கப்பட்டது! (மற்ற devices-லயும் Sync Now பண்ணி check பண்ணுங்க)','ok');
   }).catch(()=>{
     alert2('✅ Local-ல் நீக்கப்பட்டது! (Sync Now தட்டுங்க)','ok');
   });
