@@ -4225,7 +4225,14 @@ function saveMisc(){
   } else {
     db.misc.push({id:'mx_'+Date.now(),date,cat,paid,in:inAmt,note,mode:mxMode||'cash'});
   }
-  saveLocal(); clearMisc(); renderMisc();
+  saveLocal();
+  // Save ஆனப்புறம் தேதி-ஐ அப்படியே வெச்சுக்கறோம் (மத்த fields மட்டும் clear) —
+  // ஒரே தேதிக்கு பல entries போடும்போது, ஒவ்வொரு save-க்கும் மறுபடி தேதி
+  // தேர்வு பண்ண வேண்டியதில்லை.
+  const keepDate=date;
+  clearMisc();
+  document.getElementById('mx-date').value=keepDate;
+  renderMisc();
   saveDB().then(()=>{ alert2('✅ Save ஆச்சு!','ok'); }).catch(()=>{ alert2('✅ Local-ல் Save ஆச்சு! (Sync Now தட்டுங்க)','ok'); });
 }
 function editMisc(id){
