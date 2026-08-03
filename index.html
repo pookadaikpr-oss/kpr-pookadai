@@ -184,7 +184,15 @@ tbody td{padding:8px 11px}
 #login-box h2{color:#1a6b3a;margin-bottom:20px;font-size:20px;}
 #login-box input{width:100%;padding:12px;border:1.5px solid #ccc;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box;}
 #login-box button{width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit;}
-#login-box .err{color:#c0392b;font-size:13px;margin-top:8px;}.suggest-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border,#ddd);border-radius:10px;max-height:220px;overflow-y:auto;z-index:100;box-shadow:0 6px 16px rgba(0,0,0,.18);display:none;margin-top:2px}
+#login-box .err{color:#c0392b;font-size:13px;margin-top:8px;}
+/* AUTO-LOCK (idle timeout) */
+#app-lock-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:none;align-items:center;justify-content:center;}
+#app-lock-box{background:#fff;border-radius:16px;padding:32px 24px;width:90%;max-width:320px;text-align:center;}
+#app-lock-box h2{color:#1a6b3a;margin-bottom:6px;font-size:19px;}
+#app-lock-box p{color:#888;font-size:13px;margin-bottom:16px;}
+#app-lock-box input{width:100%;padding:14px;border:1.5px solid #ccc;border-radius:8px;font-size:24px;letter-spacing:10px;text-align:center;margin-bottom:12px;box-sizing:border-box;}
+#app-lock-box button{width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit;}
+#app-lock-box .err{color:#c0392b;font-size:13px;margin-top:8px;}.suggest-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border,#ddd);border-radius:10px;max-height:220px;overflow-y:auto;z-index:100;box-shadow:0 6px 16px rgba(0,0,0,.18);display:none;margin-top:2px}
 .suggest-item{padding:10px 14px;font-size:13px;border-bottom:1px solid #f0f0f0;cursor:pointer}
 .suggest-item:active,.suggest-item:hover{background:#c8e6c9;color:#0d3d1f;font-weight:700}
 .suggest-item.active{background:#1a6b3a;color:#fff;font-weight:700}
@@ -222,6 +230,16 @@ tbody td{padding:8px 11px}
     <input type="password" id="login-pwd" placeholder="Password உள்ளிடுங்க" onkeydown="if(event.key==='Enter')doLogin()">
     <button onclick="doLogin()">உள்நுழை</button>
     <div class="err" id="login-err"></div>
+  </div>
+</div>
+<div id="app-lock-overlay">
+  <div id="app-lock-box">
+    <div style="font-size:40px;margin-bottom:8px">🔒</div>
+    <h2>App Lock ஆகிடுச்சு</h2>
+    <p>தொடர 4-digit PIN போடுங்க</p>
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="lock-pin" placeholder="••••" onkeydown="if(event.key==='Enter')kprUnlock()">
+    <button onclick="kprUnlock()">திற</button>
+    <div class="err" id="lock-err"></div>
   </div>
 </div>
 <div class="pg on" id="pg-dash">
@@ -2520,8 +2538,8 @@ async function monthClose(){
     // பற்று = paidCash/paidItems (நேரடி advance) + db.payments (Payments tab) — double-count தவிர்க்க
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
     const normName=normName_(name);
-    const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
-    const receivedTotal=db.payments.filter(p=>p.type==='pur_in'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+    const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+    const receivedTotal=db.payments.filter(p=>p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
     const totalPatru=paidCashTotal+paymentsPaid;
     const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
     let newPrev;
@@ -3509,16 +3527,17 @@ function prevMonthSummaryBox(type,name,fromDateStr){
   const pTo=new Date(y,m+1,0).toISOString().split('T')[0];
   const label=tamilMonths[m]+' '+y;
   let total=0, payments=0;
+  const nName=normName_(name);
   if(type==='sup'){
-    const entries=(db.purchases||[]).filter(p=>!p.deleted&&p.supplier&&p.supplier.trim()===name&&p.date>=pFrom&&p.date<=pTo);
+    const entries=(db.purchases||[]).filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===nName&&p.date>=pFrom&&p.date<=pTo);
     total=entries.reduce((a,e)=>a+e.total,0);
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
-    const paymentsPaid=(db.payments||[]).filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===name.toLowerCase()&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount,0);
+    const paymentsPaid=(db.payments||[]).filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount,0);
     payments=paidCashTotal+paymentsPaid;
   } else {
-    const entries=(db.sales||[]).filter(s=>!s.deleted&&s.party&&s.party.trim()===name&&s.date>=pFrom&&s.date<=pTo);
+    const entries=(db.sales||[]).filter(s=>!s.deleted&&s.party&&normName_(s.party)===nName&&s.date>=pFrom&&s.date<=pTo);
     total=entries.reduce((a,e)=>a+e.total,0);
-    payments=(db.payments||[]).filter(p=>p.type==='sal'&&p.name&&p.name.trim().toLowerCase()===name.toLowerCase()&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount+(p.less||0),0);
+    payments=(db.payments||[]).filter(p=>p.type==='sal'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount+(p.less||0),0);
   }
   if(total===0&&payments===0) return '';
   return `<div style="position:absolute;top:8px;right:8px;background:#fff8e6;border:1.5px solid #d4af37;border-radius:8px;padding:5px 9px;font-size:9.5px;line-height:1.55;color:#8a6d1a;text-align:right;max-width:135px">
@@ -3545,10 +3564,10 @@ function _genReport(){
     const _lastDay=new Date(_y,_now.getMonth()+1,0).getDate();
     from=p2d(rawFrom)||(_y+'-'+_m+'-01');
     to=p2d(rawTo)||(_y+'-'+_m+'-'+String(_lastDay).padStart(2,'0'));
-    const normName=name.trim();
+    const normName=normName_(name);
     const entries=rptPartyType==='sup'
-      ?db.purchases.filter(p=>!p.deleted&&(p.supplier&&p.supplier.trim()===normName&&p.date>=from&&p.date<=to))
-      :db.sales.filter(s=>!s.deleted&&(s.party&&s.party.trim()===normName&&s.date>=from&&s.date<=to));
+      ?db.purchases.filter(p=>!p.deleted&&(p.supplier&&normName_(p.supplier)===normName&&p.date>=from&&p.date<=to))
+      :db.sales.filter(s=>!s.deleted&&(s.party&&normName_(s.party)===normName&&s.date>=from&&s.date<=to));
     if(!entries.length){ out.innerHTML='<div class="empty"><div class="eico">📋</div>Data இல்லை</div>'; return; }
     const printBtn=document.getElementById('rpt-print-btn-row');
     if(printBtn) printBtn.style.display='block';
@@ -3574,16 +3593,16 @@ function _genReport(){
       // report July-க்கு, ஆனா pay பண்ணது இன்று August-ல்) கணக்கில் எடுக்கணும் —
       // இல்லன்னா, pay பண்ணின பிறகு இதே report மறுபடி generate பண்ணா, "Pay" button
       // இன்னும் active-ஆவே காட்டி, தவறுதலா இரண்டாம் தடவை pay பண்ண ரிஸ்க் வரும்.
-      const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from).reduce((a,p)=>a+p.amount,0);
+      const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from).reduce((a,p)=>a+p.amount,0);
       const totalPatru=paidCashTotal+paymentsPaid;
       // period-க்குள் மட்டும் கொடுத்த பற்று (table-ல தெரியுற entries-க்கு exact match ஆகணும்).
       // totalPatru-ல இருந்து period-க்கு வெளியே (to தேதிக்கு அப்புறம்) பண்ண payment-ஐ பிரிச்சு காட்ட இது தேவை.
-      const periodPaymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      const periodPaymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
       const periodPatru=paidCashTotal+periodPaymentsPaid;
       const laterPatru=totalPatru-periodPatru; // period முடிஞ்ச பிறகு pay பண்ணது (எ.கா. report July-க்கு, payment August-ல்)
       // period முடிஞ்ச பிறகு பண்ண payments-ஐ தேதி வாரியா பட்டியலிட (ஒரே தேதியில் பல payment இருந்தா ஒன்றா சேர்த்து)
       const laterPaymentsByDate={};
-      db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
+      db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
       const laterPaymentsList=Object.keys(laterPaymentsByDate).sort().map(dt=>({date:dt,amount:laterPaymentsByDate[dt]}));
       // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
       const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
@@ -3608,7 +3627,7 @@ function _genReport(){
         paidBreakdownParts(e).forEach(pt=>{ allRows.push({date:e.date,type:'paid',amount:pt.amount,label:pt.label}); });
       });
       // db.payments பற்று rows
-      const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
+      const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
       supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount,label:'ரொக்கம்'}); });
       // Sort by date
       allRows.sort((a,b)=>a.date.localeCompare(b.date));
@@ -3705,7 +3724,7 @@ function _genReport(){
       const masterCust=findMasterCustomer(normName);
       const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:0;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
-      const custPayments=db.payments.filter(p=>p.type==='sal'&&p.name&&p.name.trim().toLowerCase()===normName.toLowerCase()&&p.date>=from&&p.date<=to);
+      const custPayments=db.payments.filter(p=>p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
       // Payments tab-ல் entries இருந்தா, அதுவே single source (sales.paid duplicate ஆகும்).
       // இல்லைன்னா (பழைய legacy entries), sales.paid-ஐ மட்டும் பயன்படுத்துறோம்.
       const useCustPayments=custPayments.length>0;
@@ -4415,6 +4434,8 @@ async function doLogout(){
   document.getElementById('login-overlay').style.display='flex';
   document.getElementById('login-pwd').value='';
   document.getElementById('login-err').textContent='';
+  const lockOv=document.getElementById('app-lock-overlay');
+  if(lockOv) lockOv.style.display='none';
   // Reset nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn=>btn.style.display='');
 }
@@ -4432,16 +4453,57 @@ function loadPasswords(){
         ROLE_PASSWORDS.admin = data.admin || 'admin123';
         ROLE_PASSWORDS.staff = data.staff || 'staff123';
         ROLE_PASSWORDS.view = data.view || 'view123';
+        APP_LOCK_PIN = data.lockPin || '2008';
       } else {
         ROLE_PASSWORDS.admin = 'admin123';
         ROLE_PASSWORDS.staff = 'staff123';
         ROLE_PASSWORDS.view = 'view123';
+        APP_LOCK_PIN = '2008';
       }
     }).catch(()=>{
       ROLE_PASSWORDS.admin = 'admin123';
       ROLE_PASSWORDS.staff = 'staff123';
       ROLE_PASSWORDS.view = 'view123';
+      APP_LOCK_PIN = '2008';
     });
+}
+
+// ===== AUTO-LOCK (2 நிமிடம் touch இல்லாம விட்டா PIN screen) =====
+let APP_LOCK_PIN = '2008'; // default — Firebase /settings/passwords.json-ல் lockPin மூலம் மாத்தலாம்
+let kprLastActivity = Date.now();
+const KPR_LOCK_IDLE_MS = 2*60*1000;
+function kprResetActivity(){ kprLastActivity = Date.now(); }
+['click','touchstart','keydown','mousemove','scroll','input'].forEach(function(evt){
+  document.addEventListener(evt, kprResetActivity, {passive:true});
+});
+function kprShowLock(){
+  if(!currentRole) return; // login screen-ஏ இன்னும் காட்டல்ல, தேவை இல்ல
+  const ov=document.getElementById('app-lock-overlay');
+  if(!ov || ov.style.display==='flex') return;
+  ov.style.display='flex';
+  document.getElementById('lock-pin').value='';
+  document.getElementById('lock-err').textContent='';
+  setTimeout(function(){ try{document.getElementById('lock-pin').focus();}catch(e){} },150);
+}
+function kprCheckLock(){
+  if(!currentRole) return;
+  const ov=document.getElementById('app-lock-overlay');
+  if(ov && ov.style.display==='flex') return;
+  if(Date.now()-kprLastActivity >= KPR_LOCK_IDLE_MS){ kprShowLock(); }
+}
+setInterval(kprCheckLock, 5000);
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='visible'){ kprCheckLock(); }
+});
+function kprUnlock(){
+  const pin=(document.getElementById('lock-pin').value||'').trim();
+  const err=document.getElementById('lock-err');
+  if(pin === APP_LOCK_PIN){
+    document.getElementById('app-lock-overlay').style.display='none';
+    kprResetActivity();
+  } else {
+    err.textContent='தவறான PIN, மறுபடி முயற்சி பண்ணுங்க';
+  }
 }
 
 // ===== HIDDEN FINANCIAL SUMMARY (Rajalakshmi மட்டும்) =====
@@ -4626,6 +4688,7 @@ function doLogin(){
   
   document.getElementById('login-overlay').style.display='none';
   document.getElementById('logout-btn').style.display='block';
+  kprResetActivity();
   applyRoleRestrictions();
   loadMasterFirebase();
 }
@@ -4637,6 +4700,7 @@ function checkSavedRole(){
       currentRole = saved;
       document.getElementById('login-overlay').style.display='none';
       document.getElementById('logout-btn').style.display='block';
+      kprResetActivity();
       applyRoleRestrictions();
       return true;
     }
