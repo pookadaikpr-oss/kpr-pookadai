@@ -238,7 +238,7 @@ tbody td{padding:8px 11px}
     <h2>App Lock ஆகிடுச்சு</h2>
     <p>தொடர 4-digit PIN போடுங்க</p>
     <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="lock-pin" placeholder="••••" onkeydown="if(event.key==='Enter')kprUnlock()">
-    <button onclick="kprUnlock()">திற</button>
+    <button onclick="kprUnlock()">Open</button>
     <div class="err" id="lock-err"></div>
   </div>
 </div>
@@ -3635,7 +3635,7 @@ function _genReport(){
       });
       // db.payments பற்று rows
       const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
-      supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount,label:'ரொக்கம்'}); });
+      supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount,label:(p.mode==='gpay'?'GPay':'ரொக்கம்')}); });
       // Sort by date
       allRows.sort((a,b)=>a.date.localeCompare(b.date));
       let lastDate='';
@@ -3856,8 +3856,8 @@ function confirm2(msg){
     box.style.cssText='background:#fff;border-radius:14px;padding:22px;max-width:340px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.3);font-family:inherit';
     box.innerHTML=`<div style="font-size:15px;font-weight:600;color:#222;margin-bottom:18px;line-height:1.5">${msg}</div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button id="c2-no" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">இல்ல</button>
-        <button id="c2-yes" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">ஆமா</button>
+        <button id="c2-no" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">No</button>
+        <button id="c2-yes" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Yes</button>
       </div>`;
     overlay.appendChild(box); document.body.appendChild(overlay);
     function cleanup(result){ overlay.remove(); resolve(result); }
@@ -3940,7 +3940,7 @@ function showFixToolsMenu(){
       </button>`).join('')}
     </div>
     <div style="display:flex;justify-content:flex-end">
-      <button id="fixmenu-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">மூடு</button>
+      <button id="fixmenu-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Close</button>
     </div>`;
   overlay.appendChild(box); document.body.appendChild(overlay);
   function cleanup(){ overlay.remove(); }
@@ -4017,10 +4017,10 @@ function showCleanupTool(){
       <div style="flex:1"><label style="font-size:11px;color:#666">From</label><input type="date" id="clean-from" style="width:100%;padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit"></div>
       <div style="flex:1"><label style="font-size:11px;color:#666">To</label><input type="date" id="clean-to" style="width:100%;padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit"></div>
     </div>
-    <button id="clean-search" style="width:100%;background:#1a6b3a;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;margin-bottom:10px">🔍 தேடு</button>
+    <button id="clean-search" style="width:100%;background:#1a6b3a;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;margin-bottom:10px">🔍 Search</button>
     <div id="clean-results"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
-      <button id="clean-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">மூடு</button>
+      <button id="clean-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Close</button>
       <button id="clean-delete" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:none">🗑 Selected Delete</button>
     </div>`;
   overlay.appendChild(box); document.body.appendChild(overlay);
@@ -4174,10 +4174,10 @@ function showNameMergeTool(){
     <div style="font-size:15px;font-weight:800;color:#222;margin-bottom:4px">🔤 பெயர் Spelling ஒன்றா மாற்று</div>
     <div style="font-size:11.5px;color:#777;margin-bottom:10px">Supplier/Customer பேர் வேற வேற spelling-ல் (typo) entries போட்டிருந்தா, இங்க தேடி ஒரே சரியான பேர்-ஆ மாத்தலாம்.</div>
     <input type="text" id="nmerge-search" placeholder="தேடு (எ.கா. சௌந்தர் அல்லது கொழுந்து)" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box">
-    <button id="nmerge-go" style="width:100%;padding:10px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px">🔍 தேடு</button>
+    <button id="nmerge-go" style="width:100%;padding:10px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px">🔍 Search</button>
     <div id="nmerge-results"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px">
-      <button id="nmerge-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">மூடு</button>
+      <button id="nmerge-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Close</button>
     </div>`;
   overlay.appendChild(box); document.body.appendChild(overlay);
   function cleanup(){ overlay.remove(); }
