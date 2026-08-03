@@ -710,9 +710,9 @@ tbody td{padding:8px 11px}
         <button class="stab" id="rpt-cust-btn" onclick="setRptPartyType('cust')">🛒 Customer</button>
       </div>
       <div class="frow">
-        <div class="fg"><label>பெயர் தேர்வு</label>
-          <input type="text" id="rpt-party-name" placeholder="பெயர் type பண்ணுங்க..." list="rpt-party-dl">
-          <datalist id="rpt-party-dl"></datalist>
+        <div class="fg" style="position:relative"><label>பெயர் தேர்வு</label>
+          <input type="text" id="rpt-party-name" placeholder="பெயர் type பண்ணுங்க..." autocomplete="off" oninput="onRptPartyInput(this.value)" onkeydown="suggestKeyNav(event,'rpt-party-list')" onblur="setTimeout(()=>hideSuggest('rpt-party-list'),200)" onfocus="onRptPartyInput(this.value)">
+          <div id="rpt-party-list" class="suggest-list"></div>
         </div>
       </div>
       <div class="frow">
@@ -972,7 +972,7 @@ function updateAllDataLists(){
     if(dl) dl.innerHTML=master.suppliers.map(s=>`<option value="${s.name}">`).join('');
   });
   // Customer datalists
-  ['par-dl','cust-dl','rpt-party-dl'].forEach(id=>{
+  ['par-dl','cust-dl'].forEach(id=>{
     const dl=document.getElementById(id);
     if(dl) dl.innerHTML=master.customers.map(c=>`<option value="${c.name}">`).join('');
   });
@@ -1895,6 +1895,19 @@ function suggestKeyNav(e, listId, fallback){
     return;
   }
   if(e.key==='Escape'){ hideSuggest(listId); }
+}
+function onRptPartyInput(val){
+  const listEl=document.getElementById('rpt-party-list');
+  if(!listEl) return;
+  const n=normName_(val);
+  const names=rptPartyType==='sup'
+    ?[...new Set((db.purchases||[]).map(p=>p.supplier).filter(Boolean))]
+    :[...new Set((db.sales||[]).map(s=>s.party).filter(Boolean))];
+  const filtered=names.filter(nm=>!n||normName_(nm).includes(n)).sort().slice(0,50);
+  renderSuggestList(listEl, filtered, (picked)=>{
+    document.getElementById('rpt-party-name').value=picked;
+    hideSuggest('rpt-party-list');
+  });
 }
 function onSupDueSearchInput(val){
   const listEl=document.getElementById('sup-due-search-list');
@@ -3126,7 +3139,7 @@ function setRptMode(m){
     if(f) f.style.display=x===m?'block':'none';
     if(b) b.classList.toggle('on',x===m);
   });
-  if(m==='party') updateRptPartyDL();
+  if(m==='party') hideSuggest('rpt-party-list');
 }
 function genKiloReport(){
   const date=document.getElementById('rpt-kilo-date').value;
@@ -3476,12 +3489,6 @@ function setRptPartyType(t){
   rptPartyType=t;
   document.getElementById('rpt-sup-btn').classList.toggle('on',t==='sup');
   document.getElementById('rpt-cust-btn').classList.toggle('on',t==='cust');
-  updateRptPartyDL();
-}
-function updateRptPartyDL(){
-  const names=rptPartyType==='sup'?[...new Set(db.purchases.map(p=>p.supplier))]:[...new Set(db.sales.map(s=>s.party))];
-  const dl=document.getElementById('rpt-party-dl');
-  if(dl){ dl.innerHTML=''; names.sort().forEach(n=>{ const o=document.createElement('option'); o.value=n; dl.appendChild(o); }); }
 }
 async function recalcSupplierCommission(normName,from,to){
   const masterSup=findMasterSupplier(normName);
@@ -4182,26 +4189,36 @@ function showNameMergeTool(){
     const term=normName_(box.querySelector('#nmerge-search').value);
     const resultsEl=box.querySelector('#nmerge-results');
     if(!term){ resultsEl.innerHTML='<div style="color:#c0392b;font-size:12.5px">தேடும் பேர் type பண்ணுங்க</div>'; return; }
-    const variantCounts={}; // raw name (exact as saved) -> entry count
-    (db.purchases||[]).forEach(p=>{ if(!p.deleted&&p.supplier&&normName_(p.supplier).includes(term)){ variantCounts[p.supplier]=(variantCounts[p.supplier]||0)+1; } });
-    (db.sales||[]).forEach(s=>{ if(!s.deleted&&s.party&&normName_(s.party).includes(term)){ variantCounts[s.party]=(variantCounts[s.party]||0)+1; } });
-    (db.payments||[]).forEach(pm=>{ if(!pm.deleted&&pm.name&&normName_(pm.name).includes(term)){ variantCounts[pm.name]=(variantCounts[pm.name]||0)+1; } });
-    const variants=Object.keys(variantCounts);
+    const variantInfo={}; // raw name (exact as saved) -> {count, isMaster}
+    function bump(name){ if(!variantInfo[name]) variantInfo[name]={count:0,isMaster:false}; variantInfo[name].count++; }
+    (db.purchases||[]).forEach(p=>{ if(!p.deleted&&p.supplier&&normName_(p.supplier).includes(term)){ bump(p.supplier); } });
+    (db.sales||[]).forEach(s=>{ if(!s.deleted&&s.party&&normName_(s.party).includes(term)){ bump(s.party); } });
+    (db.payments||[]).forEach(pm=>{ if(!pm.deleted&&pm.name&&normName_(pm.name).includes(term)){ bump(pm.name); } });
+    // Master Data-ஓட பேர்-ஐயும் சேர்த்து ஒப்பிடு — entries-ல் typo இருந்தா, Master Data-ஓட
+    // சரியான பேருக்கும் entries-ஓட பேருக்கும் உள்ள வித்தியாசம் இதனால் தான் தெரியும்.
+    (master.suppliers||[]).forEach(s=>{ if(s.name&&normName_(s.name).includes(term)){ if(!variantInfo[s.name]) variantInfo[s.name]={count:0,isMaster:false}; variantInfo[s.name].isMaster=true; } });
+    (master.customers||[]).forEach(c=>{ if(c.name&&normName_(c.name).includes(term)){ if(!variantInfo[c.name]) variantInfo[c.name]={count:0,isMaster:false}; variantInfo[c.name].isMaster=true; } });
+    const variants=Object.keys(variantInfo);
     if(variants.length===0){ resultsEl.innerHTML='<div style="color:#777;font-size:12.5px">எந்த entries-லும் இந்த பேர் கிடைக்கல</div>'; return; }
-    if(variants.length===1){ resultsEl.innerHTML='<div style="color:#1a6b3a;font-size:12.5px">✅ ஒரே spelling தான் இருக்கு ("'+variants[0]+'") — வேற variation இல்ல!</div>'; return; }
-    variants.sort((a,b)=>variantCounts[b]-variantCounts[a]); // அதிக entries உள்ளதை default-ஆ முதலில் காட்டு
-    resultsEl.innerHTML = '<div style="font-size:12.5px;color:#666;margin-bottom:8px">'+variants.length+' வெவ்வேறு spelling கிடைச்சிருக்கு. எது <b>சரியான பேர்</b>-ன்னு தேர்ந்தெடுங்க (Master Data-ஓட பேர் தேர்ந்தெடுக்கவும்):</div>' +
+    if(variants.length===1){ resultsEl.innerHTML='<div style="color:#1a6b3a;font-size:12.5px">✅ ஒரே spelling தான் இருக்கு ("'+variants[0]+'") — Master Data-ஓட entries-ஓட வித்தியாசம் இல்ல!</div>'; return; }
+    // Master Data-ல் இருக்குறதை முதலில் காட்டு (அதுவே சரியான பேர்-ஆ இருக்க வாய்ப்பு அதிகம்), இல்லன்னா அதிக entries உள்ளதை முதலில் காட்டு
+    variants.sort((a,b)=>{
+      const ai=variantInfo[a], bi=variantInfo[b];
+      if(ai.isMaster!==bi.isMaster) return ai.isMaster?-1:1;
+      return bi.count-ai.count;
+    });
+    resultsEl.innerHTML = '<div style="font-size:12.5px;color:#666;margin-bottom:8px">'+variants.length+' வெவ்வேறு spelling கிடைச்சிருக்கு. எது <b>சரியான பேர்</b>-ன்னு தேர்ந்தெடுங்க (🏅 = Master Data-ல் இருக்குறது):</div>' +
       variants.map((v,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid ${i===0?'#1a6b3a':'#eee'};border-radius:8px;margin-bottom:6px;cursor:pointer">
         <input type="radio" name="nmerge-canon" value="${i}" ${i===0?'checked':''}>
-        <span style="flex:1;font-size:13.5px">${v}</span>
-        <span style="font-size:11px;color:#888;white-space:nowrap">${variantCounts[v]} entries</span>
+        <span style="flex:1;font-size:13.5px">${variantInfo[v].isMaster?'🏅 ':''}${v}</span>
+        <span style="font-size:11px;color:#888;white-space:nowrap">${variantInfo[v].count} entries</span>
       </label>`).join('') +
       `<button id="nmerge-apply" style="width:100%;margin-top:8px;padding:10px;background:#c0392b;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✅ தேர்ந்தெடுத்த பேர்-க்கு எல்லாத்தையும் மாத்து</button>`;
     resultsEl.querySelector('#nmerge-apply').onclick=async function(){
       const idx=parseInt(resultsEl.querySelector('input[name="nmerge-canon"]:checked').value,10);
       const canon=variants[idx];
       const others=variants.filter((v,i)=>i!==idx);
-      const totalCount=others.reduce((a,v)=>a+variantCounts[v],0);
+      const totalCount=others.reduce((a,v)=>a+variantInfo[v].count,0);
       const ok=await confirm2(others.length+' வேற spelling-ல் இருக்குற '+totalCount+' entries, "'+canon+'"-க்கு மாத்தப்படும். இதை Firebase-க்கும் அனுப்பப்படும். தொடரணுமா?');
       if(!ok) return;
       let changed=0;
