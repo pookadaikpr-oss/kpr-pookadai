@@ -3912,7 +3912,8 @@ function showFixToolsMenu(){
   document.querySelectorAll('.fixmenu-overlay').forEach(e=>e.remove());
   const tools=[
     {label:'கமிஷன் Fix', desc:'Master data-ஓட commission% match ஆகாத entries சரி பண்ணும்', fn:'fixMissingCommission', color:'#b8860b'},
-    {label:'பொருள் பேர் Fix', desc:'தப்பா type ஆன பொருள் பேர்களை சரியா மாற்றும்', fn:'fixItemNames', color:'#1a5b8c'}
+    {label:'பொருள் பேர் Fix', desc:'தப்பா type ஆன பொருள் பேர்களை சரியா மாற்றும்', fn:'fixItemNames', color:'#1a5b8c'},
+    {label:'பெயர் Spelling ஒன்றா மாற்று', desc:'Supplier/Customer பேர் வேற வேற spelling-ல் entries போட்டிருந்தா, தேடி ஒரே பேர்-ஆ மாத்தும்', fn:'showNameMergeTool', color:'#7a4a1a'}
   ];
   // "பழைய Entries Cleanup" — permanent delete tool, Admin மட்டும் பாக்க முடியும்.
   // Staff/View role-ல் இந்த option-ஏ menu-ல தெரியாது.
@@ -4151,6 +4152,71 @@ async function fixItemNames(){
   }).catch(()=>{
     alert2('✅ Local-ல் Fix ஆச்சு! (Sync Now தட்டுங்க)','ok');
   });
+}
+// ஒரே supplier/customer-ஓட பேர் வேற வேற spelling-ல் (typo) entries-ல் போயிருந்தா,
+// இங்க தேடி எல்லாத்தையும் ஒரே சரியான பேர்-க்கு மாற்றலாம் — Purchase, Sales, Payments
+// மூணு இடத்திலயும் ஒரே தடவையில் Fix ஆகும்.
+function showNameMergeTool(){
+  document.querySelectorAll('.nmerge-overlay').forEach(e=>e.remove());
+  const overlay=document.createElement('div');
+  overlay.className='nmerge-overlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:18px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.3);font-family:inherit';
+  box.innerHTML=`
+    <div style="font-size:15px;font-weight:800;color:#222;margin-bottom:4px">🔤 பெயர் Spelling ஒன்றா மாற்று</div>
+    <div style="font-size:11.5px;color:#777;margin-bottom:10px">Supplier/Customer பேர் வேற வேற spelling-ல் (typo) entries போட்டிருந்தா, இங்க தேடி ஒரே சரியான பேர்-ஆ மாத்தலாம்.</div>
+    <input type="text" id="nmerge-search" placeholder="தேடு (எ.கா. சௌந்தர் அல்லது கொழுந்து)" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box">
+    <button id="nmerge-go" style="width:100%;padding:10px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px">🔍 தேடு</button>
+    <div id="nmerge-results"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button id="nmerge-close" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">மூடு</button>
+    </div>`;
+  overlay.appendChild(box); document.body.appendChild(overlay);
+  function cleanup(){ overlay.remove(); }
+  box.querySelector('#nmerge-close').onclick=cleanup;
+  overlay.onclick=(e)=>{ if(e.target===overlay) cleanup(); };
+  box.querySelector('#nmerge-search').addEventListener('keydown', e=>{ if(e.key==='Enter') box.querySelector('#nmerge-go').click(); });
+
+  box.querySelector('#nmerge-go').onclick=function(){
+    const term=normName_(box.querySelector('#nmerge-search').value);
+    const resultsEl=box.querySelector('#nmerge-results');
+    if(!term){ resultsEl.innerHTML='<div style="color:#c0392b;font-size:12.5px">தேடும் பேர் type பண்ணுங்க</div>'; return; }
+    const variantCounts={}; // raw name (exact as saved) -> entry count
+    (db.purchases||[]).forEach(p=>{ if(!p.deleted&&p.supplier&&normName_(p.supplier).includes(term)){ variantCounts[p.supplier]=(variantCounts[p.supplier]||0)+1; } });
+    (db.sales||[]).forEach(s=>{ if(!s.deleted&&s.party&&normName_(s.party).includes(term)){ variantCounts[s.party]=(variantCounts[s.party]||0)+1; } });
+    (db.payments||[]).forEach(pm=>{ if(!pm.deleted&&pm.name&&normName_(pm.name).includes(term)){ variantCounts[pm.name]=(variantCounts[pm.name]||0)+1; } });
+    const variants=Object.keys(variantCounts);
+    if(variants.length===0){ resultsEl.innerHTML='<div style="color:#777;font-size:12.5px">எந்த entries-லும் இந்த பேர் கிடைக்கல</div>'; return; }
+    if(variants.length===1){ resultsEl.innerHTML='<div style="color:#1a6b3a;font-size:12.5px">✅ ஒரே spelling தான் இருக்கு ("'+variants[0]+'") — வேற variation இல்ல!</div>'; return; }
+    variants.sort((a,b)=>variantCounts[b]-variantCounts[a]); // அதிக entries உள்ளதை default-ஆ முதலில் காட்டு
+    resultsEl.innerHTML = '<div style="font-size:12.5px;color:#666;margin-bottom:8px">'+variants.length+' வெவ்வேறு spelling கிடைச்சிருக்கு. எது <b>சரியான பேர்</b>-ன்னு தேர்ந்தெடுங்க (Master Data-ஓட பேர் தேர்ந்தெடுக்கவும்):</div>' +
+      variants.map((v,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid ${i===0?'#1a6b3a':'#eee'};border-radius:8px;margin-bottom:6px;cursor:pointer">
+        <input type="radio" name="nmerge-canon" value="${i}" ${i===0?'checked':''}>
+        <span style="flex:1;font-size:13.5px">${v}</span>
+        <span style="font-size:11px;color:#888;white-space:nowrap">${variantCounts[v]} entries</span>
+      </label>`).join('') +
+      `<button id="nmerge-apply" style="width:100%;margin-top:8px;padding:10px;background:#c0392b;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✅ தேர்ந்தெடுத்த பேர்-க்கு எல்லாத்தையும் மாத்து</button>`;
+    resultsEl.querySelector('#nmerge-apply').onclick=async function(){
+      const idx=parseInt(resultsEl.querySelector('input[name="nmerge-canon"]:checked').value,10);
+      const canon=variants[idx];
+      const others=variants.filter((v,i)=>i!==idx);
+      const totalCount=others.reduce((a,v)=>a+variantCounts[v],0);
+      const ok=await confirm2(others.length+' வேற spelling-ல் இருக்குற '+totalCount+' entries, "'+canon+'"-க்கு மாத்தப்படும். இதை Firebase-க்கும் அனுப்பப்படும். தொடரணுமா?');
+      if(!ok) return;
+      let changed=0;
+      (db.purchases||[]).forEach(p=>{ if(!p.deleted&&p.supplier&&others.includes(p.supplier)){ p.supplier=canon; changed++; } });
+      (db.sales||[]).forEach(s=>{ if(!s.deleted&&s.party&&others.includes(s.party)){ s.party=canon; changed++; } });
+      (db.payments||[]).forEach(pm=>{ if(!pm.deleted&&pm.name&&others.includes(pm.name)){ pm.name=canon; changed++; } });
+      saveLocal(); updateDash(); renderPL(); renderSL();
+      saveDB().then(()=>{
+        alert2('✅ '+changed+' இடங்களில் பேர் "'+canon+'"-க்கு Fix ஆயிடுச்சு!','ok');
+      }).catch(()=>{
+        alert2('✅ Local-ல் Fix ஆச்சு! (Sync Now தட்டுங்க)','ok');
+      });
+      cleanup();
+    };
+  };
 }
 function refreshFromFirebase(){
   loadMasterFirebase(); // master data-வும் reload
