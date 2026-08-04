@@ -1396,13 +1396,20 @@ function saveDB(){
   if(jobs.length===0) return Promise.resolve([]);
   return Promise.all(jobs).then(results=>{ lastSavedSnapshot=snapshot; return results; });
 }
+// ஜூலை 1, 2026 முதல் தான் real data entry ஆரம்பிச்சது (ஜூன் test data clear பண்ணப்பட்டது).
+// எந்த device-ல் stale local copy இருந்தாலும், அதுல் இருக்குற பழைய ஜூன் entries
+// இனிமே Firebase-க்கு push ஆகவே கூடாது — இதுவே "clear பண்ணிட்ட data திரும்ப வருது"
+// பிரச்சனைக்கு நிரந்தர தடுப்பு.
+const REAL_DATA_CUTOFF='2026-07-01';
 // entries-ஐ id-வாரியா ஒப்பிட்டு, மாறின/புதுசா சேர்ந்த entries மட்டும் PUT,
 // நீக்கப்பட்ட entries DELETE — ஒரே field-ஐ முழுசா திரும்ப அனுப்பாம.
 function savePerRecord(key, path, arr, lastById){
   const jobs=[];
   const currentIds=new Set();
+  let blockedOld=0;
   arr.forEach(item=>{
     const id=String(item.id);
+    if(item.date && item.date<REAL_DATA_CUTOFF){ blockedOld++; return; } // ஜூன்/அதற்கு முன் தேதி — push பண்ணாதே
     currentIds.add(id);
     const str=JSON.stringify(item);
     if(lastById[id]!==str){
