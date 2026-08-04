@@ -613,7 +613,7 @@ tbody td{padding:8px 11px}
     <input type="hidden" id="pm-amt">
     <div class="fg" style="margin-bottom:10px" id="pm-varavy-row"><label id="pm-varavy-label">வரவு தொகை</label><input type="number" id="pm-varavy-input" placeholder="0" min="0" step="0.50" style="font-size:15px;font-weight:700"></div>
     <div class="fg" style="margin-bottom:10px;display:none" id="pm-less-row"><label>தள்ளுபடி (Less) ₹ <span style="font-weight:400;color:var(--muted);font-size:11px">— Optional</span></label><input type="number" id="pm-less-input" placeholder="0" min="0" step="0.50"></div>
-    <div class="fg" style="margin-bottom:14px"><label>தேதி</label><input type="date" id="pm-date"></div>
+    <div class="fg" style="margin-bottom:14px"><label>தேதி</label><input type="date" id="pm-date" onchange="localStorage.setItem('kpr-pay-date',this.value)"></div>
     <div class="fg" style="margin-bottom:14px">
       <label>பணம் எப்படி?</label>
       <div style="display:flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
@@ -2718,7 +2718,8 @@ function openPay(type,id,name,due){
   pmSetMode('cash');
   document.getElementById('pm-title').textContent=(type==='pur'?'💸 Pay: ':type==='pur_in'?'💰 Supplier-இடம் இருந்து பெறுதல்: ':'💰 விற்பனை வரவு: ')+name;
   document.getElementById('pm-amt').value='';
-  document.getElementById('pm-date').value=today;
+  const savedPayDate=localStorage.getItem('kpr-pay-date');
+  document.getElementById('pm-date').value=savedPayDate||today;
   document.getElementById('payMod').classList.add('on');
   const entries=(type==='pur'||type==='pur_in')?db.purchases.filter(p=>!p.deleted&&(p.supplier===name)):db.sales.filter(s=>!s.deleted&&(s.party===name));
   const gross=entries.reduce((a,e)=>a+e.total,0);
@@ -3144,7 +3145,7 @@ function setRptMode(m){
 function genKiloReport(){
   const date=document.getElementById('rpt-kilo-date').value;
   if(!date) return alert2('தேதி தேர்வு பண்ணுங்க!','err');
-  const DIRECT_KG=['பச்சை','கஞ்சா','துளசி','செவ்வந்தி','கோழி','நந்தி','அருகு','தாமரை','ரோஸ்'];
+  const DIRECT_KG=['பச்சை','கஞ்சா','துளசி','செவ்வந்தி','கோழி','நந்தி','அருகு','தாமரை'];
   const map={};
   db.purchases.filter(p=>!p.deleted&&(p.date===date)).forEach(p=>{
     (p.items||[]).forEach(it=>{
