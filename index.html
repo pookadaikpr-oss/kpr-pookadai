@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260805-v92-fix44';
+  var APP_BUILD = '20260805-v93-fix45';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2252,15 +2252,16 @@ function renderPL(){
   const fd=(document.getElementById('pl-date').value||'').trim();
   const fs=(document.getElementById('pl-sup').value||'').trim().toLowerCase();
   let list=db.purchases.filter(p=>{
-    if(!p||p.deleted||typeof p.total!=='number'||!p.date||!p.supplier) return false; // தப்பான/incomplete/deleted entries skip
+    if(!p||p.deleted||!p.date||!p.supplier) return false; // deleted/incomplete entries skip (total invalid ஆனாலும் காட்டு, edit/delete பண்ண முடியணும்)
     if(fd&&p.date!==fd) return false; if(fs&&!(p.supplier||'').toLowerCase().includes(fs)) return false; return true;
   }).sort((a,b)=>{ const td=String(b.date).localeCompare(String(a.date)); return td!==0?td:String(b.id).localeCompare(String(a.id)); });
   const tb=document.getElementById('pl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
-    tb.innerHTML=list.map(p=>{ st+=p.total; sp+=p.paid; sb+=p.balance;
+    tb.innerHTML=list.map(p=>{ const pTotal=(typeof p.total==='number'&&!isNaN(p.total))?p.total:0; const pPaid=(typeof p.paid==='number'&&!isNaN(p.paid))?p.paid:0; const pBal=(typeof p.balance==='number'&&!isNaN(p.balance))?p.balance:0; st+=pTotal; sp+=pPaid; sb+=pBal;
       const istr=(p.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
-      const bc=p.balance>0?'br2':(p.balance<0?'bo2':'bg2'); const bt=p.balance>0?'₹'+p.balance.toFixed(2):(p.balance<0?'₹'+Math.abs(p.balance).toFixed(2):'Paid ✓');      return`<tr><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${p.total.toFixed(2)}</td><td>₹${p.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap"><button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
+      const badTotal=(typeof p.total!=='number'||isNaN(p.total));
+      const bc=pBal>0?'br2':(pBal<0?'bo2':'bg2'); const bt=pBal>0?'₹'+pBal.toFixed(2):(pBal<0?'₹'+Math.abs(pBal).toFixed(2):'Paid ✓');      return`<tr${badTotal?' style="background:#fff3cd"':''}><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr||(badTotal?'⚠️ Invalid total':'')}</td><td>₹${pTotal.toFixed(2)}</td><td>₹${pPaid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap"><button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
     }).join('');
   }
   document.getElementById('pl-tot').textContent=`மொத்தம்: ₹${st.toFixed(2)} | பற்று: ₹${sp.toFixed(2)} | நிலுவை: ₹${Math.max(0,sb).toFixed(2)}`;
