@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260805-v91-fix43';
+  var APP_BUILD = '20260805-v92-fix44';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3555,6 +3555,11 @@ function prevMonthSummaryBox(type,name,fromDateStr){
     payments=(db.payments||[]).filter(p=>p.type==='sal'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount+(p.less||0),0);
   }
   if(total===0&&payments===0) return '';
+  if(type==='sup'){
+    return `<div style="background:#fff8e6;border:1.5px solid #d4af37;border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:11px;color:#8a6d1a;text-align:center">
+      <b>முந்தைய மாதம் (${label})</b> &nbsp;—&nbsp; சரக்கு மொத்தம்: <b>₹${total.toLocaleString('en-IN',{maximumFractionDigits:0})}</b>
+    </div>`;
+  }
   return `<div style="background:#fff8e6;border:1.5px solid #d4af37;border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:11px;color:#8a6d1a;text-align:center">
     <b>முந்தைய மாதம் (${label})</b> &nbsp;—&nbsp; மொத்தம்: <b>₹${total.toLocaleString('en-IN',{maximumFractionDigits:0})}</b> &nbsp;|&nbsp; வரவு: <b>₹${payments.toLocaleString('en-IN',{maximumFractionDigits:0})}</b>
   </div>`;
