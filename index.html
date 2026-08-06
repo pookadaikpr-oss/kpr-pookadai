@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260806-v97-fix49';
+  var APP_BUILD = '20260806-v98-fix50';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3300,7 +3300,7 @@ function _genSupplierMonthlyStatement(){
   const toduSups=(master.suppliers||[]).filter(s=>{
     const t=(s.type||'தோட்டம்').normalize('NFC').trim();
     return t==='தோட்டம்';
-  });
+  }).sort((a,b)=>(a.name||'').normalize('NFC').localeCompare((b.name||'').normalize('NFC'),'ta'));
   const rows=[];
   let grandVaravu=0, grandCol2=0, grandCol3=0;
   // இந்த date range-ல் எந்த purchase entry-யுமே இல்லைன்னா (எ.கா ஜூன் — data முழுசா clear
