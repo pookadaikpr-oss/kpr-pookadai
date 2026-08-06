@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260806-v105-fix57';
+  var APP_BUILD = '20260807-v107-fix59';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -204,7 +204,7 @@ tbody td{padding:8px 11px}
   <div class="hdr-top">
     <div class="logo">
       <span class="logo-icon">🌸</span>
-      <div><div class="logo-name" onclick="kprLogoTap()" style="cursor:default;user-select:none">KPR பூ கடை</div><div class="logo-sub">Punnaivanam</div></div>
+      <div><div class="logo-name" onclick="kprLogoTap()" style="cursor:default;user-select:none">KPR பூ கடை</div><div class="logo-sub">Punnaivanam <span style="opacity:0.6;font-size:9px" id="hdrBuildTag"></span></div></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="hdr-date" id="hdrDate"></div>
@@ -624,18 +624,6 @@ tbody td{padding:8px 11px}
     <div class="btn-row">
       <button class="btn bg" onclick="confirmPay()">✅ Confirm</button>
       <button class="btn boo" onclick="closePay()">Cancel</button>
-    </div>
-    <div id="pm-ledger-section" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-      <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">📋 மாத சிட்டை</div>
-      <div class="frow" style="margin-bottom:8px;gap:8px">
-        <div class="fg" style="margin-bottom:0"><label style="font-size:11px">From</label><input type="date" id="pm-from" oninput="refreshLedger()"></div>
-        <div class="fg" style="margin-bottom:0"><label style="font-size:11px">To</label><input type="date" id="pm-to" oninput="refreshLedger()"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div id="pm-ledger-hint" style="font-size:11px;color:var(--muted)">From/To date கொடுங்க</div>
-        <button id="pm-copy-btn" onclick="copyLedgerMsg()" style="background:#f0faf4;border:1.5px solid var(--green);color:var(--green);border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📋 Copy</button>
-      </div>
-      <div id="pm-ledger-msg" style="background:#f8f8f8;border-radius:8px;padding:10px;font-size:11px;line-height:1.7;white-space:pre-wrap;font-family:'Noto Sans Tamil',sans-serif;max-height:200px;overflow-y:auto"></div>
     </div>
   </div>
 </div>
@@ -1505,6 +1493,9 @@ window.addEventListener('DOMContentLoaded', function(){
   document.getElementById('hdrDate').innerHTML =
     now.toLocaleDateString('ta-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'}) +
     '<br>' + now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  // Version badge — device-ல் actual எந்த build ரன் ஆகுதுன்னு நேரடியா காட்ட (cache-confusion தவிர்க்க)
+  const buildTag=document.getElementById('hdrBuildTag');
+  if(buildTag){ try{ buildTag.textContent=localStorage.getItem('kpr-app-build')||''; }catch(e){} }
   addPI(); addSI();
 
   // ── STEP 1: Local data இருந்தால் உடனே காட்டு ──
@@ -2815,16 +2806,6 @@ function openPay(type,id,name,due,customGross,customPaid,periodLabel){
   const cashBtn=document.getElementById('pm-mode-cash'), gpayBtn=document.getElementById('pm-mode-gpay');
   [cashBtn,gpayBtn].forEach(b=>{ if(b){ b.disabled=isZeroBalance; b.style.opacity=isZeroBalance?'0.5':'1'; b.style.cursor=isZeroBalance?'not-allowed':'pointer'; } });
   if(varavyInput) varavyInput.disabled=isZeroBalance;
-  const ledgerSection=document.getElementById('pm-ledger-section');
-  if(type==='pur'){
-    ledgerSection.style.display='block';
-    const ym=today.slice(0,7);
-    document.getElementById('pm-from').value=ym+'-01';
-    document.getElementById('pm-to').value=today;
-    document.getElementById('pm-ledger-msg').textContent='';
-    document.getElementById('pm-ledger-hint').textContent='From/To date கொடுங்க';
-    refreshLedger();
-  } else { ledgerSection.style.display='none'; }
 }
 
 function refreshLedger(){
