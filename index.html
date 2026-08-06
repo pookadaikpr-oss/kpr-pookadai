@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260806-v102-fix54';
+  var APP_BUILD = '20260806-v104-fix56';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2556,8 +2556,11 @@ async function monthClose(){
   const ok=await confirm2('மாதம் முடி: '+from+' முதல் '+to+' வரைக்கும் data வெச்சு, தோட்டம் Suppliers-ன் முன்பாக்கி மட்டும் Auto-update ஆகும் (வெளியூர்/வெளிகடை, Customers தொடாது). இதை Undo பண்ண முடியாது. Backup எடுத்து இருக்கீங்களா? தொடரணுமா?');
   if(!ok) return;
 
-  const supChanges=[];
-  const supNames=[...new Set(db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to)).map(p=>p.supplier).filter(Boolean))];
+  // ===== PASS 1: கணக்கு போடு மட்டும் (எதுவும் இன்னும் மாத்தல) =====
+  const purSupNames=db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to)).map(p=>p.supplier);
+  const paySupNames=(db.payments||[]).filter(p=>!p.deleted&&(p.type==='pur'||p.type==='pur_in')&&(p.date>=from&&p.date<=to)).map(p=>p.name);
+  const supNames=[...new Set([...purSupNames,...paySupNames].filter(Boolean))];
+  const computed=[];
   supNames.forEach(name=>{
     const masterSup=findMasterSupplier(name);
     // தோட்டம் category suppliers மட்டும் — வெளியூர்/வெளிகடை skip
@@ -2574,8 +2577,26 @@ async function monthClose(){
     const receivedTotal=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
     const totalPatru=paidCashTotal+paymentsPaid;
     const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
+    computed.push({name,masterSup,netBal,isFloat:!!(masterSup&&masterSup.floatTarget>0)});
+  });
+
+  // ===== SAFETY CHECK: Pay பண்ணாம மிச்சம் (netBal>0) இருக்குற suppliers இருந்தா warn பண்ணு =====
+  // (Float target suppliers-க்கு இது apply ஆகாது — அவங்களுக்கு Target-ஏ எப்போவும் carry forward.)
+  const unpaid=computed.filter(c=>!c.isFloat&&c.netBal>0.01);
+  if(unpaid.length){
+    const unpaidMsg='⚠️ இந்த '+unpaid.length+' suppliers-க்கு இன்னும் Pay பண்ணல (பணம் கொடுத்தது app-ல் entry ஆகல):<br><br>'
+      +unpaid.map(c=>'• '+c.name+' — ₹'+c.netBal.toLocaleString('en-IN',{maximumFractionDigits:2})).join('<br>')
+      +'<br><br>Month Close பண்ணினா, இந்த தொகைகள் "Pay பண்ணாதது"-ஆவே track ஆகாம, முன்பாக்கி ₹0-க்கு reset ஆகிடும் (கடன் untracked ஆயிடும்). Pay பண்ணிட்டு மறுபடி முயற்சி பண்ணுவது நல்லது.<br><br>இப்படியே தொடரணுமா?';
+    const proceedAnyway=await confirm2(unpaidMsg);
+    if(!proceedAnyway) return;
+  }
+
+  // ===== PASS 2: இப்போ real-ஆ apply பண்ணு =====
+  const supChanges=[];
+  computed.forEach(c=>{
+    const {name,masterSup,netBal,isFloat}=c;
     let newPrev;
-    if(masterSup&&masterSup.floatTarget>0){
+    if(isFloat){
       newPrev=masterSup.floatTarget; // Fixed Float exception — Target amount-ஏ carry forward
     } else {
       newPrev=netBal<0?Math.round(Math.abs(netBal)*100)/100:0; // சாதாரண: முழுசா pay பண்ணி settle, overpay excess மட்டும் carry forward
@@ -2583,7 +2604,7 @@ async function monthClose(){
     const oldPrev=masterSup?masterSup.prev||0:0;
     if(masterSup){ masterSup.prev=newPrev; masterSup.prevDate=to; }
     else{ master.suppliers.push({name,town:'',phone:'',type:'தோட்டம்',comm:10,eduppu:0,prev:newPrev,prevDate:to}); }
-    supChanges.push({name,oldPrev,newPrev,netBal,isFloat:!!(masterSup&&masterSup.floatTarget>0)});
+    supChanges.push({name,oldPrev,newPrev,netBal,isFloat});
   });
 
   saveMasterLocal();
@@ -3909,7 +3930,7 @@ function confirm2(msg){
     overlay.className='confirm2-overlay';
     overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
     const box=document.createElement('div');
-    box.style.cssText='background:#fff;border-radius:14px;padding:22px;max-width:340px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.3);font-family:inherit';
+    box.style.cssText='background:#fff;border-radius:14px;padding:22px;max-width:340px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.3);font-family:inherit';
     box.innerHTML=`<div style="font-size:15px;font-weight:600;color:#222;margin-bottom:18px;line-height:1.5">${msg}</div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button id="c2-no" style="background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">No</button>
