@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260806-v101-fix53';
+  var APP_BUILD = '20260806-v102-fix54';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3341,10 +3341,11 @@ function _genSupplierMonthlyStatement(){
     }
     grandVaravu+=pooVaravu;
     if(isFloat){
-      // Float target suppliers-க்கும் இப்போ Grand Total-ல் சேர்க்கறோம் — ஏன்னா col2 (diff)
-      // real-ஆ "இன்னும் pay பண்ணனும்-ற தொகை" (Target அடைய), பணம் ready பண்ண இது தேவை.
-      // Target text (col3Text) மட்டும் total-ல் சேராது — அது ஒரு static reference number.
-      if(col2>0) grandCol2+=col2; else if(col2<0) grandCol3+=Math.abs(col2);
+      // Grand Total column-ல் screen-ல் displayed value-ஐயே sum பண்றோம் (உங்க request படி):
+      // ரொக்க சிட்டை column-ல் எப்போவும் |col2| தான் காட்டப்படுது → அதையே grandCol2-ல் சேர்.
+      // பற்று சிட்டை column-ல் 🎯 suppliers-க்கு எப்போவும் Target amount தான் காட்டப்படுது → அதையும் grandCol3-ல் சேர்.
+      grandCol2+=Math.abs(col2);
+      grandCol3+=col3;
     } else {
       if(col2) grandCol2+=col2; if(col3) grandCol3+=col3;
     }
@@ -3366,7 +3367,7 @@ function _genSupplierMonthlyStatement(){
     ${rows.map((r,i)=>`<tr><td style="${tdS}">${i+1}</td><td style="${tdS}">${r.name}${r.isFloat?' 🎯':''}</td><td style="${tdR}">${r.pooVaravu?r.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2}):''}</td><td style="${tdR};color:${r.isFloat?(r.col2>0?'#1a6b3a':'#c0392b'):'#1a6b3a'}">${r.isFloat?Math.abs(r.col2).toLocaleString('en-IN',{minimumFractionDigits:2}):(r.col2?r.col2.toLocaleString('en-IN',{minimumFractionDigits:2}):'')}</td><td style="${tdR};font-weight:700;color:${r.isFloat?'#333':'#c0392b'}">${r.col3Text}</td></tr>`).join('')}
     </tbody></table>
     <div style="font-weight:700;background:#f5f3ee;display:flex;justify-content:space-between;padding:6px 3px;margin-top:2px;font-size:10px"><span style="width:38%">மொத்தம் (${rows.length})</span><span style="width:20%;text-align:right">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span style="width:22%;text-align:right;color:#1a6b3a">${grandCol2.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span style="width:20%;text-align:right;color:#c0392b">${grandCol3.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
-    <div class="rpt-legend-note" style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. ரொக்க சிட்டை = சாதாரண suppliers-க்கு இருப்பு (பச்சை); 🎯 suppliers-க்கு Target அடைய இன்னும் Pay பண்ணனும்-ற தொகை (பச்சை) அல்லது Target தாண்டி pay பண்ணிட்டது (சிவப்பு). பற்று சிட்டை = 🎯 suppliers-க்கு அவங்க Target amount (எப்போவும் static); மற்றவங்களுக்கு அதிக பற்று (சிவப்பு). (Grand Total-ல் 🎯 suppliers-ஓட real பணம் தேவை/மிச்சம் (col2/col3-க்கு ஏத்த மாதிரி) சேர்க்கப்பட்டிருக்கு, Target text சேராது.)</div>
+    <div class="rpt-legend-note" style="font-size:10.5px;color:#999;margin-top:8px">🎯 = Fixed Float target supplier. ரொக்க சிட்டை = சாதாரண suppliers-க்கு இருப்பு (பச்சை); 🎯 suppliers-க்கு Target அடைய இன்னும் Pay பண்ணனும்-ற தொகை (பச்சை) அல்லது Target தாண்டி pay பண்ணிட்டது (சிவப்பு). பற்று சிட்டை = 🎯 suppliers-க்கு அவங்க Target amount (எப்போவும் static); மற்றவங்களுக்கு அதிக பற்று (சிவப்பு). (Grand Total = screen-ல் ஒவ்வொரு column-லும் காணிக்குற value-ஓட exact sum — 🎯 suppliers-ஓட Target amount-உம் இதுல் சேர்க்கப்பட்டிருக்கு.)</div>
     </div>`;
   if(printRow) printRow.style.display='block';
 }
