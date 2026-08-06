@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260806-v95-fix47';
+  var APP_BUILD = '20260806-v97-fix49';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3303,10 +3303,22 @@ function _genSupplierMonthlyStatement(){
   });
   const rows=[];
   let grandVaravu=0, grandCol2=0, grandCol3=0;
+  // இந்த date range-ல் எந்த purchase entry-யுமே இல்லைன்னா (எ.கா ஜூன் — data முழுசா clear
+  // பண்ணப்பட்ட மாசம்), 162 suppliers-ஓட blank rows table காட்டாம "No data" ன்னு காட்டு.
+  const anyPurchaseInRange=db.purchases.some(p=>!p.deleted&&p.date>=from&&p.date<=to);
+  if(!anyPurchaseInRange){
+    out.innerHTML='<div class="card"><div class="empty"><div class="eico">📒</div>'+fmtDate(from)+' முதல் '+fmtDate(to)+' வரை — இந்த காலத்துக்கு Data இல்லை</div></div>';
+    if(printRow) printRow.style.display='none';
+    return;
+  }
   toduSups.forEach(masterSup=>{
     const name=masterSup.name;
     const entries=db.purchases.filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===normName_(name)&&p.date>=from&&p.date<=to);
-    const prevDateOk=!masterSup.prevDate||(masterSup.prevDate<=from);
+    // முன்பாக்கி — prevDate set பண்ணாத suppliers-க்கு, REAL_DATA_CUTOFF (01/07/2026) தான்
+    // effective date-ஆ எடுத்துக்கணும். இல்லைன்னா ஜூன்/அதற்கு முன் தேதி report-லயும்
+    // முன்பாக்கி தப்பா காட்டிடும் (real data entry ஜூலை 1 முதல் தான் ஆரம்பிச்சது).
+    const effPrevDate=masterSup.prevDate||REAL_DATA_CUTOFF;
+    const prevDateOk=effPrevDate<=from;
     const munPakki=masterSup.prev>0&&prevDateOk?masterSup.prev:0;
     const pooVaravu=entries.reduce((a,e)=>a+(e.total||0),0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
@@ -3619,8 +3631,10 @@ function _genReport(){
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு
       const masterSup=findMasterSupplier(normName);
-      // முன்பாக்கி தேதி check — from date-க்கு முன்னாடி இருந்தா மட்டும் காட்டு
-      const prevDateOk=!masterSup?.prevDate || (masterSup.prevDate <= from);
+      // முன்பாக்கி தேதி check — prevDate set பண்ணாத suppliers-க்கு REAL_DATA_CUTOFF
+      // (01/07/2026) default-ஆ எடுத்துக்கறோம், இல்லைன்னா ஜூன்/முன் தேதி report-லயும் தப்பா காட்டும்.
+      const effPrevDate2=masterSup?.prevDate||REAL_DATA_CUTOFF;
+      const prevDateOk=effPrevDate2<=from;
       const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
