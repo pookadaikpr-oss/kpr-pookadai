@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260806-v100-fix52';
+  var APP_BUILD = '20260806-v101-fix53';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3516,13 +3516,15 @@ function printReport(){
   if(!out||!out.innerHTML.trim()){ alert2('முதல்ல Generate பண்ணுங்க!','err'); return; }
   const hasOwnHeader = out.innerHTML.indexOf('KPR வன்னிசெந்தூர்') !== -1;
   const isWideTable = out.innerHTML.indexOf('மாத சப்ளையர் சிட்டை') !== -1;
-  // Plan: A4 sheet-ஐ நீளவாக்கா பாதி பண்ணி (105mm width) தான் print பண்றது — பெரிய
-  // 168-supplier table-க்கும் இதே narrow format தான், only பல pages-ஆ split ஆகும்.
-  const pageCss = '@page{size:105mm 300mm;margin:5mm 6mm}';
+  // 5-column wide summary table (162 suppliers, 7-digit amounts) 105mm-ல் readable-ஆ
+  // fit ஆகாது — இதுக்கு மட்டும் A4 full width, சாதாரண படிக்கிற font size.
+  const pageCss = isWideTable ? '@page{size:A4;margin:10mm}' : '@page{size:105mm 300mm;margin:5mm 6mm}';
   const cardBreakCss = isWideTable ? '.card{page-break-inside:auto}' : '';
-  const pdfJsPdfOpt = "{unit:'mm',format:[105,300],orientation:'portrait'}";
-  const wideTableTightCss = '';
-  const printHelpHtml = `<div class="print-help">📄 <b>Print வழிமுறை (Cut பண்ணின half A4 sheet-க்கு):</b><br>1️⃣ Print Dialog-ல <b>Pages</b> box-ல <b>1</b> மட்டும் போட்டு Print பண்ணுங்க (Front side).<br>2️⃣ அதே sheet-ஐ புரட்டி மறுபடி Printer-ல வைச்சு, Pages box-ல <b>2</b> போட்டு Print பண்ணுங்க (Back side — rows அதிகமா இருந்தா மட்டும்).<br>3️⃣ Layout: <b>Portrait</b> தேர்ந்தெடுங்க. Paper size: <b>Custom 105×300mm</b> (A4-ஐ நீளவாக்கா அரை பண்ணினது).<br>4️⃣ More settings-ல "Headers and footers" checkbox <b>OFF</b> பண்ணுங்க.</div>`;
+  const pdfJsPdfOpt = isWideTable ? "{unit:'mm',format:'a4',orientation:'portrait'}" : "{unit:'mm',format:[105,300],orientation:'portrait'}";
+  const wideTableTightCss = isWideTable ? 'table{font-size:12px}thead th{padding:6px 8px}tbody td{padding:5px 8px}.sec{font-size:15px}' : '';
+  const printHelpHtml = isWideTable
+    ? `<div class="print-help">📄 <b>Print வழிமுறை:</b> Print Dialog-ல் Layout: <b>Portrait</b>, Paper size: <b>A4</b> தேர்ந்தெடுங்க. "Headers and footers" checkbox <b>OFF</b> பண்ணுங்க.</div>`
+    : `<div class="print-help">📄 <b>Print வழிமுறை (Cut பண்ணின half A4 sheet-க்கு):</b><br>1️⃣ Print Dialog-ல <b>Pages</b> box-ல <b>1</b> மட்டும் போட்டு Print பண்ணுங்க (Front side).<br>2️⃣ அதே sheet-ஐ புரட்டி மறுபடி Printer-ல வைச்சு, Pages box-ல <b>2</b> போட்டு Print பண்ணுங்க (Back side — rows அதிகமா இருந்தா மட்டும்).<br>3️⃣ Layout: <b>Portrait</b> தேர்ந்தெடுங்க. Paper size: <b>Custom 105×300mm</b> (A4-ஐ நீளவாக்கா அரை பண்ணினது).<br>4️⃣ More settings-ல "Headers and footers" checkbox <b>OFF</b> பண்ணுங்க.</div>`;
   const topHeaderHtml = hasOwnHeader
     ? `<div style="text-align:right;font-size:9px;color:#999;margin-bottom:4px">Printed: ${new Date().toLocaleDateString('ta-IN')}</div>`
     : `<div class="print-top"><h2>🌸 KPR பூக்கடை</h2><p>Punnaivanam | KPR Vannisenthur Pudhumalaham</p><p style="font-size:10px;color:#888">Printed: ${new Date().toLocaleDateString('ta-IN')}</p></div>`;
