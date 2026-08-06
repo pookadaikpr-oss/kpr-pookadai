@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260805-v93-fix45';
+  var APP_BUILD = '20260806-v94-fix46';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1369,7 +1369,7 @@ function loadLocal(){
 }
 
 let lastSavedSnapshot={};
-let lastSavedPurById={}, lastSavedSalById={};
+let lastSavedPurById={}, lastSavedSalById={}, lastSavedPayById={};
 function saveDB(){
   saveLocal();
   const snapshot = JSON.parse(JSON.stringify(db));
@@ -1377,7 +1377,7 @@ function saveDB(){
   // இல்லைன்னா ஒரு device-ல ஒரு field save பண்ணும்போது, அந்த device-ன் stale
   // copy-ல இருக்குற மற்ற fields (எ.கா homeMoney) மேலெழுதப்பட்டு, மற்ற device-ல
   // செய்த மாற்றங்கள் (delete உட்பட) இழக்கப்படும் ரிஸ்க் இருக்கு.
-  const allFields = ['payments','commissions','misc','balances','homeMoney'];
+  const allFields = ['commissions','misc','balances','homeMoney'];
   // Speed optimization: கடைசியா successfully save ஆன snapshot-உடன் ஒப்பிட்டு,
   // உண்மையில் மாறின fields-ஐ மட்டும் அனுப்புறோம் (automatic diff — manual field
   // குறிப்பிடும் தேவை இல்லை, அதனால தவறா ஒரு field skip ஆகும் ரிஸ்க் இல்லை).
@@ -1393,6 +1393,10 @@ function saveDB(){
   // போதும் — 249+ entries இருந்தாலும் ஒவ்வொரு save-ம் சின்னதா, வேகமா இருக்கும்.
   jobs.push(...savePerRecord('purchases','purchases_v2',snapshot.purchases||[],lastSavedPurById).map(j=>j.promise));
   jobs.push(...savePerRecord('sales','sales_v2',snapshot.sales||[],lastSavedSalById).map(j=>j.promise));
+  // Payments — purchases/sales மாதிரியே per-record + tombstone (deleted:true) storage.
+  // முன்ன db.payments முழு-array-ஆ overwrite ஆகி, ஒரு device-ல் stale local copy
+  // இருந்தா delete ஆன payments திரும்ப "resurrect" ஆகும் ரிஸ்க் இருந்துச்சு — இதை தீர்க்க.
+  jobs.push(...savePerRecord('payments','payments_v2',snapshot.payments||[],lastSavedPayById).map(j=>j.promise));
   if(jobs.length===0) return Promise.resolve([]);
   return Promise.all(jobs).then(results=>{ lastSavedSnapshot=snapshot; return results; });
 }
@@ -1436,9 +1440,10 @@ function savePerRecord(key, path, arr, lastById){
 // பண்றது. இது migrate ஆனதும் purchases_v2/sales_v2-ல் data இருக்கும்,
 // அடுத்த தடவை load ஆகும்போது இதையே use பண்ணும் (migration மறுபடி நடக்காது).
 // v2Pur/v2Sal — load flow-லேயே ஏற்கனவே fetch பண்ணதை பயன்படுத்துறோம் (extra fetch வேண்டாம்).
-function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal){
+function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal, payArr, v2Pay){
   const needPurMigrate = (!v2Pur || Object.keys(v2Pur).length===0) && purArr.length>0;
   const needSalMigrate = (!v2Sal || Object.keys(v2Sal).length===0) && salArr.length>0;
+  const needPayMigrate = (!v2Pay || Object.keys(v2Pay).length===0) && payArr && payArr.length>0;
   if(needPurMigrate){
     savePerRecord('purchases','purchases_v2',purArr,lastSavedPurById).forEach(j=>j.promise.catch(()=>{}));
   } else if(v2Pur){
@@ -1452,8 +1457,13 @@ function migrateToV2IfNeeded(purArr, salArr, v2Pur, v2Sal){
   } else if(v2Sal){
     Object.keys(v2Sal).forEach(id=>{ lastSavedSalById[id]=JSON.stringify(v2Sal[id]); });
   }
-  if(needPurMigrate||needSalMigrate){
-    console.log('KPR: purchases/sales migrated to per-record storage (purchases_v2/sales_v2)');
+  if(needPayMigrate){
+    savePerRecord('payments','payments_v2',payArr,lastSavedPayById).forEach(j=>j.promise.catch(()=>{}));
+  } else if(v2Pay){
+    Object.keys(v2Pay).forEach(id=>{ lastSavedPayById[id]=JSON.stringify(v2Pay[id]); });
+  }
+  if(needPurMigrate||needSalMigrate||needPayMigrate){
+    console.log('KPR: purchases/sales/payments migrated to per-record storage (purchases_v2/sales_v2/payments_v2)');
   }
 }
 
@@ -1532,12 +1542,13 @@ window.addEventListener('DOMContentLoaded', function(){
           // entries இந்த device-க்கு load ஆகணும்.
           Promise.all([
             fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
-            fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
+            fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null),
+            fetch(FIREBASE_URL+'/db/payments_v2.json').then(r=>r.json()).catch(()=>null)
           ]).then(function(v2res){
-          const v2Pur=v2res[0], v2Sal=v2res[1];
+          const v2Pur=v2res[0], v2Sal=v2res[1], v2Pay=v2res[2];
           const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]);
           const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
-          const fbPay = toArr(data.payments||[]);
+          const fbPay = (v2Pay && Object.keys(v2Pay).length>0) ? toArr(v2Pay) : toArr(data.payments||[]);
           const fbComm = data.commissions||{};
           const fbMisc = toArr(data.misc||[]);
           const fbBalances = data.balances||null;
@@ -1546,7 +1557,7 @@ window.addEventListener('DOMContentLoaded', function(){
           if(fbCount > 0){
             const localPur = db.purchases.filter(p=>!p.deleted&&(!fbPur.find(f=>String(f.id)===String(p.id))));
             const localSal = db.sales.filter(s=>!s.deleted&&(!fbSal.find(f=>String(f.id)===String(s.id))));
-            const localPay = db.payments.filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
+            const localPay = db.payments.filter(p=>!p.deleted&&(!fbPay.find(f=>String(f.id)===String(p.id))));
             const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
             // வீட்டு பணம் — ஒரே ஒரு நபர் (secret feature) தான் இதை edit பண்றது, அதனால
             // union-merge தேவையில்ல. Firebase-ஐ மட்டும் authoritative-ஆ எடுத்துக்குறோம் —
@@ -1566,7 +1577,7 @@ window.addEventListener('DOMContentLoaded', function(){
             updateDash(); renderPL(); renderSL(); renderPay();
             updateSupDL(); updateParDL();
             if(!hasLocal) alert2('✅ Firebase data loaded! ('+fbPur.length+' purchases, '+fbSal.length+' sales)','ok');
-            migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal);
+            migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal, db.payments, v2Pay);
           }
           }).catch(()=>{});
         }
@@ -2559,8 +2570,8 @@ async function monthClose(){
     // பற்று = paidCash/paidItems (நேரடி advance) + db.payments (Payments tab) — double-count தவிர்க்க
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
     const normName=normName_(name);
-    const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
-    const receivedTotal=db.payments.filter(p=>p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+    const paymentsPaid=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+    const receivedTotal=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
     const totalPatru=paidCashTotal+paymentsPaid;
     const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
     let newPrev;
@@ -2674,7 +2685,7 @@ function renderPay(){
   const slist=Object.entries(sm).filter(([n])=>!supSearch||normName_(n).includes(supSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
-    const received=(db.payments||[]).filter(p=>p.type==='pur_in'&&p.name===n).reduce((a,p)=>a+(p.amount||0),0);
+    const received=(db.payments||[]).filter(p=>!p.deleted&&p.type==='pur_in'&&p.name===n).reduce((a,p)=>a+(p.amount||0),0);
     const masterSup=findMasterSupplier(n);
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
     const adjustedDue=v.total-v.comm-v.paid+received+munPakki;
@@ -2853,9 +2864,9 @@ function renderRecentPayments(){
   const selDate=dEl?dEl.value:'';
   let list;
   if(selDate){
-    list=(db.payments||[]).filter(p=>p.date===selDate).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+    list=(db.payments||[]).filter(p=>!p.deleted&&p.date===selDate).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
   } else {
-    list=[...(db.payments||[])].sort((a,b)=>String(b.id).localeCompare(String(a.id))).slice(0,20);
+    list=(db.payments||[]).filter(p=>!p.deleted).sort((a,b)=>String(b.id).localeCompare(String(a.id))).slice(0,20);
   }
   if(!list.length){ div.innerHTML='<div class="empty"><div class="eico">📋</div>'+(selDate?'இந்த தேதிக்கு Payments இல்லை':'Payments இல்லை')+'</div>'; return; }
   if(selDate){
@@ -2866,7 +2877,7 @@ function renderRecentPayments(){
   div.innerHTML+=list.map(p=>`<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--muted)">${fmtDate(p.date)} · ${p.type==='pur'?'💸 Pay':'💰 Receive'} · Paid ₹${p.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}${p.less>0?' · Less ₹'+p.less.toLocaleString('en-IN',{minimumFractionDigits:2}):''}${p.mode==='gpay'?' · 📱 GPay':' · 💵 Cash'}</div></div><button class="btn br bsm" onclick="undoPayment('${p.id}')">↩️ Undo</button></div>`).join('');
 }
 async function undoPayment(paymentId){
-  const pay=(db.payments||[]).find(p=>String(p.id)===String(paymentId));
+  const pay=(db.payments||[]).find(p=>String(p.id)===String(paymentId)&&!p.deleted);
   if(!pay) return;
   const totalToRevert=pay.amount+(pay.less||0);
   if(!(await confirm2('₹'+pay.amount.toFixed(2)+(pay.less>0?' + தள்ளுபடி ₹'+pay.less.toFixed(2):'')+' payment ('+pay.name+') delete பண்ணி, நிலுவை-ஆ மறுபடி மாத்தலாமா?'))) return;
@@ -2877,7 +2888,11 @@ async function undoPayment(paymentId){
     ? db.purchases.filter(p=>!p.deleted&&(p.supplier===pay.name&&p.paid>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)))
     : db.sales.filter(s=>!s.deleted&&(s.party===pay.name&&s.paid>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
   list.forEach(e=>{ if(remaining<=0) return; const revert=Math.min(remaining,e.paid); e.paid-=revert; e.balance=(e.balance||0)+revert; remaining-=revert; });
-  db.payments=db.payments.filter(p=>String(p.id)!==String(paymentId));
+  // Soft-delete (tombstone) — முன்ன array-ல் இருந்து நேரடியா நீக்கினோம், அதனால stale
+  // device-ல் இருந்த பழைய local copy, delete ஆன entry-ஐ திரும்ப "resurrect" பண்ணும்
+  // ரிஸ்க் இருந்துச்சு. இப்போ deleted:true flag வெச்சு, purchases/sales மாதிரியே
+  // devices எல்லாத்துக்கும் இந்த deletion propagate ஆகும்.
+  pay.deleted=true;
   saveLocal();
   renderPay(); renderPL(); renderSL(); updateDash(); renderRecentPayments();
   saveDB().then(()=>{ alert2('✅ Payment undo ஆனது!','ok'); }).catch(()=>{ alert2('✅ Local-ல் undo ஆனது! (Sync Now தட்டுங்க)','ok'); });
@@ -3548,12 +3563,12 @@ function prevMonthSummaryBox(type,name,fromDateStr){
     const entries=(db.purchases||[]).filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===nName&&p.date>=pFrom&&p.date<=pTo);
     total=entries.reduce((a,e)=>a+e.total,0);
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
-    const paymentsPaid=(db.payments||[]).filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount,0);
+    const paymentsPaid=(db.payments||[]).filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount,0);
     payments=paidCashTotal+paymentsPaid;
   } else {
     const entries=(db.sales||[]).filter(s=>!s.deleted&&s.party&&normName_(s.party)===nName&&s.date>=pFrom&&s.date<=pTo);
     total=entries.reduce((a,e)=>a+e.total,0);
-    payments=(db.payments||[]).filter(p=>p.type==='sal'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount+(p.less||0),0);
+    payments=(db.payments||[]).filter(p=>!p.deleted&&p.type==='sal'&&p.name&&normName_(p.name)===nName&&p.date>=pFrom&&p.date<=pTo).reduce((a,p)=>a+p.amount+(p.less||0),0);
   }
   if(total===0&&payments===0) return '';
   if(type==='sup'){
@@ -3612,16 +3627,16 @@ function _genReport(){
       // report July-க்கு, ஆனா pay பண்ணது இன்று August-ல்) கணக்கில் எடுக்கணும் —
       // இல்லன்னா, pay பண்ணின பிறகு இதே report மறுபடி generate பண்ணா, "Pay" button
       // இன்னும் active-ஆவே காட்டி, தவறுதலா இரண்டாம் தடவை pay பண்ண ரிஸ்க் வரும்.
-      const paymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from).reduce((a,p)=>a+p.amount,0);
+      const paymentsPaid=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from).reduce((a,p)=>a+p.amount,0);
       const totalPatru=paidCashTotal+paymentsPaid;
       // period-க்குள் மட்டும் கொடுத்த பற்று (table-ல தெரியுற entries-க்கு exact match ஆகணும்).
       // totalPatru-ல இருந்து period-க்கு வெளியே (to தேதிக்கு அப்புறம்) பண்ண payment-ஐ பிரிச்சு காட்ட இது தேவை.
-      const periodPaymentsPaid=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      const periodPaymentsPaid=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
       const periodPatru=paidCashTotal+periodPaymentsPaid;
       const laterPatru=totalPatru-periodPatru; // period முடிஞ்ச பிறகு pay பண்ணது (எ.கா. report July-க்கு, payment August-ல்)
       // period முடிஞ்ச பிறகு பண்ண payments-ஐ தேதி வாரியா பட்டியலிட (ஒரே தேதியில் பல payment இருந்தா ஒன்றா சேர்த்து)
       const laterPaymentsByDate={};
-      db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
+      db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
       const laterPaymentsList=Object.keys(laterPaymentsByDate).sort().map(dt=>({date:dt,amount:laterPaymentsByDate[dt]}));
       // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
       const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
@@ -3646,7 +3661,7 @@ function _genReport(){
         paidBreakdownParts(e).forEach(pt=>{ allRows.push({date:e.date,type:'paid',amount:pt.amount,label:pt.label}); });
       });
       // db.payments பற்று rows
-      const supPayments=db.payments.filter(p=>p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
+      const supPayments=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
       supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount,label:(p.mode==='gpay'?'GPay':'ரொக்கம்')}); });
       // Sort by date
       allRows.sort((a,b)=>a.date.localeCompare(b.date));
@@ -3743,7 +3758,7 @@ function _genReport(){
       const masterCust=findMasterCustomer(normName);
       const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:0;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
-      const custPayments=db.payments.filter(p=>p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
+      const custPayments=db.payments.filter(p=>!p.deleted&&p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
       // Payments tab-ல் entries இருந்தா, அதுவே single source (sales.paid duplicate ஆகும்).
       // இல்லைன்னா (பழைய legacy entries), sales.paid-ஐ மட்டும் பயன்படுத்துறோம்.
       const useCustPayments=custPayments.length>0;
@@ -4260,15 +4275,16 @@ function refreshFromFirebase(){
     Promise.all([
       Promise.race([fetch(FIREBASE_URL + '/db.json'), fbTimeout2]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }),
       fetch(FIREBASE_URL+'/db/purchases_v2.json').then(r=>r.json()).catch(()=>null),
-      fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null)
+      fetch(FIREBASE_URL+'/db/sales_v2.json').then(r=>r.json()).catch(()=>null),
+      fetch(FIREBASE_URL+'/db/payments_v2.json').then(r=>r.json()).catch(()=>null)
     ])
     .then(function(res){
-      const data=res[0], v2Pur=res[1], v2Sal=res[2];
+      const data=res[0], v2Pur=res[1], v2Sal=res[2], v2Pay=res[3];
       showFirebaseLoading(false);
       if(data){
         const fbPur = (v2Pur && Object.keys(v2Pur).length>0) ? toArr(v2Pur) : toArr(data.purchases||[]);
         const fbSal = (v2Sal && Object.keys(v2Sal).length>0) ? toArr(v2Sal) : toArr(data.sales||[]);
-        const fbPay=toArr(data.payments||[]);
+        const fbPay = (v2Pay && Object.keys(v2Pay).length>0) ? toArr(v2Pay) : toArr(data.payments||[]);
         const fbComm=data.commissions||{};
         const fbMisc=toArr(data.misc||[]);
         const fbBalances=data.balances||{cash:0,bank:0,home:0};
@@ -4279,14 +4295,14 @@ function refreshFromFirebase(){
         // Purchases/Sales/Payments/Misc — எல்லாமே ID-வாரியா merge பண்றோம்.
         const localPur = db.purchases.filter(p=>!p.deleted&&(!fbPur.find(f=>String(f.id)===String(p.id))));
         const localSal = db.sales.filter(s=>!s.deleted&&(!fbSal.find(f=>String(f.id)===String(s.id))));
-        const localPay = (db.payments||[]).filter(p=>!fbPay.find(f=>String(f.id)===String(p.id)));
+        const localPay = (db.payments||[]).filter(p=>!p.deleted&&(!fbPay.find(f=>String(f.id)===String(p.id))));
         const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
         db={purchases:[...fbPur,...localPur],sales:[...fbSal,...localSal],payments:[...fbPay,...localPay],commissions:fbComm,misc:[...fbMisc,...localMisc],balances:fbBalances,homeMoney:fbHomeMoney};
         dedupDB(); saveLocal();
         updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
         alert2('✅ Sync ஆச்சு! ('+fbPur.length+' purchases, '+fbSal.length+' sales — எல்லா devices-லும் ஒரே data)','ok');
-        migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal);
+        migrateToV2IfNeeded(db.purchases, db.sales, v2Pur, v2Sal, db.payments, v2Pay);
       } else {
         alert2('⚠️ Firebase-ல் data இல்லை (local data தொடராம் இருக்கு)','warn');
       }
@@ -4321,11 +4337,12 @@ function clearAllData(){
   Promise.all([
     fetch(FIREBASE_URL+'/db/purchases_v2.json',{method:'DELETE'}),
     fetch(FIREBASE_URL+'/db/sales_v2.json',{method:'DELETE'}),
+    fetch(FIREBASE_URL+'/db/payments_v2.json',{method:'DELETE'}),
     fetch(FIREBASE_URL+'/db/payments.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:'[]'}),
     fetch(FIREBASE_URL+'/db/commissions.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:'{}'}),
     fetch(FIREBASE_URL+'/db/misc.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:'[]'})
   ]).then(()=>{
-    lastSavedPurById={}; lastSavedSalById={};
+    lastSavedPurById={}; lastSavedSalById={}; lastSavedPayById={};
     lastSavedSnapshot=JSON.parse(JSON.stringify(db));
     alert2('🗑 All data cleared — Firebase-லயும் முழுசா அழிஞ்சிடுச்சு!','warn');
   }).catch(()=>{
@@ -4409,7 +4426,7 @@ function updateDayLedger(){
   if(!dEl) return;
   if(!dEl.value) dEl.value=today;
   const d=dEl.value;
-  const payDay=(db.payments||[]).filter(p=>p.date===d);
+  const payDay=(db.payments||[]).filter(p=>!p.deleted&&p.date===d);
   const miscDay=(db.misc||[]).filter(m=>m.date===d);
   const recvPay=payDay.filter(p=>p.type==='sal').reduce((a,p)=>a+(p.amount||0),0);
   const paidPay=payDay.filter(p=>p.type==='pur').reduce((a,p)=>a+(p.amount||0),0);
@@ -4679,7 +4696,7 @@ function kprOpenSummary(){
   const purTotal=purs.reduce((a,b)=>a+(b.total||0),0);
   const salTotal=sals.reduce((a,b)=>a+(b.total||0),0);
   const profit=salTotal-purTotal;
-  const payToday=(db.payments||[]).filter(p=>p.date>=sinceDate&&p.date<=today);
+  const payToday=(db.payments||[]).filter(p=>!p.deleted&&p.date>=sinceDate&&p.date<=today);
   const miscToday=(db.misc||[]).filter(m=>m.date>=sinceDate&&m.date<=today);
   const recvCash=payToday.filter(p=>p.type==='sal'&&(p.mode||'cash')==='cash').reduce((a,p)=>a+(p.amount||0),0);
   const recvBank=payToday.filter(p=>p.type==='sal'&&p.mode==='gpay').reduce((a,p)=>a+(p.amount||0),0);
