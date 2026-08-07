@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260807-v110-fix62';
+  var APP_BUILD = '20260807-v112-fix64';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -589,6 +589,16 @@ tbody td{padding:8px 11px}
       </div>
       <button class="btn" style="width:100%;padding:9px;background:#c0392b;color:#fff;font-weight:700;font-size:12px" onclick="monthClose()">🔒 மாதம் முடி — முன்பாக்கி Update</button>
       <div id="mc-result" style="margin-top:8px"></div>
+    </div>
+    <div style="margin-bottom:12px;border:1.5px solid #c8952a;border-radius:8px;padding:10px">
+      <div style="font-weight:700;color:#c8952a;font-size:12px;margin-bottom:6px">📅 Customer முன்பாக்கி தேதி Set</div>
+      <div style="font-size:10.5px;color:#777;margin-bottom:8px;line-height:1.4">Master Data-ல் Customer-ஓட "முன்பாக்கி" தொகையை manually update பண்ணும்போது, அது எந்த தேதி வரைக்கும் சரியானது ("as of") ன்னு இங்க set பண்ணுங்க. இல்லைன்னா, அதற்கு பிறகான entries கூடுதலா இரண்டாம் தடவை சேர்ந்து Payments tab-ல் balance தப்பா தெரியும்.</div>
+      <input type="text" id="cmc-cust-search" placeholder="🔍 Customer பெயர்..." autocomplete="off" oninput="onCmcCustSearch(this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:8px;box-sizing:border-box">
+      <div id="cmc-cust-suggest" style="display:none;max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px"></div>
+      <div id="cmc-cust-selected" style="display:none;background:#fff8e6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"></div>
+      <input type="date" id="cmc-prevdate-input" style="width:100%;margin-bottom:8px" disabled>
+      <button class="btn" style="width:100%;padding:9px;background:#c8952a;color:#fff;font-weight:700;font-size:12px" onclick="setCustPrevDate()" id="cmc-set-btn" disabled>✅ முன்பாக்கி தேதி Set பண்ணு</button>
+      <div id="cmc-result" style="margin-top:8px"></div>
     </div>
     <div style="margin-bottom:12px;border:1.5px dashed #999;border-radius:8px;padding:10px;background:#faf7f2">
       <div style="font-weight:700;color:#888;font-size:11px;margin-bottom:6px">⚠️ Danger Zone — Owner மட்டும்</div>
@@ -2609,6 +2619,48 @@ async function monthClose(){
     </div>`;
   }
   alert2('மாதம் முடிந்தது! '+supChanges.length+' தோட்டம் suppliers முன்பாக்கி update ஆச்சு ✅','ok');
+}
+
+let cmcSelectedCust=null;
+function onCmcCustSearch(val){
+  const suggestDiv=document.getElementById('cmc-cust-suggest');
+  const q=normName_(val.trim());
+  if(!q){ suggestDiv.style.display='none'; suggestDiv.innerHTML=''; return; }
+  const names=[...new Set(db.sales.map(s=>s.party))].filter(n=>n&&normName_(n).includes(q)).sort().slice(0,15);
+  if(!names.length){ suggestDiv.style.display='none'; suggestDiv.innerHTML=''; return; }
+  suggestDiv.style.display='block';
+  suggestDiv.innerHTML=names.map(n=>`<div onclick="selectCmcCust('${n.replace(/'/g,"\\'")}')" style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;cursor:pointer">${n}</div>`).join('');
+}
+function selectCmcCust(name){
+  cmcSelectedCust=name;
+  document.getElementById('cmc-cust-search').value=name;
+  document.getElementById('cmc-cust-suggest').style.display='none';
+  const mc=findMasterCustomer(name);
+  const curPrev=mc&&mc.prev>0?mc.prev:0;
+  const curPrevDate=mc&&mc.prevDate?fmtDate(mc.prevDate):'(இதுவரை set ஆகல)';
+  const selDiv=document.getElementById('cmc-cust-selected');
+  selDiv.style.display='block';
+  selDiv.innerHTML=`<b>${name}</b> — தற்போதைய முன்பாக்கி: ₹${curPrev.toLocaleString('en-IN')} <br>இப்போ இருக்கிற "as-of" தேதி: ${curPrevDate}`;
+  const dateInput=document.getElementById('cmc-prevdate-input');
+  dateInput.disabled=false;
+  dateInput.value=mc&&mc.prevDate?mc.prevDate:today;
+  document.getElementById('cmc-set-btn').disabled=false;
+}
+async function setCustPrevDate(){
+  if(!cmcSelectedCust) return;
+  const dateVal=document.getElementById('cmc-prevdate-input').value;
+  if(!dateVal) return alert2('தேதி தேர்வு பண்ணுங்க!','err');
+  const mc=findMasterCustomer(cmcSelectedCust);
+  if(!mc) return alert2('இந்த customer Master Data-ல் இல்லை!','err');
+  const ok=await confirm2(cmcSelectedCust+'-ஓட முன்பாக்கி (₹'+(mc.prev||0).toLocaleString('en-IN')+') "'+fmtDate(dateVal)+'" தேதி வரைக்கும் சரியானது-ன்னு set பண்ணலாமா? (இதற்கு பிறகான entries மட்டும் balance-ல கூடுதலா சேர்க்கப்படும்.)');
+  if(!ok) return;
+  mc.prevDate=dateVal;
+  saveMasterLocal();
+  saveMasterFirebase('customers');
+  const resDiv=document.getElementById('cmc-result');
+  if(resDiv) resDiv.innerHTML=`<div style="background:#e6f7ed;border-radius:8px;padding:10px 12px;font-size:12px">✅ ${cmcSelectedCust} — முன்பாக்கி ₹${(mc.prev||0).toLocaleString('en-IN')}, "${fmtDate(dateVal)}" தேதி வரைக்கும் சரியானது-ன்னு set ஆச்சு.</div>`;
+  alert2('✅ முன்பாக்கி தேதி set ஆச்சு!','ok');
+  renderPay();
 }
 
 function generateMonthSlips(){
