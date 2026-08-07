@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260807-v107-fix59';
+  var APP_BUILD = '20260807-v108-fix60';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2734,9 +2734,9 @@ function paySupplier(name,netPay,customGross,customPaid,periodLabel){
 function receiveFromSupplier(name,amt){
   openPay('pur_in',null,name,amt);
 }
-function collectCust(name,due){
+function collectCust(name,due,customGross,customPaid,periodLabel){
   const entries=db.sales.filter(s=>!s.deleted&&(s.party===name&&s.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-  openPay('sal',entries[0]?entries[0].id:null,name,due);
+  openPay('sal',entries[0]?entries[0].id:null,name,due,customGross,customPaid,periodLabel);
 }
 
 function pmSetMode(mode){
@@ -2777,9 +2777,9 @@ function openPay(type,id,name,due,customGross,customPaid,periodLabel){
   const grossLabel=document.getElementById('pm-gross-label');
   if(grossLabel) grossLabel.textContent=(periodLabel?periodLabel+' — ':'')+((type==='pur'||type==='pur_in')?'மொத்த வரவு':'மொத்த விற்பனை');
   const paidLabel=document.querySelector('#pm-summary div:nth-child(2) span:first-child');
-  if(paidLabel) paidLabel.textContent=type==='sal'?'முன்பாக்கி':type==='pur_in'?'அதிக பற்று':'பற்று';
+  if(paidLabel) paidLabel.textContent=type==='sal'?(customPaid!=null?'வரவு':'முன்பாக்கி'):type==='pur_in'?'அதிக பற்று':'பற்று';
   document.getElementById('pm-gross').textContent='₹'+gross.toLocaleString('en-IN');
-  document.getElementById('pm-already-paid').textContent=type==='sal'?'₹'+prev.toLocaleString('en-IN'):'₹'+alreadyPaid.toLocaleString('en-IN');
+  document.getElementById('pm-already-paid').textContent=(type==='sal'&&customPaid==null)?'₹'+prev.toLocaleString('en-IN'):'₹'+alreadyPaid.toLocaleString('en-IN');
   document.getElementById('pm-balance-show').textContent='₹'+Math.abs(netDue).toLocaleString('en-IN');
   // வரவு input field
   const varavyRow=document.getElementById('pm-varavy-row');
@@ -3887,6 +3887,7 @@ function _genReport(){
               <span>${netBalCust>0?'நிலுவை :':'அதிக வரவு :'}</span>
               <span style="color:${netBalCust>0?'#c0392b':'#1a6b3a'}">${Math.abs(netBalCust).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
+            ${netBalCust>0?`<button class="rpt-action-btn" onclick="collectCust('${normName}',${netBalCust},${mottaVirpanai},${munPakkiCust+totalVaravu},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💰 Receive ₹${Math.abs(netBalCust).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
           </div>
         </div>`;
     }
