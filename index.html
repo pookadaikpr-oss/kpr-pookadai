@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260807-v112-fix64';
+  var APP_BUILD = '20260807-v113-fix65';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -475,6 +475,16 @@ tbody td{padding:8px 11px}
       <div class="fg" style="margin-bottom:8px"><label style="font-size:11px">தேதி தேர்வு (காலி விட்டா — Recent 20)</label><input type="date" id="pay-list-date" oninput="renderRecentPayments()"></div>
       <div id="recent-pay-items"></div>
     </div>
+    <button class="btn boo" style="width:100%;padding:10px;font-size:13px;margin-top:6px;color:#c8952a;border-color:#c8952a" onclick="toggleCmcTool()" id="cmc-toggle-btn">📅 Customer முன்பாக்கி தேதி Set</button>
+    <div id="cmc-tool-box" style="display:none;margin-top:8px;border:1.5px solid #c8952a;border-radius:8px;padding:10px">
+      <div style="font-size:10.5px;color:#777;margin-bottom:8px;line-height:1.4">Master Data-ல் Customer-ஓட "முன்பாக்கி" தொகையை manually update பண்ணும்போது, அது எந்த தேதி வரைக்கும் சரியானது ("as of") ன்னு இங்க set பண்ணுங்க. இல்லைன்னா, அதற்கு பிறகான entries கூடுதலா இரண்டாம் தடவை சேர்ந்து Payments tab-ல் balance தப்பா தெரியும்.</div>
+      <input type="text" id="cmc-cust-search" placeholder="🔍 Customer பெயர்..." autocomplete="off" oninput="onCmcCustSearch(this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:8px;box-sizing:border-box">
+      <div id="cmc-cust-suggest" style="display:none;max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px"></div>
+      <div id="cmc-cust-selected" style="display:none;background:#fff8e6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"></div>
+      <input type="date" id="cmc-prevdate-input" style="width:100%;margin-bottom:8px" disabled>
+      <button class="btn" style="width:100%;padding:9px;background:#c8952a;color:#fff;font-weight:700;font-size:12px" onclick="setCustPrevDate()" id="cmc-set-btn" disabled>✅ முன்பாக்கி தேதி Set பண்ணு</button>
+      <div id="cmc-result" style="margin-top:8px"></div>
+    </div>
   </div>
   <div id="pay-sup">
     <div class="sec" style="margin-top:6px">🏪 Supplier நிலுவை</div>
@@ -589,16 +599,6 @@ tbody td{padding:8px 11px}
       </div>
       <button class="btn" style="width:100%;padding:9px;background:#c0392b;color:#fff;font-weight:700;font-size:12px" onclick="monthClose()">🔒 மாதம் முடி — முன்பாக்கி Update</button>
       <div id="mc-result" style="margin-top:8px"></div>
-    </div>
-    <div style="margin-bottom:12px;border:1.5px solid #c8952a;border-radius:8px;padding:10px">
-      <div style="font-weight:700;color:#c8952a;font-size:12px;margin-bottom:6px">📅 Customer முன்பாக்கி தேதி Set</div>
-      <div style="font-size:10.5px;color:#777;margin-bottom:8px;line-height:1.4">Master Data-ல் Customer-ஓட "முன்பாக்கி" தொகையை manually update பண்ணும்போது, அது எந்த தேதி வரைக்கும் சரியானது ("as of") ன்னு இங்க set பண்ணுங்க. இல்லைன்னா, அதற்கு பிறகான entries கூடுதலா இரண்டாம் தடவை சேர்ந்து Payments tab-ல் balance தப்பா தெரியும்.</div>
-      <input type="text" id="cmc-cust-search" placeholder="🔍 Customer பெயர்..." autocomplete="off" oninput="onCmcCustSearch(this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:8px;box-sizing:border-box">
-      <div id="cmc-cust-suggest" style="display:none;max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px"></div>
-      <div id="cmc-cust-selected" style="display:none;background:#fff8e6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"></div>
-      <input type="date" id="cmc-prevdate-input" style="width:100%;margin-bottom:8px" disabled>
-      <button class="btn" style="width:100%;padding:9px;background:#c8952a;color:#fff;font-weight:700;font-size:12px" onclick="setCustPrevDate()" id="cmc-set-btn" disabled>✅ முன்பாக்கி தேதி Set பண்ணு</button>
-      <div id="cmc-result" style="margin-top:8px"></div>
     </div>
     <div style="margin-bottom:12px;border:1.5px dashed #999;border-radius:8px;padding:10px;background:#faf7f2">
       <div style="font-weight:700;color:#888;font-size:11px;margin-bottom:6px">⚠️ Danger Zone — Owner மட்டும்</div>
@@ -2945,6 +2945,11 @@ function toggleRecentPayments(){
     if(dEl && !dEl.value) dEl.value=today;
     renderRecentPayments();
   }
+}
+function toggleCmcTool(){
+  const div=document.getElementById('cmc-tool-box');
+  if(!div) return;
+  div.style.display=div.style.display==='none'?'block':'none';
 }
 function renderRecentPayments(){
   const div=document.getElementById('recent-pay-items');
