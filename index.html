@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260807-v109-fix61';
+  var APP_BUILD = '20260807-v110-fix62';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2777,10 +2777,18 @@ function openPay(type,id,name,due,customGross,customPaid,periodLabel){
     // (all-time recalculate பண்ணாம), report-உடன் 100% match ஆகும்.
     gross=customGross; alreadyPaid=customPaid;
   } else {
-    // Supplier நிலுவை (Payments tab) — quick-pay, all-time balance context.
-    const entries=(type==='pur'||type==='pur_in')?db.purchases.filter(p=>!p.deleted&&(p.supplier===name)):db.sales.filter(s=>!s.deleted&&(s.party===name));
-    gross=entries.reduce((a,e)=>a+e.total,0);
-    alreadyPaid=entries.reduce((a,e)=>a+e.paid,0);
+    // Supplier/Customer நிலுவை (Payments tab quick-pay) — Month Close தேதிக்கு (prevDate)
+    // பிறகான entries மட்டும் + முன்பாக்கி. இல்லைன்னா Month Close ஆன பழைய balance,
+    // முன்பாக்கி + all-time entries ரெண்டிலும் double-count ஆகி தப்பான periodஎ காட்டிடும்.
+    const isSup=(type==='pur'||type==='pur_in');
+    const masterRec=isSup?findMasterSupplier(name):findMasterCustomer(name);
+    const effDate=(masterRec&&masterRec.prevDate)||REAL_DATA_CUTOFF;
+    const openingPrev=masterRec&&masterRec.prev>0?masterRec.prev:0;
+    const entries=isSup?db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.date>=effDate)):db.sales.filter(s=>!s.deleted&&(s.party===name&&s.date>=effDate));
+    gross=entries.reduce((a,e)=>a+e.total,0)+openingPrev;
+    // due (adjustedDue/dueBal) ஏற்கனவே காலருந்து caller-ஆல் சரியா கணக்கு போடப்பட்டிருக்கு —
+    // gross-alreadyPaid எப்போவும் due-க்கு சமம்-ஆ இருக்க, இப்படி derive பண்றோம்.
+    alreadyPaid=gross-due;
   }
   let prev;
   if(type==='sal'){
@@ -2796,9 +2804,9 @@ function openPay(type,id,name,due,customGross,customPaid,periodLabel){
   const grossLabel=document.getElementById('pm-gross-label');
   if(grossLabel) grossLabel.textContent=(periodLabel?periodLabel+' — ':'')+((type==='pur'||type==='pur_in')?'மொத்த வரவு':'மொத்த விற்பனை');
   const paidLabel=document.querySelector('#pm-summary div:nth-child(2) span:first-child');
-  if(paidLabel) paidLabel.textContent=type==='sal'?(customPaid!=null?'வரவு':'முன்பாக்கி'):type==='pur_in'?'அதிக பற்று':'பற்று';
+  if(paidLabel) paidLabel.textContent=type==='sal'?'வரவு':type==='pur_in'?'அதிக பற்று':'பற்று';
   document.getElementById('pm-gross').textContent='₹'+gross.toLocaleString('en-IN');
-  document.getElementById('pm-already-paid').textContent=(type==='sal'&&customPaid==null)?'₹'+prev.toLocaleString('en-IN'):'₹'+alreadyPaid.toLocaleString('en-IN');
+  document.getElementById('pm-already-paid').textContent='₹'+alreadyPaid.toLocaleString('en-IN');
   document.getElementById('pm-balance-show').textContent='₹'+Math.abs(netDue).toLocaleString('en-IN');
   // வரவு input field
   const varavyRow=document.getElementById('pm-varavy-row');
