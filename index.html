@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260807-v108-fix60';
+  var APP_BUILD = '20260807-v109-fix61';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2690,15 +2690,27 @@ function generateMonthSlips(){
 function renderPay(){
   if(!db.commissions) db.commissions={};
   const sm={};
-  db.purchases.forEach(p=>{ if(p.deleted) return; if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0}; sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0); });
+  // BUG FIX: Month Close ஆன பிறகு, master.prev (முன்பாக்கி) ஏற்கனவே அந்த தேதி வரையிலான
+  // net balance-ஐ capture பண்ணிடுச்சு. அதுக்கு மேல எல்லா (all-time) sales/purchase entries-ஐயும்
+  // முழுசா கூட்டி காட்டினா, பழைய balance ரெண்டு தடவை (double) சேர்ந்திடும். அதனால prevDate-க்கு
+  // பிறகான entries மட்டும் எடுத்து, அதுக்கு மேல முன்பாக்கி சேர்க்கிறோம் — Report-ஓட logic exact-ஆ match.
+  db.purchases.forEach(p=>{
+    if(p.deleted) return;
+    const ms=findMasterSupplier(p.supplier);
+    const effDate=(ms&&ms.prevDate)||REAL_DATA_CUTOFF;
+    if(p.date<effDate) return;
+    if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0};
+    sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0);
+  });
   const sdiv=document.getElementById('sup-due-list');
   const supSearchEl=document.getElementById('sup-due-search');
   const supSearch=supSearchEl?normName_(supSearchEl.value):'';
   const slist=Object.entries(sm).filter(([n])=>!supSearch||normName_(n).includes(supSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
-    const received=(db.payments||[]).filter(p=>!p.deleted&&p.type==='pur_in'&&p.name===n).reduce((a,p)=>a+(p.amount||0),0);
     const masterSup=findMasterSupplier(n);
+    const effDate=(masterSup&&masterSup.prevDate)||REAL_DATA_CUTOFF;
+    const received=(db.payments||[]).filter(p=>!p.deleted&&p.type==='pur_in'&&p.name===n&&p.date>=effDate).reduce((a,p)=>a+(p.amount||0),0);
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
     const adjustedDue=v.total-v.comm-v.paid+received+munPakki;
     const btn=adjustedDue>=0
@@ -2707,7 +2719,14 @@ function renderPay(){
     return`<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:14px;font-weight:700;color:var(--green)">🌿 ${n}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span>மொத்த வரவு</span><span>₹${v.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${munPakki>0?`<div style="display:flex;justify-content:space-between"><span>முன் பாக்கி</span><span>₹${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}<div style="display:flex;justify-content:space-between"><span>பற்று</span><span style="color:var(--green)">₹${adjustedDue.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>${received>0?`<div style="display:flex;justify-content:space-between"><span>Received (பாக்கி குறைப்பு)</span><span style="color:var(--gold)">₹${received.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}</div>${btn}</div>`;
   }).join(''):`<div class="empty"><div class="eico">${supSearch?'🔍':'✅'}</div>${supSearch?'இந்த பெயர்-ல supplier இல்லை':'Supplier data இல்லை'}</div>`;
   const cm={};
-  db.sales.forEach(s=>{ if(s.deleted) return; if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0}; cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance; });
+  db.sales.forEach(s=>{
+    if(s.deleted) return;
+    const mc=findMasterCustomer(s.party);
+    const effDate=(mc&&mc.prevDate)||REAL_DATA_CUTOFF;
+    if(s.date<effDate) return;
+    if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0};
+    cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance;
+  });
   const cdiv=document.getElementById('cust-due-list');
   const custSearchEl=document.getElementById('cust-due-search');
   const custSearch=custSearchEl?normName_(custSearchEl.value):'';
