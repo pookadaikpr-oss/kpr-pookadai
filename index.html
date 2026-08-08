@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260807-v113-fix65';
+  var APP_BUILD = '20260808-v117-fix69';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -475,16 +475,6 @@ tbody td{padding:8px 11px}
       <div class="fg" style="margin-bottom:8px"><label style="font-size:11px">தேதி தேர்வு (காலி விட்டா — Recent 20)</label><input type="date" id="pay-list-date" oninput="renderRecentPayments()"></div>
       <div id="recent-pay-items"></div>
     </div>
-    <button class="btn boo" style="width:100%;padding:10px;font-size:13px;margin-top:6px;color:#c8952a;border-color:#c8952a" onclick="toggleCmcTool()" id="cmc-toggle-btn">📅 Customer முன்பாக்கி தேதி Set</button>
-    <div id="cmc-tool-box" style="display:none;margin-top:8px;border:1.5px solid #c8952a;border-radius:8px;padding:10px">
-      <div style="font-size:10.5px;color:#777;margin-bottom:8px;line-height:1.4">Master Data-ல் Customer-ஓட "முன்பாக்கி" தொகையை manually update பண்ணும்போது, அது எந்த தேதி வரைக்கும் சரியானது ("as of") ன்னு இங்க set பண்ணுங்க. இல்லைன்னா, அதற்கு பிறகான entries கூடுதலா இரண்டாம் தடவை சேர்ந்து Payments tab-ல் balance தப்பா தெரியும்.</div>
-      <input type="text" id="cmc-cust-search" placeholder="🔍 Customer பெயர்..." autocomplete="off" oninput="onCmcCustSearch(this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:8px;box-sizing:border-box">
-      <div id="cmc-cust-suggest" style="display:none;max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px"></div>
-      <div id="cmc-cust-selected" style="display:none;background:#fff8e6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"></div>
-      <input type="date" id="cmc-prevdate-input" style="width:100%;margin-bottom:8px" disabled>
-      <button class="btn" style="width:100%;padding:9px;background:#c8952a;color:#fff;font-weight:700;font-size:12px" onclick="setCustPrevDate()" id="cmc-set-btn" disabled>✅ முன்பாக்கி தேதி Set பண்ணு</button>
-      <div id="cmc-result" style="margin-top:8px"></div>
-    </div>
   </div>
   <div id="pay-sup">
     <div class="sec" style="margin-top:6px">🏪 Supplier நிலுவை</div>
@@ -827,6 +817,7 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>போன்</label><div style="display:flex;gap:6px"><input type="tel" id="ms-cust-phone" placeholder="போன் எண்" style="flex:1"><button type="button" tabindex="-1" onclick="pickContact('ms-cust-phone')" style="background:#fff8e1;border:1.5px solid var(--gold);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px">📞</button></div></div>
         <div class="fg"><label>முன்பாக்கி</label><input type="number" id="ms-cust-prev" placeholder="0" value="0" min="0"></div>
       </div>
+      <div class="fg" style="margin-bottom:8px"><label>முன்பாக்கி தேதி (இந்த தேதி முதல் entries report-ல் கூடுதலா வரும்)</label><input type="date" id="ms-cust-prev-date"></div>
       <button class="btn bo" style="width:100%" onclick="saveMasterCust()">💾 Save வியாபாரி</button>
     </div>
     <div class="card">
@@ -1045,11 +1036,12 @@ function saveMasterCust(){
     name,
     town:document.getElementById('ms-cust-town').value.trim(),
     phone:document.getElementById('ms-cust-phone').value.trim(),
-    prev:parseFloat(document.getElementById('ms-cust-prev').value)||0
+    prev:parseFloat(document.getElementById('ms-cust-prev').value)||0,
+    prevDate:document.getElementById('ms-cust-prev-date').value||''
   };
   const wasEditing = editingCustIdx;
   editingCustIdx=-1;
-  ['ms-cust-name','ms-cust-town','ms-cust-phone'].forEach(id=>document.getElementById(id).value='');
+  ['ms-cust-name','ms-cust-town','ms-cust-phone','ms-cust-prev-date'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-cust-prev').value='0';
   alert2('சேமிக்கிறோம்...','ok');
   fetch(FIREBASE_URL+'/master/customers.json').then(r=>r.json()).then(fresh=>{
@@ -1110,6 +1102,7 @@ function editMasterCust(idx){
     document.getElementById('ms-cust-town').value=c.town||'';
     document.getElementById('ms-cust-phone').value=c.phone||'';
     document.getElementById('ms-cust-prev').value=c.prev||0;
+    document.getElementById('ms-cust-prev-date').value=c.prevDate||'';
     window.scrollTo({top:0,behavior:'smooth'});
     alert2(c.name+' — edit பண்ணலாம்! Save பண்ணினா update ஆகும்','ok');
   },100);
@@ -1200,7 +1193,7 @@ function renderMaster(){
         </div>
         <div style="font-size:11px;color:#666;line-height:1.8">
           ${c.town?'📍 '+c.town+' ':''} ${c.phone?'📞 '+c.phone:''}
-          ${c.prev>0?'<br>முன்பாக்கி: <b>₹'+c.prev.toLocaleString('en-IN')+'</b>':''}
+          ${c.prev>0?'<br>முன்பாக்கி: <b>₹'+c.prev.toLocaleString('en-IN')+'</b>'+(c.prevDate?' <span style="color:#888;font-size:10px">'+c.prevDate.split('-').reverse().join('/')+' முதல்</span>':' <span style="color:#c0392b;font-size:10px">⚠️ தேதி set ஆகல</span>'):''}
         </div>
       </div>`).join('')
     : '<div style="color:#aaa;font-size:13px;padding:10px 0;text-align:center">'+(supSearch?'தேடிய பெயர் இல்லை':'இன்னும் சேர்க்கலை')+'</div>';
@@ -3732,11 +3725,33 @@ function _genReport(){
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு
       const masterSup=findMasterSupplier(normName);
-      // முன்பாக்கி தேதி check — prevDate set பண்ணாத suppliers-க்கு REAL_DATA_CUTOFF
-      // (01/07/2026) default-ஆ எடுத்துக்கறோம், இல்லைன்னா ஜூன்/முன் தேதி report-லயும் தப்பா காட்டும்.
+      // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
+      const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
+      const isOutside=outsideCount>entries.length/2;
       const effPrevDate2=masterSup?.prevDate||REAL_DATA_CUTOFF;
-      const prevDateOk=effPrevDate2<=from;
-      const munPakki=masterSup&&masterSup.prev>0&&prevDateOk?masterSup.prev:0;
+      const baseMunPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
+      let munPakki;
+      if(!isOutside){
+        // தோட்டம் suppliers — Month Close இதை regular-ஆ handle பண்றது, EXACT பழைய behavior-ஏ
+        // (touch பண்ணாம வெச்சிருக்கோம்): prevDate<=from ஆனா base முன்பாக்கி full-ஆ, இல்லைன்னா 0.
+        const prevDateOk=effPrevDate2<=from;
+        munPakki=baseMunPakki>0&&prevDateOk?baseMunPakki:0;
+      } else {
+        // வெளியூர்/வெளிகடை suppliers — Month Close touch பண்ணாது, அதனால prevDate-க்கும்
+        // "From" date-க்கும் நடுவுல உள்ள gap entries-ஐ roll-forward பண்ணி முன்பாக்கியுடன் சேர்க்கிறோம்
+        // (Customer report-ல் செஞ்ச அதே continuous-ledger fix). தோட்டம்-ஐ இது touch பண்ணாது.
+        munPakki=0;
+        if(effPrevDate2<=from){
+          const gapEntries=db.purchases.filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===normName&&p.date>=effPrevDate2&&p.date<from);
+          const gapTotal=gapEntries.reduce((a,e)=>a+e.total,0);
+          const gapCommTotal=gapEntries.reduce((a,e)=>a+(e.commission||0),0);
+          const gapPaidCash=gapEntries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
+          const gapPaymentsAmt=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=effPrevDate2&&p.date<from).reduce((a,p)=>a+p.amount,0);
+          const gapPatru=gapPaidCash+gapPaymentsAmt;
+          const gapNetBal=gapCommTotal+gapPatru-gapTotal;
+          munPakki=baseMunPakki+gapNetBal;
+        }
+      }
       const pooVaravu=entries.reduce((a,e)=>a+e.total,0);
       const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
       const totalCommOnly=entries.reduce((a,e)=>a+Math.round(e.total*(e.commPct||0)/100*100)/100,0);
@@ -3761,9 +3776,6 @@ function _genReport(){
       const laterPaymentsByDate={};
       db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
       const laterPaymentsList=Object.keys(laterPaymentsByDate).sort().map(dt=>({date:dt,amount:laterPaymentsByDate[dt]}));
-      // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
-      const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
-      const isOutside=outsideCount>entries.length/2;
       // தோட்டம்: net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
       // வெளியூர்/வெளிகடை: net = கமிசன் + பற்று - முன்பாக்கி - பூ வரவு (முன்பாக்கி + சரக்கு கூட்டி பற்று ஏறும்)
       const netBal=isOutside?((totalComm+totalPatru)-(munPakki+pooVaravu)):(pooVaravu-(totalPatru+munPakki+totalComm));
@@ -3877,9 +3889,19 @@ function _genReport(){
     } else {
       // ===== CUSTOMER RECEIPT FORMAT =====
       entries.sort((a,b)=>a.date.localeCompare(b.date));
-      // முன்பாக்கி - master data-ல் இருந்து எடு, இல்லன்னா entries-ல் பார்
+      // முன்பாக்கி - Master Data prevDate/prev-ஐ base-ஆ எடுத்து, prevDate முதல் "From" date
+      // வரைக்கும் (report period-க்கு வெளில) உள்ள entries-ஐயும் roll-forward பண்ணி சேர்க்கிறோம்.
+      // இதுதான் "continuous running ledger" சரியா வேலை பண்ண அவசியம் — இல்லைன்னா prevDate-க்கும்
+      // "From" date-க்கும் நடுவுல உள்ள மாசங்களோட entries எந்த report-லும் தெரியாம போயிடும்.
       const masterCust=findMasterCustomer(normName);
-      const munPakkiCust=masterCust&&masterCust.prev>0?masterCust.prev:0;
+      const baseDate=(masterCust&&masterCust.prevDate)||REAL_DATA_CUTOFF;
+      const baseAmt=masterCust&&masterCust.prev>0?masterCust.prev:0;
+      const gapEntries=db.sales.filter(s=>!s.deleted&&s.party&&normName_(s.party)===normName&&s.date>=baseDate&&s.date<from);
+      const gapTotal=gapEntries.reduce((a,e)=>a+e.total,0);
+      const gapPaidEntries=gapEntries.reduce((a,e)=>a+(e.paid||0),0);
+      const gapPayments=db.payments.filter(p=>!p.deleted&&p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=baseDate&&p.date<from);
+      const gapPaid=gapPayments.length>0?gapPayments.reduce((a,p)=>a+(p.amount||0),0):gapPaidEntries;
+      const munPakkiCust=baseAmt+gapTotal-gapPaid;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
       const custPayments=db.payments.filter(p=>!p.deleted&&p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
       // Payments tab-ல் entries இருந்தா, அதுவே single source (sales.paid duplicate ஆகும்).
