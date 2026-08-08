@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260808-v117-fix69';
+  var APP_BUILD = '20260808-v118-fix70';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2896,7 +2896,14 @@ function refreshLedger(){
 function legacyPaidCash(p){
   if(p.paidCash!=null) return p.paidCash;
   if(p.paidItems&&p.paidItems.length) return 0;
-  return p.paid||0;
+  // BUG FIX: முன்ன "return p.paid||0" fallback இருந்துச்சு — இது serious double-count bug-க்கு
+  // காரணமா இருந்துச்சு. confirmPay() lump-sum Pay/Receive பண்ணும்போது, பழைய unpaid entries-ஐ
+  // FIFO-ஆ தேடி அவங்களோட e.paid field-ஐ (balance tracking-க்காக) update பண்ணும் — இது
+  // paidCash இல்ல. அந்த அதே lump-sum தொகை, db.payments-ல் ஒரு standalone record-ஆவும் save
+  // ஆகும். Report இந்த ரெண்டையும் (legacyPaidCash fallback + standalone payment) சேர்த்து
+  // கூட்டினதால், distribute ஆன பகுதி இரண்டு தடவை கணக்கில் சேர்ந்து "அதிக பற்று" தப்பா காட்டிச்சு.
+  // paidCash set ஆகாத entry-க்கு, immediate cash 0 தான் — அதை e.paid fallback-ஆ எடுக்கக்கூடாது.
+  return 0;
 }
 function paidItemLabel(it){
   if(it.type==='நாத்து') return 'நாத்து-'+(it.item||'')+' '+(it.qty||0)+'×'+(it.price||0);
