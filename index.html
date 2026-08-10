@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260808-v118-fix70';
+  var APP_BUILD = '20260810-v122-fix74';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2263,7 +2263,7 @@ function renderPL(){
   const tb=document.getElementById('pl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
-    tb.innerHTML=list.map(p=>{ const pTotal=(typeof p.total==='number'&&!isNaN(p.total))?p.total:0; const pPaid=(typeof p.paid==='number'&&!isNaN(p.paid))?p.paid:0; const pBal=(typeof p.balance==='number'&&!isNaN(p.balance))?p.balance:0; st+=pTotal; sp+=pPaid; sb+=pBal;
+    tb.innerHTML=list.map(p=>{ const pTotal=(typeof p.total==='number'&&!isNaN(p.total))?p.total:0; const pPaid=((typeof p.paid==='number'&&!isNaN(p.paid))?p.paid:0)+(p.retroPaid||0); const pBal=(typeof p.balance==='number'&&!isNaN(p.balance))?p.balance:0; st+=pTotal; sp+=pPaid; sb+=pBal;
       const istr=(p.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
       const badTotal=(typeof p.total!=='number'||isNaN(p.total));
       const bc=pBal>0?'br2':(pBal<0?'bo2':'bg2'); const bt=pBal>0?'₹'+pBal.toFixed(2):(pBal<0?'₹'+Math.abs(pBal).toFixed(2):'Paid ✓');      return`<tr${badTotal?' style="background:#fff3cd"':''}><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr||(badTotal?'⚠️ Invalid total':'')}</td><td>₹${pTotal.toFixed(2)}</td><td>₹${pPaid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap"><button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
@@ -2282,10 +2282,10 @@ function renderSL(){
   const tb=document.getElementById('sl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
-    tb.innerHTML=list.map(s=>{ st+=s.total; sp+=s.paid; sb+=s.balance;
+    tb.innerHTML=list.map(s=>{ const sPaid=(s.paid||0)+(s.retroPaid||0); st+=s.total; sp+=sPaid; sb+=s.balance;
       const istr=(s.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
       const bc=s.balance>0?'br2':(s.balance<0?'bo2':'bg2'); const bt=s.balance>0?'₹'+s.balance.toFixed(2):(s.balance<0?'முன்பாக்கி ₹'+Math.abs(s.balance).toFixed(2):'Paid ✓');
-      return`<tr><td>${fmtDate(s.date)}</td><td><b>${s.party}</b></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${s.total.toFixed(2)}</td><td>₹${s.paid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${s.balance>0?`<button class="btn bo bsm" onclick="collectCust('${s.party.replace(/'/g,"\\'")}',${s.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('sal','${s.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('sal','${s.id}')">🗑</button></td></tr>`;
+      return`<tr><td>${fmtDate(s.date)}</td><td><b>${s.party}</b></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${s.total.toFixed(2)}</td><td>₹${sPaid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${s.balance>0?`<button class="btn bo bsm" onclick="collectCust('${s.party.replace(/'/g,"\\'")}',${s.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('sal','${s.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('sal','${s.id}')">🗑</button></td></tr>`;
     }).join('');
   }
   document.getElementById('sl-tot').textContent=`மொத்தம்: ₹${st.toFixed(2)} | வரவு: ₹${sp.toFixed(2)} | நிலுவை: ₹${Math.max(0,sb).toFixed(2)}`;
@@ -2555,10 +2555,17 @@ async function monthClose(){
   const paySupNames=(db.payments||[]).filter(p=>!p.deleted&&(p.type==='pur'||p.type==='pur_in')&&(p.date>=from&&p.date<=to)).map(p=>p.name);
   const supNames=[...new Set([...purSupNames,...paySupNames].filter(Boolean))];
   const computed=[];
+  const nameMismatches=[];
   supNames.forEach(name=>{
     const masterSup=findMasterSupplier(name);
+    if(!masterSup){
+      // Master Data-ல் இந்த பேருக்கு exact match கிடைக்கல — "தோட்டம்"-ஆ தப்பா assume
+      // பண்ணாம (பழைய bug), முழுசா skip பண்ணி, spelling mismatch-ஆ இருக்கலாம்-ன்னு warn பண்றோம்.
+      nameMismatches.push(name);
+      return;
+    }
     // தோட்டம் category suppliers மட்டும் — வெளியூர்/வெளிகடை skip
-    const supTypeVal=masterSup&&masterSup.type?masterSup.type:'தோட்டம்';
+    const supTypeVal=masterSup.type||'தோட்டம்';
     if(supTypeVal!=='தோட்டம்') return;
     const entries=db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.date>=from&&p.date<=to));
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
@@ -2571,8 +2578,17 @@ async function monthClose(){
     const receivedTotal=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
     const totalPatru=paidCashTotal+paymentsPaid;
     const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
-    computed.push({name,masterSup,netBal,isFloat:!!(masterSup&&masterSup.floatTarget>0)});
+    computed.push({name,masterSup,netBal,pooVaravu,totalPatru,munPakki,isFloat:!!(masterSup&&masterSup.floatTarget>0)});
   });
+
+  // ===== SAFETY CHECK: Master Data-ல் பேர் match ஆகாத suppliers (spelling mismatch-ஆ இருக்கலாம்) =====
+  if(nameMismatches.length){
+    const mismatchMsg='⚠️ இந்த '+nameMismatches.length+' பேர்கள், Purchase/Payments entries-ல் இருக்கு, ஆனா Master Data-ல் exact-ஆ match ஆகல (spelling வித்தியாசமா இருக்கலாம்):<br><br>'
+      +nameMismatches.map(n=>'• '+n).join('<br>')
+      +'<br><br>இவங்க Month Close-ல் முழுசா <b>skip</b> ஆவாங்க (safety-க்காக, தப்பா தோட்டம்-ஆ assume பண்ண மாட்டோம்). Master Data-ல் spelling சரி பண்ணி, "பெயர் Spelling ஒன்றா மாற்று" tool மூலமா merge பண்ணிட்டு, மறுபடி Month Close பண்ணுவது நல்லது.<br><br>இப்படியே (இவங்களை skip பண்ணி) தொடரணுமா?';
+    const proceedMismatch=await confirm2(mismatchMsg);
+    if(!proceedMismatch) return;
+  }
 
   // ===== SAFETY CHECK: Pay பண்ணாம மிச்சம் (netBal>0) இருக்குற suppliers இருந்தா warn பண்ணு =====
   // (Float target suppliers-க்கு இது apply ஆகாது — அவங்களுக்கு Target-ஏ எப்போவும் carry forward.)
@@ -2598,17 +2614,30 @@ async function monthClose(){
     const oldPrev=masterSup?masterSup.prev||0:0;
     if(masterSup){ masterSup.prev=newPrev; masterSup.prevDate=to; }
     else{ master.suppliers.push({name,town:'',phone:'',type:'தோட்டம்',comm:10,eduppu:0,prev:newPrev,prevDate:to}); }
-    supChanges.push({name,oldPrev,newPrev,netBal,isFloat});
+    supChanges.push({name,oldPrev,newPrev,netBal,isFloat,pooVaravu:c.pooVaravu,totalPatru:c.totalPatru});
   });
 
   saveMasterLocal();
   saveMasterFirebase('suppliers');
 
+  // Old-software format மாதிரியே — S.No, பெயர், பூ வரவு, பூ பற்று, இறுப்பு (0 எப்போவும்,
+  // legacy column), பற்று (carry-forward) — அகரவரிசைப்படி, verify பண்ண easy-ஆ இருக்க.
+  const sortedChanges=[...supChanges].sort((a,b)=>a.name.normalize('NFC').localeCompare(b.name.normalize('NFC'),'ta'));
+  let grandVaravu=0,grandPatru=0,grandCarry=0;
+  const tableRows=sortedChanges.map((c,i)=>{
+    grandVaravu+=c.pooVaravu; grandPatru+=c.totalPatru; grandCarry+=c.newPrev;
+    return `<tr${i%2?' style="background:#f8f8f8"':''}><td style="padding:4px 6px;border-bottom:1px solid #eee">${i+1}</td><td style="padding:4px 6px;border-bottom:1px solid #eee">${c.name}${c.isFloat?' 🎯':''}</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right">${c.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right">${c.totalPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right">0.00</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:${c.newPrev>0?'#c0392b':'#1a6b3a'}">${c.newPrev.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr>`;
+  }).join('');
   const resDiv=document.getElementById('mc-result');
   if(resDiv){
-    resDiv.innerHTML=`<div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;font-size:12px;max-height:300px;overflow-y:auto">
-      <div style="font-weight:700;margin-bottom:6px">🌿 தோட்டம் Suppliers (${supChanges.length})</div>
-      ${supChanges.map(c=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>${c.name}${c.isFloat?' 🎯':''}</span><span>₹${c.oldPrev.toLocaleString('en-IN')} → ₹${c.newPrev.toLocaleString('en-IN')}</span></div>`).join('')}
+    resDiv.innerHTML=`<div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;overflow-x:auto">
+      <div style="font-weight:700;margin-bottom:8px;font-size:13px">🌿 மாத முடிவு சிட்டை — ${fmtDate(from)} முதல் ${fmtDate(to)} வரை (${supChanges.length} suppliers)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:480px">
+        <thead><tr style="background:#c0392b;color:#fff"><th style="padding:5px 6px;text-align:left">S.No</th><th style="padding:5px 6px;text-align:left">பெயர்</th><th style="padding:5px 6px;text-align:right">பூ வரவு</th><th style="padding:5px 6px;text-align:right">பூ பற்று</th><th style="padding:5px 6px;text-align:right">இறுப்பு</th><th style="padding:5px 6px;text-align:right">பற்று (Carry)</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+        <tfoot><tr style="background:#f0f0f0;font-weight:700"><td colspan="2" style="padding:5px 6px">மொத்தம் (${supChanges.length})</td><td style="padding:5px 6px;text-align:right">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">${grandPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">0.00</td><td style="padding:5px 6px;text-align:right">${grandCarry.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot>
+      </table>
+      <div style="font-size:10px;color:#888;margin-top:6px">💡 "பற்று (Carry)" column-ஐ உங்க கை பேரேடு-ஓட ஒவ்வொரு supplier பாக்கியுடன் compare பண்ணி verify பண்ணுங்க.</div>
     </div>`;
   }
   alert2('மாதம் முடிந்தது! '+supChanges.length+' தோட்டம் suppliers முன்பாக்கி update ஆச்சு ✅','ok');
@@ -2745,7 +2774,7 @@ function renderPay(){
     const effDate=(ms&&ms.prevDate)||REAL_DATA_CUTOFF;
     if(p.date<effDate) return;
     if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0};
-    sm[p.supplier].total+=p.total; sm[p.supplier].paid+=p.paid; sm[p.supplier].comm+=(p.commission||0);
+    sm[p.supplier].total+=p.total; sm[p.supplier].paid+=(p.paid||0)+(p.retroPaid||0); sm[p.supplier].comm+=(p.commission||0);
   });
   const sdiv=document.getElementById('sup-due-list');
   const supSearchEl=document.getElementById('sup-due-search');
@@ -2770,7 +2799,7 @@ function renderPay(){
     const effDate=(mc&&mc.prevDate)||REAL_DATA_CUTOFF;
     if(s.date<effDate) return;
     if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0};
-    cm[s.party].total+=s.total; cm[s.party].paid+=s.paid; cm[s.party].balance+=s.balance;
+    cm[s.party].total+=s.total; cm[s.party].paid+=(s.paid||0)+(s.retroPaid||0); cm[s.party].balance+=s.balance;
   });
   const cdiv=document.getElementById('cust-due-list');
   const custSearchEl=document.getElementById('cust-due-search');
@@ -2896,14 +2925,10 @@ function refreshLedger(){
 function legacyPaidCash(p){
   if(p.paidCash!=null) return p.paidCash;
   if(p.paidItems&&p.paidItems.length) return 0;
-  // BUG FIX: முன்ன "return p.paid||0" fallback இருந்துச்சு — இது serious double-count bug-க்கு
-  // காரணமா இருந்துச்சு. confirmPay() lump-sum Pay/Receive பண்ணும்போது, பழைய unpaid entries-ஐ
-  // FIFO-ஆ தேடி அவங்களோட e.paid field-ஐ (balance tracking-க்காக) update பண்ணும் — இது
-  // paidCash இல்ல. அந்த அதே lump-sum தொகை, db.payments-ல் ஒரு standalone record-ஆவும் save
-  // ஆகும். Report இந்த ரெண்டையும் (legacyPaidCash fallback + standalone payment) சேர்த்து
-  // கூட்டினதால், distribute ஆன பகுதி இரண்டு தடவை கணக்கில் சேர்ந்து "அதிக பற்று" தப்பா காட்டிச்சு.
-  // paidCash set ஆகாத entry-க்கு, immediate cash 0 தான் — அதை e.paid fallback-ஆ எடுக்கக்கூடாது.
-  return 0;
+  // "பற்று" field-ல் நேரடியா entry-time-ல் போட்ட தொகை (paidCash இல்லாத legacy entries-க்கு
+  // fallback). இது confirmPay()-ஓட retroactive distribution (retroPaid field, தனியா track
+  // ஆகுது) இல்ல — அதனால double-count ஆகாது, safe-ஆ fallback பண்ணலாம்.
+  return p.paid||0;
 }
 function paidItemLabel(it){
   if(it.type==='நாத்து') return 'நாத்து-'+(it.item||'')+' '+(it.qty||0)+'×'+(it.price||0);
@@ -2979,9 +3004,9 @@ async function undoPayment(paymentId){
   const list=pay.type==='pur_in'
     ? []
     : pay.type==='pur'
-    ? db.purchases.filter(p=>!p.deleted&&(p.supplier===pay.name&&p.paid>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)))
-    : db.sales.filter(s=>!s.deleted&&(s.party===pay.name&&s.paid>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
-  list.forEach(e=>{ if(remaining<=0) return; const revert=Math.min(remaining,e.paid); e.paid-=revert; e.balance=(e.balance||0)+revert; remaining-=revert; });
+    ? db.purchases.filter(p=>!p.deleted&&(p.supplier===pay.name&&(p.retroPaid||0)>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)))
+    : db.sales.filter(s=>!s.deleted&&(s.party===pay.name&&(s.retroPaid||0)>0)).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+  list.forEach(e=>{ if(remaining<=0) return; const revert=Math.min(remaining,e.retroPaid||0); e.retroPaid=(e.retroPaid||0)-revert; e.balance=(e.balance||0)+revert; remaining-=revert; });
   // Soft-delete (tombstone) — முன்ன array-ல் இருந்து நேரடியா நீக்கினோம், அதனால stale
   // device-ல் இருந்த பழைய local copy, delete ஆன entry-ஐ திரும்ப "resurrect" பண்ணும்
   // ரிஸ்க் இருந்துச்சு. இப்போ deleted:true flag வெச்சு, purchases/sales மாதிரியே
@@ -3003,9 +3028,13 @@ function confirmPay(){
   const lessInput=type==='sal'?document.getElementById('pm-less-input'):null;
   const lessAmt=lessInput?(parseFloat(lessInput.value)||0):0;
   let remaining=amt+lessAmt;
-  if(type==='pur'){ db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
+  // BUG FIX: இது e.paid-ஐ மாத்தினா, legacyPaidCash() fallback (paidCash இல்லாத entries-க்கு)
+  // இந்த retro-distributed தொகையையும் "பற்று (ரொக்கம்)" ஆ Report-ல் காட்டி, db.payments-ல்
+  // save ஆன standalone payRec-உடன் சேர்ந்து double-count ஆகும். அதனால e.paid-ஐ தொடாம,
+  // தனி e.retroPaid field-ல் track பண்றோம் — இது balance-க்கு மட்டும், Report ரொக்கம் row-க்கு இல்ல.
+  if(type==='pur'){ db.purchases.filter(p=>!p.deleted&&(p.supplier===name&&p.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.retroPaid=(e.retroPaid||0)+pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   else if(type==='pur_in'){ /* Supplier நமக்கு cash கொடுக்கிறது — purchases entries-ஐ touch பண்ணாது, db.payments-ல் மட்டும் பதிவு */ }
-  else{ db.sales.filter(s=>!s.deleted&&(s.party===name&&s.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.paid+=pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
+  else{ db.sales.filter(s=>!s.deleted&&(s.party===name&&s.balance>0)).sort((a,b)=>String(a.id).localeCompare(String(b.id))).forEach(e=>{ if(remaining<=0) return; const pay=Math.min(remaining,e.balance); e.retroPaid=(e.retroPaid||0)+pay; e.balance=Math.max(0,e.balance-pay); remaining-=pay; }); }
   const payRec={id:'pay_'+Date.now(),date:document.getElementById('pm-date').value,type,name,amount:amt,mode:payData.mode||'cash'};
   if(lessAmt>0) payRec.less=lessAmt;
   db.payments.push(payRec);
@@ -3732,9 +3761,11 @@ function _genReport(){
       entries.sort((a,b)=>a.date.localeCompare(b.date));
       // முன்பாக்கி - master data-ல் இருந்து எடு
       const masterSup=findMasterSupplier(normName);
-      // வெளியூர்/வெளிகடை supplier-ஆ இருந்தா முன்பாக்கி + சரக்கு amount இரண்டும் சேர்ந்து பற்று-ஆ கணக்கிடும்
       const outsideCount=entries.filter(e=>e.supType==='வெளியூர்'||e.supType==='வெளிகடை').length;
       const isOutside=outsideCount>entries.length/2;
+      // FIX: வெளியூர்/வெளிகடை suppliers-க்கும் தோட்டம் suppliers மாதிரியே சரக்கு-முதலில்-பணம்-பிறகு
+      // (goods-first, pay-after) தான் — "advance-first" inverted formula தப்பா assume பண்ணப்பட்டிருந்துச்சு.
+      // வேறுபாடு commission % மட்டும் (வெளியூர்/வெளிகடை-க்கு பொதுவா 0%) — calculation logic ஒண்ணுதான்.
       const effPrevDate2=masterSup?.prevDate||REAL_DATA_CUTOFF;
       const baseMunPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
       let munPakki;
@@ -3746,7 +3777,7 @@ function _genReport(){
       } else {
         // வெளியூர்/வெளிகடை suppliers — Month Close touch பண்ணாது, அதனால prevDate-க்கும்
         // "From" date-க்கும் நடுவுல உள்ள gap entries-ஐ roll-forward பண்ணி முன்பாக்கியுடன் சேர்க்கிறோம்
-        // (Customer report-ல் செஞ்ச அதே continuous-ledger fix). தோட்டம்-ஐ இது touch பண்ணாது.
+        // (Customer report-ல் செஞ்ச அதே continuous-ledger fix) — தோட்டம் formula-வையே (gap-fill) பயன்படுத்துறோம்.
         munPakki=0;
         if(effPrevDate2<=from){
           const gapEntries=db.purchases.filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===normName&&p.date>=effPrevDate2&&p.date<from);
@@ -3755,7 +3786,7 @@ function _genReport(){
           const gapPaidCash=gapEntries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
           const gapPaymentsAmt=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=effPrevDate2&&p.date<from).reduce((a,p)=>a+p.amount,0);
           const gapPatru=gapPaidCash+gapPaymentsAmt;
-          const gapNetBal=gapCommTotal+gapPatru-gapTotal;
+          const gapNetBal=gapTotal-gapPatru-gapCommTotal;
           munPakki=baseMunPakki+gapNetBal;
         }
       }
@@ -3783,9 +3814,8 @@ function _genReport(){
       const laterPaymentsByDate={};
       db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
       const laterPaymentsList=Object.keys(laterPaymentsByDate).sort().map(dt=>({date:dt,amount:laterPaymentsByDate[dt]}));
-      // தோட்டம்: net = பூ வரவு - கமிசன் - முன்பாக்கி - பற்று
-      // வெளியூர்/வெளிகடை: net = கமிசன் + பற்று - முன்பாக்கி - பூ வரவு (முன்பாக்கி + சரக்கு கூட்டி பற்று ஏறும்)
-      const netBal=isOutside?((totalComm+totalPatru)-(munPakki+pooVaravu)):(pooVaravu-(totalPatru+munPakki+totalComm));
+      // FIX: வெளியூர்/வெளிகடை-க்கும் தோட்டம் formula-ஏ — சரக்கு-முதலில்-பணம்-பிறகு.
+      const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
       const thS='padding:3px 2px;font-size:9.5px;text-align:left;white-space:nowrap;overflow:hidden';
@@ -3863,8 +3893,8 @@ function _genReport(){
             ${munPakki>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
               <span></span>
-              <span style="font-weight:700">${(isOutside?(pooVaravu+munPakki):pooVaravu).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
-              <span style="font-weight:700">${(isOutside?(totalComm+periodPatru):(totalComm+munPakki+periodPatru)).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(totalComm+munPakki+periodPatru).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
             ${laterPaymentsList.map(lp=>`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:#555;background:#f2f2f2;padding:6px 10px;border-radius:8px">
               <span>+ ${fmtDate(lp.date)} அன்று pay பண்ணது</span>
@@ -3874,7 +3904,7 @@ function _genReport(){
               <span>${netBal>0?'இப்போதைய இருப்பு :':'இப்போதைய அதிக பற்று :'}</span>
               <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>`:''}
-            ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal},${isOutside?(pooVaravu+munPakki):pooVaravu},${isOutside?(totalComm+periodPatru):(totalComm+munPakki+periodPatru)},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
+            ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal},${pooVaravu},${totalComm+munPakki+periodPatru},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
             <button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>
             ${(masterSup&&masterSup.floatTarget>0)?(()=>{
               const currentFloat=-netBal;
@@ -3884,7 +3914,7 @@ function _genReport(){
                 : diff<0
                   ? `<div style="text-align:center;font-size:13px;font-weight:700;color:#1a6b3a">✅ ₹${Math.abs(diff).toLocaleString('en-IN',{minimumFractionDigits:2})} அதிகம் — Pay வேண்டாம்</div>`
                   : `<div style="text-align:center;font-size:13px;font-weight:700;color:#555">✅ Target exact</div>`;
-              const payBtn=diff>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${diff},${isOutside?(pooVaravu+munPakki):pooVaravu},${isOutside?(totalComm+periodPatru):(totalComm+munPakki+periodPatru)},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:8px;width:100%;padding:10px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${diff.toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:'';
+              const payBtn=diff>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${diff},${pooVaravu},${totalComm+munPakki+periodPatru},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:8px;width:100%;padding:10px;background:#1a6b3a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${diff.toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:'';
               return `<div class="rpt-action-btn" style="margin-top:10px;background:#fdf3e0;border:1.5px solid #d4af37;border-radius:10px;padding:10px 12px">
                 <div style="font-weight:700;color:#7a4a1a;font-size:11.5px;margin-bottom:6px">🎯 Target ₹${masterSup.floatTarget.toLocaleString('en-IN')} (இப்போ ₹${currentFloat.toLocaleString('en-IN',{minimumFractionDigits:2})})</div>
                 ${statusLine}
