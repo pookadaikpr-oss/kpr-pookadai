@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix74';
+  var APP_BUILD = '20260810-v122-fix75';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2631,6 +2631,7 @@ async function monthClose(){
   const resDiv=document.getElementById('mc-result');
   if(resDiv){
     resDiv.innerHTML=`<div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;overflow-x:auto">
+      <div id="mc-result-content">
       <div style="font-weight:700;margin-bottom:8px;font-size:13px">🌿 மாத முடிவு சிட்டை — ${fmtDate(from)} முதல் ${fmtDate(to)} வரை (${supChanges.length} suppliers)</div>
       <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:480px">
         <thead><tr style="background:#c0392b;color:#fff"><th style="padding:5px 6px;text-align:left">S.No</th><th style="padding:5px 6px;text-align:left">பெயர்</th><th style="padding:5px 6px;text-align:right">பூ வரவு</th><th style="padding:5px 6px;text-align:right">பூ பற்று</th><th style="padding:5px 6px;text-align:right">இறுப்பு</th><th style="padding:5px 6px;text-align:right">பற்று (Carry)</th></tr></thead>
@@ -2638,6 +2639,8 @@ async function monthClose(){
         <tfoot><tr style="background:#f0f0f0;font-weight:700"><td colspan="2" style="padding:5px 6px">மொத்தம் (${supChanges.length})</td><td style="padding:5px 6px;text-align:right">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">${grandPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">0.00</td><td style="padding:5px 6px;text-align:right">${grandCarry.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot>
       </table>
       <div style="font-size:10px;color:#888;margin-top:6px">💡 "பற்று (Carry)" column-ஐ உங்க கை பேரேடு-ஓட ஒவ்வொரு supplier பாக்கியுடன் compare பண்ணி verify பண்ணுங்க.</div>
+      </div>
+      <button class="btn bg" onclick="printReport('mc-result-content')" style="width:100%;padding:10px;font-size:13px;margin-top:10px">🖨️ Print / PDF Download</button>
     </div>`;
   }
   alert2('மாதம் முடிந்தது! '+supChanges.length+' தோட்டம் suppliers முன்பாக்கி update ஆச்சு ✅','ok');
@@ -3635,11 +3638,11 @@ function genFullReport(mode){
   document.getElementById('rpt-print-btn-row').style.display='block';
   out.innerHTML=html;
 }
-function printReport(){
-  const out=document.getElementById('rpt-out');
+function printReport(elId){
+  const out=document.getElementById(elId||'rpt-out');
   if(!out||!out.innerHTML.trim()){ alert2('முதல்ல Generate பண்ணுங்க!','err'); return; }
   const hasOwnHeader = out.innerHTML.indexOf('KPR வன்னிசெந்தூர்') !== -1;
-  const isWideTable = out.innerHTML.indexOf('மாத சப்ளையர் சிட்டை') !== -1;
+  const isWideTable = out.innerHTML.indexOf('மாத சப்ளையர் சிட்டை') !== -1 || out.innerHTML.indexOf('மாத முடிவு சிட்டை') !== -1;
   // 5-column wide summary table (162 suppliers, 7-digit amounts) 105mm-ல் readable-ஆ
   // fit ஆகாது — இதுக்கு மட்டும் A4 full width, சாதாரண படிக்கிற font size.
   const pageCss = isWideTable ? '@page{size:A4;margin:10mm}' : '@page{size:105mm 300mm;margin:5mm 6mm}';
