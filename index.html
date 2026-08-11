@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix77';
+  var APP_BUILD = '20260810-v122-fix79';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -922,10 +922,11 @@ tbody td{padding:8px 11px}
 
 // ===== MASTER DATA =====
 const MASTER_KEY = 'kpr-master-v1';
-let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'] };
+let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'], monthCloseHistory:[] };
 
 function loadMaster(){
   try{ const m=localStorage.getItem(MASTER_KEY); if(m) master=JSON.parse(m); }catch(e){}
+  if(!master.monthCloseHistory) master.monthCloseHistory=[];
 }
 function saveMasterLocal(){
   try{ localStorage.setItem(MASTER_KEY, JSON.stringify(master)); }catch(e){}
@@ -950,6 +951,7 @@ function loadMasterFirebase(){
         if(!master.suppliers) master.suppliers=[];
         if(!master.customers) master.customers=[];
         if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
+        if(!master.monthCloseHistory) master.monthCloseHistory=[];
         saveMasterLocal();
         renderMaster();
         renderPurMessages(); renderSalMessages(); // phone numbers updated
@@ -1991,6 +1993,24 @@ function findMasterSupplier(name){
   if(!n) return null;
   return master.suppliers.find(s=>normName_(s.name)===n) || null;
 }
+// HISTORY-AWARE OPENING BALANCE: report/statement எந்த period-க்கு generate ஆனாலும்
+// (இப்போ close ஆன latest period-க்கு மட்டும் இல்லாம, பழைய மாசங்களுக்கும்), சரியான
+// opening balance கிடைக்க — master.monthCloseHistory-ல் இருந்து, இந்த "from" தேதிக்கு
+// முன்னாடி முடிந்த மிக சமீபத்திய Month Close-ஓட closing balance-ஐ தேடி எடுக்கிறோம்.
+// கிடைக்காம போனா (இன்னும் ஒரு closing history-உம் இல்லாத காலம்), live masterSup.prev
+// logic-க்கே fallback ஆகும் (பழைய behavior அப்படியே).
+function getHistoricalOpening(name, fromDate, masterSup){
+  const n=normName_(name);
+  const hist=(master.monthCloseHistory||[]).filter(h=>normName_(h.supplier)===n&&h.to<fromDate);
+  if(hist.length){
+    hist.sort((a,b)=>b.to.localeCompare(a.to));
+    return hist[0].closing||0;
+  }
+  // Fallback: history இல்லாத பழைய behavior
+  const effPrevDate=masterSup?.prevDate||REAL_DATA_CUTOFF;
+  const baseMunPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
+  return (baseMunPakki>0&&effPrevDate<=fromDate)?baseMunPakki:0;
+}
 function autoFillComm(supName){
   const name=supName.trim();
   if(!name) return;
@@ -2623,8 +2643,21 @@ async function monthClose(){
     supChanges.push({name,oldPrev,newPrev,netBal,isFloat,pooVaravu:c.pooVaravu,totalPatru:c.totalPatru});
   });
 
+  // ===== HISTORY SNAPSHOT: ஒவ்வொரு Month Close-உம் நிரந்தரமா record ஆகணும் — இதனால்
+  // "தனியார்" report எந்த பழைய மாசத்துக்கு generate பண்ணினாலும் (இப்போ prev field
+  // latest state-ஐ மட்டும் காட்டினாலும்), correct opening balance இந்த history-ல்
+  // இருந்து கிடைக்கும். இதே supplier+period-க்கு முன்னாடி ஒரு snapshot இருந்தா, replace
+  // பண்றோம் (அதே period மறுபடி close பண்ணினா duplicate ஆகாம).
+  if(!master.monthCloseHistory) master.monthCloseHistory=[];
+  const closedAtTs=new Date().toISOString();
+  supChanges.forEach(c=>{
+    const idx=master.monthCloseHistory.findIndex(h=>normName_(h.supplier)===normName_(c.name)&&h.from===from&&h.to===to);
+    const rec={supplier:c.name,from,to,opening:c.oldPrev,closing:c.newPrev,closedAt:closedAtTs};
+    if(idx>-1) master.monthCloseHistory[idx]=rec; else master.monthCloseHistory.push(rec);
+  });
+
   saveMasterLocal();
-  saveMasterFirebase('suppliers');
+  saveMasterFirebase();
 
   // Old-software format மாதிரியே — S.No, பெயர், பூ வரவு, பூ பற்று, இறுப்பு (0 எப்போவும்,
   // legacy column), பற்று (carry-forward) — அகரவரிசைப்படி, verify பண்ண easy-ஆ இருக்க.
@@ -2690,22 +2723,29 @@ function showLastMonthCloseResult(){
 // (01/07-31/07) PDF report-ல் இருக்குற சரியான "பற்று சிட்டை" values-ஐ இங்க exact-ஆ
 // hardcode பண்ணி, அதையே ஒவ்வொரு supplier-ஓட ஜூலை 31 முன்பாக்கியா நேரடியா set பண்றோம்
 // (Fixed-Target 🎯 3 suppliers — ஆண்டி/துணைமாலை/முனீஸ்வரி — தவிர, அவங்க logic வேற).
-const JULY31_CORRECT_PREV = [["அங்குமுத்து", 0], ["அட்சிகாஸூரீ", 113864.43], ["அபிஷேக்", 0], ["அரளி கணேசன்", 0], ["அலெக்ஸ் பாண்டியன்", 0], ["அழகர்சாமி", 3080.5], ["அழகு பிரியதர்சினி", 0], ["அழகு மாரீஸ்வரன்", 0], ["அழகு முருகன்", 11117.17], ["அழகுச்செல்வி", 976.7], ["அழகுபாண்டியன்", 0], ["அழகுலட்சுமி", 0], ["அழகுவிஜயா", 7016.1], ["ஆவடையம்மாள்", 0], ["இந்துமதி", 28696.8], ["இளவரசி", 0], ["இனியன்", 0], ["கடை பாண்டி", 0], ["கண்ட சரண்யா", 6410.85], ["கணேஷ்பாண்டி", 12745.56], ["கதிர்வேல்", 0], ["கமலேஷ்", 0], ["கருப்பையா", 13278.75], ["கிருஷ்ணவேணி", 0], ["குமரேசன்", 133748.53], ["குரண்டி அழகர்", 0], ["குரண்டி கௌதம்", 0], ["குருமூர்த்தி", 0], ["சக்தி வேல்", 0], ["சங்கீதகுமாரி", 63727.55], ["சத்யா", 0], ["சதீஸ்வரி", 694.1], ["சந்தோஷ்குமார்", 24246.84], ["சபரீஷ்", 0], ["சமுத்திரபாண்டி", 0], ["சரஸ்வதி", 1021.0], ["சித்தல.கணபதி", 13325.57], ["சிவசக்தி பாலன்", 0], ["சின்னக்காளை", 0], ["சின்னப்பொண்ணு", 10743.97], ["சுந்தர்", 0], ["சுரேஷ் கிருஷ்ணா", 0], ["செம்.சீனி", 0], ["செம்.பாண்டி", 0], ["செல்லப்பாண்டி", 0], ["செல்வலட்சுமி", 24500.46], ["செல்வி", 0], ["சேகர்", 0], ["ஞானசேகர்", 0], ["தங்கப்பாண்டி", 0], ["தமிழ் அழகர்", 57445.98], ["தமிழ் முத்துமாரி", 11088.95], ["திவ்யலட்சுமி", 0], ["திவ்யா", 78652.85], ["தினேஷ்", 0], ["நந்தகுமார்", 432957.1], ["நல்லுச்சாமி", 161979.71], ["நாகரத்தினம்", 0], ["நிசாந்த்", 0], ["பஞ்சவர்ணம்", 0], ["பரதன்", 0], ["பழனி செம்பட்டி", 52311.79], ["பழனியாண்டி", 0], ["பாண்டி மயூரி", 114973.36], ["பாண்டஸ்வரன்", 0], ["பால்பாண்டி", 0], ["பாலகிருஷ்ணன்", 0], ["பாலசுப்பிரமணி", 0], ["பிரீத்தி", 0], ["புன்னைவனம்", 0], ["பூமிநாதன்", 0], ["பூவேந்திரன்", 82096.76], ["பெத்தம்மாள்", 0], ["பெத்தனாட்சி", 0], ["பெரியசாமி", 5677.89], ["பொன் இருளன்", 0], ["பொன் மருதாயி", 0], ["பொன்ராஜ்", 25451.56], ["மகாதேவி", 0], ["மகேந்திரன்(கஞ்சா)", 0], ["மகேஸ்வரன்", 0], ["மஞ்சுளாதேவி", 0], ["மதன் சித்ரா கனி", 0], ["மதுபிரிதா", 0], ["மதுமிதா", 15141.8], ["மருதாயி", 0], ["மருதுராஜ்", 34070.79], ["மஹா அர்ச்சனா", 0], ["மாயி", 0], ["மார்க்கண்டன்", 0], ["மீனா", 61097.23], ["முகேஷ்", 3236.04], ["முத்துராமலிங்கம்", 0], ["முத்துராமு", 0], ["முருகன்", 0], ["முருகேசன்", 0], ["மொரார்ஜி", 78450.77], ["யாழினி", 0], ["யுவராம்", 0], ["யுவஹரீ", 0], ["ராம்குமார்", 0], ["ராம மகாலிங்கம்", 0], ["ராமர் லட்சுமணன்", 0], ["ராமஜெயம்", 0], ["ராஜுகோபால்", 76781.65], ["ரோஹித்வர்மா", 4164.65], ["லிங்கம்மாள்", 0], ["வசந்தா", 0], ["விக்னேஷ்", 0], ["வினோத்", 0], ["விஜய்", 153275.17], ["விஜயராகவன்", 0], ["விஜயலட்சுமி", 74168.67], ["வீரம்மாள்", 0], ["வீரன்", 230076.29], ["வெற்றிவேல்", 133337.89], ["வேதாஸ்ரீ", 0], ["வேலுச்சாமி", 0], ["ஜான்சிராணி", 0], ["ஜெயக்கொடி", 0], ["ஜெயராம்", 0], ["ஜோதிலிங்கம்", 0], ["ஹேமாவதி", 4517.2], ["A.செல்வன்", 43208.05], ["CMI", 50489.67], ["KSK", 30014.8], ["M.இருளாண்டி", 0], ["MR அழகம்மாள்", 0], ["P.ராமன்", 0], ["R.அழகன்", 0], ["R.T.ஈஸ்வரி", 9762.97], ["RRR", 4522.45], ["SK", 5854.5], ["SR", 1664.45], ["SSK", 0], ["T.மதனா", 0], ["YRSK", 9019.87], ["அம்மாசி முருகன்", 0], ["கந்தன்", 70100.0], ["கர்ணன்", 8000.0], ["கரிசல் ரவி", 504.0], ["காயத்ரி", 0], ["குமார்", 0], ["குரண்டி ராமன்", 0], ["சதீஸ்குமார்", 4141.0], ["தனுஷ்கோடி", 52075.0], ["துர்கா", 0], ["நித்யஸ்ரீ", 7049.0], ["நிவேதா", 0], ["புள்ளூர் முத்துமாரி", 27246.0], ["மணிமுத்து", 1820.0], ["மருது பூபதி", 0], ["முத்திருவாள்", 23492.0], ["முனியசாமி", 0], ["முனியசாமி டிங்டாங்", 0], ["ராஜேந்திரன்", 0], ["ருத்ரா", 58924.0], ["வன்னியராஜ்", 35258.0], ["வெள்ளையன்", 5250.0], ["ஜெயக்குமார்", 0], ["ஜெயராஜ்", 3000.0], ["ஜெயஸ்ரீ", 22193.0], ["ஜோதிபிரியா", 73416.0], ["AP", 0], ["T.கணேசன்", 15050.0]];
+const JULY31_CORRECT_PREV = [["அங்குமுத்து", 0, 0], ["அட்சிகாஸூரீ", 119374.0, 113864.43], ["அபிஷேக்", 0, 0], ["அரளி கணேசன்", 0, 0], ["அலெக்ஸ் பாண்டியன்", 0, 0], ["அழகர்சாமி", 264.0, 3080.5], ["அழகு பிரியதர்சினி", 0, 0], ["அழகு மாரீஸ்வரன்", 0, 0], ["அழகு முருகன்", 9681.05, 11117.17], ["அழகுச்செல்வி", 0.0, 976.7], ["அழகுபாண்டியன்", 0, 0], ["அழகுலட்சுமி", 0, 0], ["அழகுவிஜயா", 3828.0, 7016.1], ["ஆவடையம்மாள்", 0, 0], ["இந்துமதி", 24617.88, 28696.8], ["இளவரசி", 0, 0], ["இனியன்", 0, 0], ["கடை பாண்டி", 0, 0], ["கண்ட சரண்யா", 1242.0, 6410.85], ["கணேஷ்பாண்டி", 835.2, 12745.56], ["கதிர்வேல்", 0, 0], ["கமலேஷ்", 0, 0], ["கருப்பையா", 13452.0, 13278.75], ["கிருஷ்ணவேணி", 0, 0], ["குமரேசன்", 142901.0, 133748.53], ["குரண்டி அழகர்", 0, 0], ["குரண்டி கௌதம்", 0, 0], ["குருமூர்த்தி", 0, 0], ["சக்தி வேல்", 0, 0], ["சங்கீதகுமாரி", 62231.0, 63727.55], ["சத்யா", 0, 0], ["சதீஸ்வரி", 2863.0, 694.1], ["சந்தோஷ்குமார்", 24872.0, 24246.84], ["சபரீஷ்", 0, 0], ["சமுத்திரபாண்டி", 0, 0], ["சரஸ்வதி", 0.0, 1021.0], ["சித்தல.கணபதி", 12185.94, 13325.57], ["சிவசக்தி பாலன்", 0, 0], ["சின்னக்காளை", 0, 0], ["சின்னப்பொண்ணு", 14634.29, 10743.97], ["சுந்தர்", 0, 0], ["சுரேஷ் கிருஷ்ணா", 0, 0], ["செம்.சீனி", 19527.78, 0], ["செம்.பாண்டி", 0, 0], ["செல்லப்பாண்டி", 0, 0], ["செல்வலட்சுமி", 24095.0, 24500.46], ["செல்வி", 0, 0], ["சேகர்", 0, 0], ["ஞானசேகர்", 0, 0], ["தங்கப்பாண்டி", 0, 0], ["தமிழ் அழகர்", 59510.01, 57445.98], ["தமிழ் முத்துமாரி", 7589.0, 11088.95], ["திவ்யலட்சுமி", 0, 0], ["திவ்யா", 90336.0, 78652.85], ["தினேஷ்", 0, 0], ["நந்தகுமார்", 339141.87, 432957.1], ["நல்லுச்சாமி", 162398.9, 161979.71], ["நாகரத்தினம்", 0, 0], ["நிசாந்த்", 0, 0], ["பஞ்சவர்ணம்", 0, 0], ["பரதன்", 0, 0], ["பழனி செம்பட்டி", 54142.0, 52311.79], ["பழனியாண்டி", 714.18, 0], ["பாண்டி மயூரி", 195781.0, 114973.36], ["பாண்டஸ்வரன்", 0, 0], ["பால்பாண்டி", 0, 0], ["பாலகிருஷ்ணன்", 0, 0], ["பாலசுப்பிரமணி", 0, 0], ["பிரீத்தி", 0, 0], ["புன்னைவனம்", 0, 0], ["பூமிநாதன்", 0, 0], ["பூவேந்திரன்", 81280.75, 82096.76], ["பெத்தம்மாள்", 0, 0], ["பெத்தனாட்சி", 0, 0], ["பெரியசாமி", 27239.0, 5677.89], ["பொன் இருளன்", 0, 0], ["பொன் மருதாயி", 0, 0], ["பொன்ராஜ்", 87269.0, 25451.56], ["மகாதேவி", 0, 0], ["மகேந்திரன்(கஞ்சா)", 0, 0], ["மகேஸ்வரன்", 0, 0], ["மஞ்சுளாதேவி", 0, 0], ["மதன் சித்ரா கனி", 0, 0], ["மதுபிரிதா", 0, 0], ["மதுமிதா", 21836.0, 15141.8], ["மருதாயி", 0, 0], ["மருதுராஜ்", 37655.0, 34070.79], ["மஹா அர்ச்சனா", 0, 0], ["மாயி", 0, 0], ["மார்க்கண்டன்", 0, 0], ["மீனா", 0.0, 61097.23], ["முகேஷ்", 24285.0, 3236.04], ["முத்துராமலிங்கம்", 0, 0], ["முத்துராமு", 0, 0], ["முருகன்", 0, 0], ["முருகேசன்", 0, 0], ["மொரார்ஜி", 15731.0, 78450.77], ["யாழினி", 0, 0], ["யுவராம்", 0, 0], ["யுவஹரீ", 0, 0], ["ராம்குமார்", 0, 0], ["ராம மகாலிங்கம்", 0, 0], ["ராமர் லட்சுமணன்", 0, 0], ["ராமஜெயம்", 0, 0], ["ராஜுகோபால்", 82154.0, 76781.65], ["ரோஹித்வர்மா", 4082.0, 4164.65], ["லிங்கம்மாள்", 0, 0], ["வசந்தா", 0, 0], ["விக்னேஷ்", 0, 0], ["வினோத்", 0, 0], ["விஜய்", 155044.0, 153275.17], ["விஜயராகவன்", 16012.42, 0], ["விஜயலட்சுமி", 5068.0, 74168.67], ["வீரம்மாள்", 0, 0], ["வீரன்", 237479.0, 230076.29], ["வெற்றிவேல்", 118936.0, 133337.89], ["வேதாஸ்ரீ", 0, 0], ["வேலுச்சாமி", 0, 0], ["ஜான்சிராணி", 0, 0], ["ஜெயக்கொடி", 0, 0], ["ஜெயராம்", 0, 0], ["ஜோதிலிங்கம்", 0, 0], ["ஹேமாவதி", 0.0, 4517.2], ["A.செல்வன்", 48938.0, 43208.05], ["CMI", 43514.25, 50489.67], ["KSK", 40931.25, 30014.8], ["M.இருளாண்டி", 0.0, 0], ["MR அழகம்மாள்", 7512.0, 0], ["P.ராமன்", 0.0, 0], ["R.அழகன்", 0.0, 0], ["R.T.ஈஸ்வரி", 14659.0, 9762.97], ["RRR", 7610.0, 4522.45], ["SK", 7994.0, 5854.5], ["SR", 13332.9, 1664.45], ["SSK", 0.0, 0], ["T.மதனா", 0.0, 0], ["YRSK", 8247.0, 9019.87], ["அம்மாசி முருகன்", 0, 0], ["கர்ணன்", 0.0, 8000.0], ["காயத்ரி", 0, 0], ["ஜெயராஜ்", 0.0, 3000.0], ["கந்தன்", 70100.0, 70100.0], ["கரிசல் ரவி", 504.0, 504.0], ["குமார்", 0, 0], ["குரண்டி ராமன்", 0, 0], ["சதீஸ்குமார்", 4141.0, 4141.0], ["தனுஷ்கோடி", 52075.0, 52075.0], ["துர்கா", 0, 0], ["நித்யஸ்ரீ", 7049.0, 7049.0], ["நிவேதா", 0, 0], ["புள்ளூர் முத்துமாரி", 27246.0, 27246.0], ["மணிமுத்து", 1820.0, 1820.0], ["மருது பூபதி", 0, 0], ["முத்திருவாள்", 23492.0, 23492.0], ["முனியசாமி", 0, 0], ["முனியசாமி டிங்டாங்", 0, 0], ["ராஜேந்திரன்", 0, 0], ["ருத்ரா", 58924.0, 58924.0], ["வன்னியராஜ்", 35258.0, 35258.0], ["வெள்ளையன்", 5250.0, 5250.0], ["ஜெயக்குமார்", 0, 0], ["ஜெயஸ்ரீ", 22193.0, 22193.0], ["ஜோதிபிரியா", 73416.0, 73416.0], ["AP", 0, 0], ["T.கணேசன்", 15050.0, 15050.0]];
 async function restoreJuly31Prev(){
-  const typed=prompt('⚠️ இது 165 தோட்டம் suppliers-ஓட முன்பாக்கியை, 11/08 காலை generate பண்ண "மாத சப்ளையர் சிட்டை" PDF report-ல் இருக்குற சரியான ஜூலை 31 "பற்று சிட்டை" values-வச்சு நேரடியா replace பண்ணும் (Purchase/Payment records touch ஆகாது). இது ஒரு-தடவை Restore Tool. உறுதியா தொடரணும்னா கீழே "சரி பண்ணு" ன்னு type பண்ணுங்க:');
+  const typed=prompt('⚠️ இது 165 தோட்டம் suppliers-ஓட முன்பாக்கியை (ஜூலை 31 closing) மற்றும் Month Close History (ஜூலை 1 opening + ஜூலை 31 closing, "மாத சப்ளையர் சிட்டை" PDF report + backup data-ல் இருந்து reverse-calculate பண்ணப்பட்டது) இரண்டையும் set பண்ணும் (Purchase/Payment records touch ஆகாது). இது ஒரு-தடவை Restore Tool. உறுதியா தொடரணும்னா கீழே "சரி பண்ணு" ன்னு type பண்ணுங்க:');
   if(typed===null) return;
   if(typed.trim().normalize('NFC')!=='சரி பண்ணு'.normalize('NFC')){ alert2('சரியா type பண்ணல — எதுவும் மாறல், பாதுகாப்பா இருக்கு.','warn'); return; }
   let matched=0, notFound=[];
-  JULY31_CORRECT_PREV.forEach(([name,val])=>{
+  if(!master.monthCloseHistory) master.monthCloseHistory=[];
+  const closedAtTs=new Date().toISOString();
+  JULY31_CORRECT_PREV.forEach(([name,opening,closing])=>{
     const masterSup=(master.suppliers||[]).find(s=>normName_(s.name||'')===normName_(name));
     if(!masterSup){ notFound.push(name); return; }
-    masterSup.prev=val;
+    masterSup.prev=closing;
     masterSup.prevDate='2026-07-31';
     matched++;
+    // History snapshot: ஜூலை 1 opening + ஜூலை 31 closing இரண்டும் — இனிமேல் "தனியார்"
+    // report ஜூலைக்கும், அதற்கு பிறகான எந்த மாதத்துக்கும் சரியா வரும்.
+    const idx=master.monthCloseHistory.findIndex(h=>normName_(h.supplier)===normName_(masterSup.name)&&h.from==='2026-07-01'&&h.to==='2026-07-31');
+    const rec={supplier:masterSup.name,from:'2026-07-01',to:'2026-07-31',opening,closing,closedAt:closedAtTs};
+    if(idx>-1) master.monthCloseHistory[idx]=rec; else master.monthCloseHistory.push(rec);
   });
   saveMasterLocal();
-  saveMasterFirebase('suppliers');
-  let msg=matched+' suppliers-ஓட முன்பாக்கி ஜூலை 31 சரியான value-ஆ restore ஆச்சு ✅';
+  saveMasterFirebase();
+  let msg=matched+' suppliers-ஓட முன்பாக்கி + ஜூலை History (opening+closing) restore ஆச்சு ✅';
   if(notFound.length){ msg+='\n\n⚠️ இந்த '+notFound.length+' பேர் Master Data-ல் பேர் match ஆகல (spelling வேறுபாடு இருக்கலாம்): '+notFound.join(', '); }
   alert2(msg, notFound.length?'warn':'ok');
 }
@@ -3504,12 +3544,10 @@ function _genSupplierMonthlyStatement(){
   toduSups.forEach(masterSup=>{
     const name=masterSup.name;
     const entries=db.purchases.filter(p=>!p.deleted&&p.supplier&&normName_(p.supplier)===normName_(name)&&p.date>=from&&p.date<=to);
-    // முன்பாக்கி — prevDate set பண்ணாத suppliers-க்கு, REAL_DATA_CUTOFF (01/07/2026) தான்
-    // effective date-ஆ எடுத்துக்கணும். இல்லைன்னா ஜூன்/அதற்கு முன் தேதி report-லயும்
-    // முன்பாக்கி தப்பா காட்டிடும் (real data entry ஜூலை 1 முதல் தான் ஆரம்பிச்சது).
-    const effPrevDate=masterSup.prevDate||REAL_DATA_CUTOFF;
-    const prevDateOk=effPrevDate<=from;
-    const munPakki=masterSup.prev>0&&prevDateOk?masterSup.prev:0;
+    // முன்பாக்கி — history-aware: இந்த "from" தேதிக்கு முந்தைய மிக சமீபத்திய Month Close
+    // closing balance-ஐ பயன்படுத்துறோம் (எந்த மாதத்துக்கு report generate பண்ணினாலும் சரியா
+    // இருக்க). History இல்லாத suppliers-க்கு பழைய prevDate-based logic-க்கே fallback.
+    const munPakki=getHistoricalOpening(name, from, masterSup);
     const pooVaravu=entries.reduce((a,e)=>a+(e.total||0),0);
     const totalComm=entries.reduce((a,e)=>a+(e.commission||0),0);
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
@@ -3837,10 +3875,10 @@ function _genReport(){
       const baseMunPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
       let munPakki;
       if(!isOutside){
-        // தோட்டம் suppliers — Month Close இதை regular-ஆ handle பண்றது, EXACT பழைய behavior-ஏ
-        // (touch பண்ணாம வெச்சிருக்கோம்): prevDate<=from ஆனா base முன்பாக்கி full-ஆ, இல்லைன்னா 0.
-        const prevDateOk=effPrevDate2<=from;
-        munPakki=baseMunPakki>0&&prevDateOk?baseMunPakki:0;
+        // தோட்டம் suppliers — history-aware: இந்த "from" தேதிக்கு முன்னாடி முடிந்த
+        // Month Close இருந்தா, அதுல இருந்து சரியான opening கிடைக்கும் (எந்த பழைய
+        // மாசத்துக்கும் இது சரியா வேலை செய்யும்). இல்லைன்னா live prev-க்கே fallback.
+        munPakki=getHistoricalOpening(name, from, masterSup);
       } else {
         // வெளியூர்/வெளிகடை suppliers — Month Close touch பண்ணாது, அதனால prevDate-க்கும்
         // "From" date-க்கும் நடுவுல உள்ள gap entries-ஐ roll-forward பண்ணி முன்பாக்கியுடன் சேர்க்கிறோம்
