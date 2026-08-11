@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix75';
+  var APP_BUILD = '20260810-v122-fix76';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -588,7 +588,13 @@ tbody td{padding:8px 11px}
         <input type="date" id="mc-to" style="flex:1">
       </div>
       <button class="btn" style="width:100%;padding:9px;background:#c0392b;color:#fff;font-weight:700;font-size:12px" onclick="monthClose()">🔒 மாதம் முடி — முன்பாக்கி Update</button>
+      <button class="btn" style="width:100%;padding:8px;background:#fff;color:#c8952a;border:1.5px solid #c8952a;font-weight:700;font-size:11px;margin-top:6px" onclick="showLastMonthCloseResult()">📋 கடைசி Month Close Result-ஐ மறுபடி காட்டு</button>
       <div id="mc-result" style="margin-top:8px"></div>
+    </div>
+    <div style="margin-bottom:12px;border:1.5px solid #d4af37;border-radius:8px;padding:10px;background:#fffaf0">
+      <div style="font-weight:700;color:#8a6d1a;font-size:11px;margin-bottom:4px">🔧 ஜூலை Prev Corruption Fix (One-Time Tool)</div>
+      <div style="font-size:10px;color:#8a6d1a;margin-bottom:8px;line-height:1.4">Sync bug காரணமா தப்பான ஜூலை முன்பாக்கி values-ஐ சரி பண்ண — தோட்டம் suppliers முன்பாக்கியை ₹0-ஆ reset பண்ணி, ஜூலை 1-31 Month Close-ஐ தானா மறுபடி run பண்ணும் (உங்க purchase/payment data touch ஆகாது).</div>
+      <button class="btn" style="width:100%;padding:8px;background:#fff;color:#8a6d1a;border:1.5px solid #d4af37;font-weight:700;font-size:11px" onclick="fixJulyPrevCorruption()">🔧 ஜூலை Prev Reset + மறு கணக்கீடு</button>
     </div>
     <div style="margin-bottom:12px;border:1.5px dashed #999;border-radius:8px;padding:10px;background:#faf7f2">
       <div style="font-weight:700;color:#888;font-size:11px;margin-bottom:6px">⚠️ Danger Zone — Owner மட்டும்</div>
@@ -2623,27 +2629,84 @@ async function monthClose(){
   // Old-software format மாதிரியே — S.No, பெயர், பூ வரவு, பூ பற்று, இறுப்பு (0 எப்போவும்,
   // legacy column), பற்று (carry-forward) — அகரவரிசைப்படி, verify பண்ண easy-ஆ இருக்க.
   const sortedChanges=[...supChanges].sort((a,b)=>a.name.normalize('NFC').localeCompare(b.name.normalize('NFC'),'ta'));
+
+  // Result-ஐ localStorage-ல் சேமிக்கிறோம் — screen close பண்ணிட்டாலும், "மறுபடி காட்டு"
+  // button மூலமா திரும்ப பாக்கலாம்.
+  try{
+    localStorage.setItem('kprLastMonthClose', JSON.stringify({
+      from, to, generatedAt: new Date().toISOString(),
+      rows: sortedChanges.map(c=>({name:c.name,pooVaravu:c.pooVaravu,totalPatru:c.totalPatru,newPrev:c.newPrev,isFloat:!!c.isFloat}))
+    }));
+  }catch(e){}
+
+  renderMonthCloseResult(from, to, sortedChanges);
+  alert2('மாதம் முடிந்தது! '+supChanges.length+' தோட்டம் suppliers முன்பாக்கி update ஆச்சு ✅','ok');
+}
+
+// மாத முடிவு சிட்டை table build பண்ணி #mc-result-ல் காட்டும் — புது run-லயும்,
+// localStorage-ல் இருந்து "மறுபடி காட்டு" பண்ணும்போதும் இதே function பயன்படுத்தப்படுது.
+function renderMonthCloseResult(from, to, rows){
+  const resDiv=document.getElementById('mc-result');
+  if(!resDiv) return;
   let grandVaravu=0,grandPatru=0,grandCarry=0;
-  const tableRows=sortedChanges.map((c,i)=>{
+  const tableRows=rows.map((c,i)=>{
     grandVaravu+=c.pooVaravu; grandPatru+=c.totalPatru; grandCarry+=c.newPrev;
     return `<tr${i%2?' style="background:#f8f8f8"':''}><td style="padding:4px 6px;border-bottom:1px solid #eee">${i+1}</td><td style="padding:4px 6px;border-bottom:1px solid #eee">${c.name}${c.isFloat?' 🎯':''}</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right">${c.pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right">${c.totalPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right">0.00</td><td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:${c.newPrev>0?'#c0392b':'#1a6b3a'}">${c.newPrev.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr>`;
   }).join('');
-  const resDiv=document.getElementById('mc-result');
-  if(resDiv){
-    resDiv.innerHTML=`<div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;overflow-x:auto">
+  resDiv.innerHTML=`<div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;overflow-x:auto">
       <div id="mc-result-content">
-      <div style="font-weight:700;margin-bottom:8px;font-size:13px">🌿 மாத முடிவு சிட்டை — ${fmtDate(from)} முதல் ${fmtDate(to)} வரை (${supChanges.length} suppliers)</div>
+      <div style="font-weight:700;margin-bottom:8px;font-size:13px">🌿 மாத முடிவு சிட்டை — ${fmtDate(from)} முதல் ${fmtDate(to)} வரை (${rows.length} suppliers)</div>
       <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:480px">
         <thead><tr style="background:#c0392b;color:#fff"><th style="padding:5px 6px;text-align:left">S.No</th><th style="padding:5px 6px;text-align:left">பெயர்</th><th style="padding:5px 6px;text-align:right">பூ வரவு</th><th style="padding:5px 6px;text-align:right">பூ பற்று</th><th style="padding:5px 6px;text-align:right">இறுப்பு</th><th style="padding:5px 6px;text-align:right">பற்று (Carry)</th></tr></thead>
         <tbody>${tableRows}</tbody>
-        <tfoot><tr style="background:#f0f0f0;font-weight:700"><td colspan="2" style="padding:5px 6px">மொத்தம் (${supChanges.length})</td><td style="padding:5px 6px;text-align:right">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">${grandPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">0.00</td><td style="padding:5px 6px;text-align:right">${grandCarry.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot>
+        <tfoot><tr style="background:#f0f0f0;font-weight:700"><td colspan="2" style="padding:5px 6px">மொத்தம் (${rows.length})</td><td style="padding:5px 6px;text-align:right">${grandVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">${grandPatru.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td style="padding:5px 6px;text-align:right">0.00</td><td style="padding:5px 6px;text-align:right">${grandCarry.toLocaleString('en-IN',{minimumFractionDigits:2})}</td></tr></tfoot>
       </table>
       <div style="font-size:10px;color:#888;margin-top:6px">💡 "பற்று (Carry)" column-ஐ உங்க கை பேரேடு-ஓட ஒவ்வொரு supplier பாக்கியுடன் compare பண்ணி verify பண்ணுங்க.</div>
       </div>
       <button class="btn bg" onclick="printReport('mc-result-content')" style="width:100%;padding:10px;font-size:13px;margin-top:10px">🖨️ Print / PDF Download</button>
     </div>`;
+}
+
+// "🔒 மாதம் முடி" button-ஐ மறுபடி தொடாம, கடைசியா செஞ்ச Month Close result-ஐ
+// localStorage-ல் இருந்து திரும்ப காட்டும்.
+function showLastMonthCloseResult(){
+  let raw=null;
+  try{ raw=localStorage.getItem('kprLastMonthClose'); }catch(e){}
+  if(!raw){ alert2('சேமிக்கப்பட்ட Month Close result எதுவும் இல்லை. (இது புது fix76-க்கு பிறகு run ஆன Month Close-க்கு மட்டும் வேலை செய்யும்.)','err'); return; }
+  let data;
+  try{ data=JSON.parse(raw); }catch(e){ alert2('Saved result படிக்க முடியல.','err'); return; }
+  renderMonthCloseResult(data.from, data.to, data.rows);
+  const resDiv=document.getElementById('mc-result');
+  if(resDiv){
+    const genDate=data.generatedAt?new Date(data.generatedAt).toLocaleString('ta-IN'):'';
+    resDiv.insertAdjacentHTML('afterbegin', `<div style="font-size:10px;color:#c8952a;margin-bottom:6px">🕐 இது ${genDate}-ல் run ஆன கடைசி Month Close result (saved copy)</div>`);
   }
-  alert2('மாதம் முடிந்தது! '+supChanges.length+' தோட்டம் suppliers முன்பாக்கி update ஆச்சு ✅','ok');
+}
+
+// ONE-TIME FIX TOOL (Aug 2026): refreshFromFirebase()-ல் இருந்த master-sync race
+// condition bug காரணமா, ஜூலை Month Close-க்கு பிறகு தோட்டம் suppliers-ஓட prev
+// values பழைய (Month Close-க்கு முந்தைய) values-ஆ stale Firebase pull-ல் மேலெழுதப்பட்டு
+// corrupt ஆயிருந்துச்சு. உண்மையான Purchase/Payment data touch ஆகல் — Master Data-ல்
+// prev field மட்டும் தப்பு. இதை சரி பண்ண: தோட்டம் suppliers prev-ஐ ₹0-க்கு reset
+// பண்ணி (ஜூலை 1 "real data start" cutover-ஆ இருந்ததால் இது சரியான baseline),
+// ஜூலை 1-31 Month Close-ஐ தானா மறுபடி run பண்றோம் — இது ஏற்கனவே சரியான (touch
+// ஆகாத) purchase/payment records வச்சு, ஒரிஜினல் closing balances-ஐயே reproduce பண்ணும்.
+async function fixJulyPrevCorruption(){
+  const typed=prompt('⚠️ இது தோட்டம் suppliers எல்லாருடைய முன்பாக்கியையும் ₹0-ஆ reset பண்ணி, ஜூலை 1-31 Month Close-ஐ மறுபடி run பண்ணும் (உங்க Purchase/Payment records touch ஆகாது — Master Data prev field மட்டும் சரி ஆகும்). இது ஒரு-தடவை Fix Tool. உறுதியா தொடரணும்னா கீழே "சரி பண்ணு" ன்னு type பண்ணுங்க:');
+  if(typed===null) return;
+  if(typed.trim().normalize('NFC')!=='சரி பண்ணு'.normalize('NFC')){ alert2('சரியா type பண்ணல — எதுவும் மாறல், பாதுகாப்பா இருக்கு.','warn'); return; }
+  let count=0;
+  (master.suppliers||[]).forEach(s=>{
+    if((s.type||'தோட்டம்')==='தோட்டம்'){ s.prev=0; s.prevDate=null; count++; }
+  });
+  saveMasterLocal();
+  saveMasterFirebase('suppliers');
+  alert2(count+' தோட்டம் suppliers-ஓட முன்பாக்கி ₹0-ஆ reset ஆச்சு ✅. இப்போ ஜூலை Month Close தானா மறுபடி run ஆகுது...','ok');
+  const mcFrom=document.getElementById('mc-from');
+  const mcTo=document.getElementById('mc-to');
+  if(mcFrom) mcFrom.value='2026-07-01';
+  if(mcTo) mcTo.value='2026-07-31';
+  setTimeout(()=>{ monthClose(); }, 900);
 }
 
 let cmcSelectedCust=null;
@@ -4449,7 +4512,18 @@ function showNameMergeTool(){
   };
 }
 function refreshFromFirebase(){
-  loadMasterFirebase(); // master data-வும் reload
+  // BUG FIX (Aug 2026): முன்னாடி இங்க loadMasterFirebase() நேரடியா, எந்த
+  // safety-யும் இல்லாம call ஆகிச்சு. Admin device-ல் Month Close/Master Data
+  // edit பண்ணின பிறகு, அந்த push Firebase-க்கு போகுறதுக்கு முன்னாடியே யாராவது
+  // (இதே device-ல் அல்லது வேற device-ல்) Sync Now தட்டினா, பழைய (Month Close-க்கு
+  // முந்தைய) Firebase master data இங்க pull ஆகி, சரியான prev values மேலெழுதப்பட்டு
+  // "மாதம் முடி வரை சரி, அதுக்கு பின் குளறுபடி" பிரச்சனை வந்துச்சு.
+  // Fix: Admin device-ல் மட்டும் — pull பண்ண முன்னாடி, இப்போ local-ல் இருக்குற
+  // master-ஐ முதல்ல Firebase-க்கு push பண்ணிடுவோம் (Month Close result இழக்காம).
+  // Staff/View devices Master Data edit பண்ணாததால, அவங்க நேரா pull பண்ணலாம்.
+  const masterSyncPromise = (currentRole==='admin')
+    ? fetch(FIREBASE_URL+'/master.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(master)}).catch(()=>null)
+    : loadMasterFirebase();
   showFirebaseLoading(true);
   const fbTimeout2 = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000));
   // முதல்ல, இந்த device-ல் இன்னும் Firebase-க்கு போகாத entries இருந்தா, அதை முதல்ல அனுப்பறோம்
