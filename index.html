@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix76';
+  var APP_BUILD = '20260810-v122-fix77';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -592,9 +592,9 @@ tbody td{padding:8px 11px}
       <div id="mc-result" style="margin-top:8px"></div>
     </div>
     <div style="margin-bottom:12px;border:1.5px solid #d4af37;border-radius:8px;padding:10px;background:#fffaf0">
-      <div style="font-weight:700;color:#8a6d1a;font-size:11px;margin-bottom:4px">🔧 ஜூலை Prev Corruption Fix (One-Time Tool)</div>
-      <div style="font-size:10px;color:#8a6d1a;margin-bottom:8px;line-height:1.4">Sync bug காரணமா தப்பான ஜூலை முன்பாக்கி values-ஐ சரி பண்ண — தோட்டம் suppliers முன்பாக்கியை ₹0-ஆ reset பண்ணி, ஜூலை 1-31 Month Close-ஐ தானா மறுபடி run பண்ணும் (உங்க purchase/payment data touch ஆகாது).</div>
-      <button class="btn" style="width:100%;padding:8px;background:#fff;color:#8a6d1a;border:1.5px solid #d4af37;font-weight:700;font-size:11px" onclick="fixJulyPrevCorruption()">🔧 ஜூலை Prev Reset + மறு கணக்கீடு</button>
+      <div style="font-weight:700;color:#8a6d1a;font-size:11px;margin-bottom:4px">📥 ஜூலை 31 Correct முன்பாக்கி Restore (One-Time Tool)</div>
+      <div style="font-size:10px;color:#8a6d1a;margin-bottom:8px;line-height:1.4">11/08 காலையில் generate பண்ண "மாத சப்ளையர் சிட்டை" report (PDF)-ல் இருக்குற சரியான ஜூலை 31 "பற்று சிட்டை" values-ஐ, ஒவ்வொரு தோட்டம் supplier-ஓட முன்பாக்கியா-வும் exact-ஆ restore பண்ணும் (165 suppliers, Fixed-Target 🎯 3 பேர் தவிர). உங்க Purchase/Payment records touch ஆகாது.</div>
+      <button class="btn" style="width:100%;padding:8px;background:#fff;color:#8a6d1a;border:1.5px solid #d4af37;font-weight:700;font-size:11px" onclick="restoreJuly31Prev()">📥 ஜூலை 31 முன்பாக்கி Restore பண்ணு</button>
     </div>
     <div style="margin-bottom:12px;border:1.5px dashed #999;border-radius:8px;padding:10px;background:#faf7f2">
       <div style="font-weight:700;color:#888;font-size:11px;margin-bottom:6px">⚠️ Danger Zone — Owner மட்டும்</div>
@@ -2683,30 +2683,31 @@ function showLastMonthCloseResult(){
   }
 }
 
-// ONE-TIME FIX TOOL (Aug 2026): refreshFromFirebase()-ல் இருந்த master-sync race
-// condition bug காரணமா, ஜூலை Month Close-க்கு பிறகு தோட்டம் suppliers-ஓட prev
-// values பழைய (Month Close-க்கு முந்தைய) values-ஆ stale Firebase pull-ல் மேலெழுதப்பட்டு
-// corrupt ஆயிருந்துச்சு. உண்மையான Purchase/Payment data touch ஆகல் — Master Data-ல்
-// prev field மட்டும் தப்பு. இதை சரி பண்ண: தோட்டம் suppliers prev-ஐ ₹0-க்கு reset
-// பண்ணி (ஜூலை 1 "real data start" cutover-ஆ இருந்ததால் இது சரியான baseline),
-// ஜூலை 1-31 Month Close-ஐ தானா மறுபடி run பண்றோம் — இது ஏற்கனவே சரியான (touch
-// ஆகாத) purchase/payment records வச்சு, ஒரிஜினல் closing balances-ஐயே reproduce பண்ணும்.
-async function fixJulyPrevCorruption(){
-  const typed=prompt('⚠️ இது தோட்டம் suppliers எல்லாருடைய முன்பாக்கியையும் ₹0-ஆ reset பண்ணி, ஜூலை 1-31 Month Close-ஐ மறுபடி run பண்ணும் (உங்க Purchase/Payment records touch ஆகாது — Master Data prev field மட்டும் சரி ஆகும்). இது ஒரு-தடவை Fix Tool. உறுதியா தொடரணும்னா கீழே "சரி பண்ணு" ன்னு type பண்ணுங்க:');
+// ONE-TIME RESTORE TOOL (Aug 2026): sync bug காரணமா தோட்டம் suppliers-ஓட ஜூலை 31
+// முன்பாக்கி corrupt ஆகி, முதல் Fix Tool (₹0 reset + recompute) அதை innும் தப்பா
+// பண்ணிடுச்சு — ஏன்னா பல suppliers-க்கு ஜூலைக்கு முன்னாடியே real balance இருந்துச்சு,
+// "ஜூலை 1 = ₹0" assumption தப்பு. 11/08 காலையில் generate பண்ண "மாத சப்ளையர் சிட்டை"
+// (01/07-31/07) PDF report-ல் இருக்குற சரியான "பற்று சிட்டை" values-ஐ இங்க exact-ஆ
+// hardcode பண்ணி, அதையே ஒவ்வொரு supplier-ஓட ஜூலை 31 முன்பாக்கியா நேரடியா set பண்றோம்
+// (Fixed-Target 🎯 3 suppliers — ஆண்டி/துணைமாலை/முனீஸ்வரி — தவிர, அவங்க logic வேற).
+const JULY31_CORRECT_PREV = [["அங்குமுத்து", 0], ["அட்சிகாஸூரீ", 113864.43], ["அபிஷேக்", 0], ["அரளி கணேசன்", 0], ["அலெக்ஸ் பாண்டியன்", 0], ["அழகர்சாமி", 3080.5], ["அழகு பிரியதர்சினி", 0], ["அழகு மாரீஸ்வரன்", 0], ["அழகு முருகன்", 11117.17], ["அழகுச்செல்வி", 976.7], ["அழகுபாண்டியன்", 0], ["அழகுலட்சுமி", 0], ["அழகுவிஜயா", 7016.1], ["ஆவடையம்மாள்", 0], ["இந்துமதி", 28696.8], ["இளவரசி", 0], ["இனியன்", 0], ["கடை பாண்டி", 0], ["கண்ட சரண்யா", 6410.85], ["கணேஷ்பாண்டி", 12745.56], ["கதிர்வேல்", 0], ["கமலேஷ்", 0], ["கருப்பையா", 13278.75], ["கிருஷ்ணவேணி", 0], ["குமரேசன்", 133748.53], ["குரண்டி அழகர்", 0], ["குரண்டி கௌதம்", 0], ["குருமூர்த்தி", 0], ["சக்தி வேல்", 0], ["சங்கீதகுமாரி", 63727.55], ["சத்யா", 0], ["சதீஸ்வரி", 694.1], ["சந்தோஷ்குமார்", 24246.84], ["சபரீஷ்", 0], ["சமுத்திரபாண்டி", 0], ["சரஸ்வதி", 1021.0], ["சித்தல.கணபதி", 13325.57], ["சிவசக்தி பாலன்", 0], ["சின்னக்காளை", 0], ["சின்னப்பொண்ணு", 10743.97], ["சுந்தர்", 0], ["சுரேஷ் கிருஷ்ணா", 0], ["செம்.சீனி", 0], ["செம்.பாண்டி", 0], ["செல்லப்பாண்டி", 0], ["செல்வலட்சுமி", 24500.46], ["செல்வி", 0], ["சேகர்", 0], ["ஞானசேகர்", 0], ["தங்கப்பாண்டி", 0], ["தமிழ் அழகர்", 57445.98], ["தமிழ் முத்துமாரி", 11088.95], ["திவ்யலட்சுமி", 0], ["திவ்யா", 78652.85], ["தினேஷ்", 0], ["நந்தகுமார்", 432957.1], ["நல்லுச்சாமி", 161979.71], ["நாகரத்தினம்", 0], ["நிசாந்த்", 0], ["பஞ்சவர்ணம்", 0], ["பரதன்", 0], ["பழனி செம்பட்டி", 52311.79], ["பழனியாண்டி", 0], ["பாண்டி மயூரி", 114973.36], ["பாண்டஸ்வரன்", 0], ["பால்பாண்டி", 0], ["பாலகிருஷ்ணன்", 0], ["பாலசுப்பிரமணி", 0], ["பிரீத்தி", 0], ["புன்னைவனம்", 0], ["பூமிநாதன்", 0], ["பூவேந்திரன்", 82096.76], ["பெத்தம்மாள்", 0], ["பெத்தனாட்சி", 0], ["பெரியசாமி", 5677.89], ["பொன் இருளன்", 0], ["பொன் மருதாயி", 0], ["பொன்ராஜ்", 25451.56], ["மகாதேவி", 0], ["மகேந்திரன்(கஞ்சா)", 0], ["மகேஸ்வரன்", 0], ["மஞ்சுளாதேவி", 0], ["மதன் சித்ரா கனி", 0], ["மதுபிரிதா", 0], ["மதுமிதா", 15141.8], ["மருதாயி", 0], ["மருதுராஜ்", 34070.79], ["மஹா அர்ச்சனா", 0], ["மாயி", 0], ["மார்க்கண்டன்", 0], ["மீனா", 61097.23], ["முகேஷ்", 3236.04], ["முத்துராமலிங்கம்", 0], ["முத்துராமு", 0], ["முருகன்", 0], ["முருகேசன்", 0], ["மொரார்ஜி", 78450.77], ["யாழினி", 0], ["யுவராம்", 0], ["யுவஹரீ", 0], ["ராம்குமார்", 0], ["ராம மகாலிங்கம்", 0], ["ராமர் லட்சுமணன்", 0], ["ராமஜெயம்", 0], ["ராஜுகோபால்", 76781.65], ["ரோஹித்வர்மா", 4164.65], ["லிங்கம்மாள்", 0], ["வசந்தா", 0], ["விக்னேஷ்", 0], ["வினோத்", 0], ["விஜய்", 153275.17], ["விஜயராகவன்", 0], ["விஜயலட்சுமி", 74168.67], ["வீரம்மாள்", 0], ["வீரன்", 230076.29], ["வெற்றிவேல்", 133337.89], ["வேதாஸ்ரீ", 0], ["வேலுச்சாமி", 0], ["ஜான்சிராணி", 0], ["ஜெயக்கொடி", 0], ["ஜெயராம்", 0], ["ஜோதிலிங்கம்", 0], ["ஹேமாவதி", 4517.2], ["A.செல்வன்", 43208.05], ["CMI", 50489.67], ["KSK", 30014.8], ["M.இருளாண்டி", 0], ["MR அழகம்மாள்", 0], ["P.ராமன்", 0], ["R.அழகன்", 0], ["R.T.ஈஸ்வரி", 9762.97], ["RRR", 4522.45], ["SK", 5854.5], ["SR", 1664.45], ["SSK", 0], ["T.மதனா", 0], ["YRSK", 9019.87], ["அம்மாசி முருகன்", 0], ["கந்தன்", 70100.0], ["கர்ணன்", 8000.0], ["கரிசல் ரவி", 504.0], ["காயத்ரி", 0], ["குமார்", 0], ["குரண்டி ராமன்", 0], ["சதீஸ்குமார்", 4141.0], ["தனுஷ்கோடி", 52075.0], ["துர்கா", 0], ["நித்யஸ்ரீ", 7049.0], ["நிவேதா", 0], ["புள்ளூர் முத்துமாரி", 27246.0], ["மணிமுத்து", 1820.0], ["மருது பூபதி", 0], ["முத்திருவாள்", 23492.0], ["முனியசாமி", 0], ["முனியசாமி டிங்டாங்", 0], ["ராஜேந்திரன்", 0], ["ருத்ரா", 58924.0], ["வன்னியராஜ்", 35258.0], ["வெள்ளையன்", 5250.0], ["ஜெயக்குமார்", 0], ["ஜெயராஜ்", 3000.0], ["ஜெயஸ்ரீ", 22193.0], ["ஜோதிபிரியா", 73416.0], ["AP", 0], ["T.கணேசன்", 15050.0]];
+async function restoreJuly31Prev(){
+  const typed=prompt('⚠️ இது 165 தோட்டம் suppliers-ஓட முன்பாக்கியை, 11/08 காலை generate பண்ண "மாத சப்ளையர் சிட்டை" PDF report-ல் இருக்குற சரியான ஜூலை 31 "பற்று சிட்டை" values-வச்சு நேரடியா replace பண்ணும் (Purchase/Payment records touch ஆகாது). இது ஒரு-தடவை Restore Tool. உறுதியா தொடரணும்னா கீழே "சரி பண்ணு" ன்னு type பண்ணுங்க:');
   if(typed===null) return;
   if(typed.trim().normalize('NFC')!=='சரி பண்ணு'.normalize('NFC')){ alert2('சரியா type பண்ணல — எதுவும் மாறல், பாதுகாப்பா இருக்கு.','warn'); return; }
-  let count=0;
-  (master.suppliers||[]).forEach(s=>{
-    if((s.type||'தோட்டம்')==='தோட்டம்'){ s.prev=0; s.prevDate=null; count++; }
+  let matched=0, notFound=[];
+  JULY31_CORRECT_PREV.forEach(([name,val])=>{
+    const masterSup=(master.suppliers||[]).find(s=>normName_(s.name||'')===normName_(name));
+    if(!masterSup){ notFound.push(name); return; }
+    masterSup.prev=val;
+    masterSup.prevDate='2026-07-31';
+    matched++;
   });
   saveMasterLocal();
   saveMasterFirebase('suppliers');
-  alert2(count+' தோட்டம் suppliers-ஓட முன்பாக்கி ₹0-ஆ reset ஆச்சு ✅. இப்போ ஜூலை Month Close தானா மறுபடி run ஆகுது...','ok');
-  const mcFrom=document.getElementById('mc-from');
-  const mcTo=document.getElementById('mc-to');
-  if(mcFrom) mcFrom.value='2026-07-01';
-  if(mcTo) mcTo.value='2026-07-31';
-  setTimeout(()=>{ monthClose(); }, 900);
+  let msg=matched+' suppliers-ஓட முன்பாக்கி ஜூலை 31 சரியான value-ஆ restore ஆச்சு ✅';
+  if(notFound.length){ msg+='\n\n⚠️ இந்த '+notFound.length+' பேர் Master Data-ல் பேர் match ஆகல (spelling வேறுபாடு இருக்கலாம்): '+notFound.join(', '); }
+  alert2(msg, notFound.length?'warn':'ok');
 }
 
 let cmcSelectedCust=null;
