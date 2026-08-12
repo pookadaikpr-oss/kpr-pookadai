@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix79';
+  var APP_BUILD = '20260810-v122-fix80';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -595,6 +595,11 @@ tbody td{padding:8px 11px}
       <div style="font-weight:700;color:#8a6d1a;font-size:11px;margin-bottom:4px">📥 ஜூலை 31 Correct முன்பாக்கி Restore (One-Time Tool)</div>
       <div style="font-size:10px;color:#8a6d1a;margin-bottom:8px;line-height:1.4">11/08 காலையில் generate பண்ண "மாத சப்ளையர் சிட்டை" report (PDF)-ல் இருக்குற சரியான ஜூலை 31 "பற்று சிட்டை" values-ஐ, ஒவ்வொரு தோட்டம் supplier-ஓட முன்பாக்கியா-வும் exact-ஆ restore பண்ணும் (165 suppliers, Fixed-Target 🎯 3 பேர் தவிர). உங்க Purchase/Payment records touch ஆகாது.</div>
       <button class="btn" style="width:100%;padding:8px;background:#fff;color:#8a6d1a;border:1.5px solid #d4af37;font-weight:700;font-size:11px" onclick="restoreJuly31Prev()">📥 ஜூலை 31 முன்பாக்கி Restore பண்ணு</button>
+    </div>
+    <div style="margin-bottom:12px;border:1.5px solid #c0392b;border-radius:8px;padding:10px;background:#fff5f5">
+      <div style="font-weight:700;color:#c0392b;font-size:11px;margin-bottom:4px">🧹 ஜூலை 1-2 தவறான "பற்று" Fix (One-Time Tool)</div>
+      <div style="font-size:10px;color:#c0392b;margin-bottom:8px;line-height:1.4">ஜூலை 1, 2 தேதிகளில் (real data தொடங்கின முதல் 2 நாட்கள்) 61 purchase entries-ல் "பற்று (ரொக்கம்)" தவறா total-கு சமமா set ஆயிருந்தது (உண்மையில் pay பண்ணாதது). இதை 0-ஆ சரி பண்ணும் — items/commission/date தொடாது. Verify பண்ணப்பட்டது: August முன்பாக்கியை இது பாதிக்காது.</div>
+      <button class="btn" style="width:100%;padding:8px;background:#fff;color:#c0392b;border:1.5px solid #c0392b;font-weight:700;font-size:11px" onclick="fixJuly1_2BadPaidEntries()">🧹 ஜூலை 1-2 பற்று Fix பண்ணு</button>
     </div>
     <div style="margin-bottom:12px;border:1.5px dashed #999;border-radius:8px;padding:10px;background:#faf7f2">
       <div style="font-weight:700;color:#888;font-size:11px;margin-bottom:6px">⚠️ Danger Zone — Owner மட்டும்</div>
@@ -2749,6 +2754,32 @@ async function restoreJuly31Prev(){
   if(notFound.length){ msg+='\n\n⚠️ இந்த '+notFound.length+' பேர் Master Data-ல் பேர் match ஆகல (spelling வேறுபாடு இருக்கலாம்): '+notFound.join(', '); }
   alert2(msg, notFound.length?'warn':'ok');
 }
+
+// ONE-TIME FIX TOOL (Aug 2026): ஜூலை 1-2 (real data entry தொடங்கின முதல் 2 நாட்கள்) —
+// bulk-import/initial-setup process-ல் 61 purchase entries-க்கு "பற்று (ரொக்கம்)" தவறா
+// total-கு சமமா set ஆயிருந்துச்சு (உண்மையில் அன்றைக்கே pay பண்ணாதது). இது exact entry
+// ID-கள் மூலமா மட்டும் இந்த 61 entries-ஓட paid-ஐ 0-ஆ reset பண்ணும் — items/total/
+// commission/date/supplier எதையும் தொடாது. (Verify பண்ணப்பட்டது: இந்த 49 suppliers
+// எல்லாருமே "due-state" — August முன்பாக்கி-ஐ இது பாதிக்காது.)
+const JULY1_2_BAD_PAID_IDS = ["pur_1782921971392", "pur_1782921992985", "pur_1782922697125", "pur_1782922817384", "pur_1782922834428", "pur_1782922850603", "pur_1782922965219", "pur_1782923067770", "pur_1782923093092", "pur_1782923115292", "pur_1782923202763", "pur_1782923243491", "pur_1782959992141", "pur_1782960091332", "pur_1782960103356", "pur_1782960123037", "pur_1782960154332", "pur_1782960214247", "pur_1782960254148", "pur_1782960287656", "pur_1782960358848", "pur_1782960555544", "pur_1782960584437", "pur_1782960622273", "pur_1782960664903", "pur_1782960727006", "pur_1782960737285", "pur_1782960763567", "pur_1782960776625", "pur_1782960787582", "pur_1782960798783", "pur_1782960817283", "pur_1782960846364", "pur_1782960857747", "pur_1782960870001", "pur_1782960952565", "pur_1782960977451", "pur_1782960987699", "pur_1782961002313", "pur_1782961020121", "pur_1782961060576", "pur_1782961083639", "pur_1782961096157", "pur_1782961126315", "pur_1782961400701", "pur_1782961423128", "pur_1782961725693", "pur_1782983888610", "pur_1782984811126", "pur_1782984833924", "pur_1782985042187", "pur_1782985156414", "pur_1782985647091", "pur_1782986213550", "pur_1782986556842", "pur_1782986882400", "pur_1782987033199", "pur_1782987100339", "pur_1782987393493", "pur_1782987497208", "pur_1782987563366"];
+async function fixJuly1_2BadPaidEntries(){
+  const typed=prompt('⚠️ இது ஜூலை 1, 2 தேதிகளில் 61 purchase entries-ஓட "பற்று (ரொக்கம்)" தவறா total-கு சமமா set ஆயிருந்ததை 0-ஆ சரி பண்ணும் (balance = total ஆகும். Items/commission/date தொடாது). இது ஒரு-தடவை Fix Tool. உறுதியா தொடரணும்னா கீழே "சரி பண்ணு" ன்னு type பண்ணுங்க:');
+  if(typed===null) return;
+  if(typed.trim().normalize('NFC')!=='சரி பண்ணு'.normalize('NFC')){ alert2('சரியா type பண்ணல — எதுவும் மாறல், பாதுகாப்பா இருக்கு.','warn'); return; }
+  let fixed=0, notFound=0;
+  JULY1_2_BAD_PAID_IDS.forEach(id=>{
+    const e=(db.purchases||[]).find(p=>p.id===id);
+    if(!e){ notFound++; return; }
+    e.paid=0;
+    e.balance=(e.total||0)-(e.prev||0);
+    fixed++;
+  });
+  saveDB();
+  let msg=fixed+' entries-ஓட "பற்று (ரொக்கம்)" ₹0-ஆ சரி ஆச்சு ✅';
+  if(notFound){ msg+='\n\n⚠️ '+notFound+' entries கிடைக்கல (already மாறி இருக்கலாம்).'; }
+  alert2(msg, notFound?'warn':'ok');
+}
+
 
 let cmcSelectedCust=null;
 function onCmcCustSearch(val){
