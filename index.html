@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix85';
+  var APP_BUILD = '20260810-v122-fix87';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2297,7 +2297,13 @@ function renderPL(){
   const tb=document.getElementById('pl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
-    tb.innerHTML=list.map(p=>{ const pTotal=(typeof p.total==='number'&&!isNaN(p.total))?p.total:0; const pPaid=((typeof p.paid==='number'&&!isNaN(p.paid))?p.paid:0)+(p.retroPaid||0); const pBal=(typeof p.balance==='number'&&!isNaN(p.balance))?p.balance:0; st+=pTotal; sp+=pPaid; sb+=pBal;
+    tb.innerHTML=list.map(p=>{ const pTotal=(typeof p.total==='number'&&!isNaN(p.total))?p.total:0; const pPaid=((typeof p.paid==='number'&&!isNaN(p.paid))?p.paid:0)+(p.retroPaid||0);
+      // BUG FIX (Aug 2026): "நிலுவை" column முன்னாடி p.balance (cached field, entry
+      // save ஆன நேரத்துல ஒரே தடவை calculate பண்ணி வச்சது) படிச்சுச்சு — retroPaid போன்ற
+      // பிறகு சேர்க்கப்படும் payments-ஐ இது reflect பண்ணாது, "பற்று" column-கூட
+      // ஒத்துப்போகாம stale-ஆ காட்டும் risk இருந்துச்சு. இப்போ இங்க காட்டுற exact
+      // மொத்தம்/பற்று numbers-ஐ வச்சே live-ஆ calculate பண்றோம் — எப்போவும் ஒத்துப்போகும்.
+      const pBal=pTotal-pPaid; st+=pTotal; sp+=pPaid; sb+=pBal;
       const istr=(p.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
       const badTotal=(typeof p.total!=='number'||isNaN(p.total));
       const bc=pBal>0?'br2':(pBal<0?'bo2':'bg2'); const bt=pBal>0?'₹'+pBal.toFixed(2):(pBal<0?'₹'+Math.abs(pBal).toFixed(2):'Paid ✓');      return`<tr${badTotal?' style="background:#fff3cd"':''}><td>${fmtDate(p.date)}</td><td><b>${p.supplier}</b><br><span class="bdg bo2" style="font-size:9px">${p.supType||'தோட்டம்'}</span></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr||(badTotal?'⚠️ Invalid total':'')}</td><td>₹${pTotal.toFixed(2)}</td><td>₹${pPaid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap"><button class="btn boo bsm" onclick="openEdit('pur','${p.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('pur','${p.id}')">🗑</button></td></tr>`;
@@ -2316,10 +2322,14 @@ function renderSL(){
   const tb=document.getElementById('sl-body'); let st=0,sp=0,sb=0;
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="empty">No data</td></tr>'; }
   else{
-    tb.innerHTML=list.map(s=>{ const sPaid=(s.paid||0)+(s.retroPaid||0); st+=s.total; sp+=sPaid; sb+=s.balance;
+    tb.innerHTML=list.map(s=>{ const sPaid=(s.paid||0)+(s.retroPaid||0);
+      // BUG FIX (Aug 2026): Purchase list-ல் இருந்த அதே "cached balance stale ஆகும்" bug
+      // இங்கயும் இருந்துச்சு — s.balance-க்கு பதிலா, இப்போ காட்டுற total/paid-ஐ வச்சே
+      // live-ஆ calculate பண்றோம்.
+      const sBal=s.total-sPaid; st+=s.total; sp+=sPaid; sb+=sBal;
       const istr=(s.items||[]).map(i=>i.name+'('+i.qty+')').join(', ');
-      const bc=s.balance>0?'br2':(s.balance<0?'bo2':'bg2'); const bt=s.balance>0?'₹'+s.balance.toFixed(2):(s.balance<0?'முன்பாக்கி ₹'+Math.abs(s.balance).toFixed(2):'Paid ✓');
-      return`<tr><td>${fmtDate(s.date)}</td><td><b>${s.party}</b></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${s.total.toFixed(2)}</td><td>₹${sPaid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${s.balance>0?`<button class="btn bo bsm" onclick="collectCust('${s.party.replace(/'/g,"\\'")}',${s.balance})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('sal','${s.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('sal','${s.id}')">🗑</button></td></tr>`;
+      const bc=sBal>0?'br2':(sBal<0?'bo2':'bg2'); const bt=sBal>0?'₹'+sBal.toFixed(2):(sBal<0?'முன்பாக்கி ₹'+Math.abs(sBal).toFixed(2):'Paid ✓');
+      return`<tr><td>${fmtDate(s.date)}</td><td><b>${s.party}</b></td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${istr}">${istr}</td><td>₹${s.total.toFixed(2)}</td><td>₹${sPaid.toFixed(2)}</td><td><span class="bdg ${bc}">${bt}</span></td><td style="white-space:nowrap">${sBal>0?`<button class="btn bo bsm" onclick="collectCust('${s.party.replace(/'/g,"\\'")}',${sBal})">💰</button>`:''}<button class="btn boo bsm" onclick="openEdit('sal','${s.id}')">✏️</button><button class="btn br bsm" onclick="delEntry('sal','${s.id}')">🗑</button></td></tr>`;
     }).join('');
   }
   document.getElementById('sl-tot').textContent=`மொத்தம்: ₹${st.toFixed(2)} | வரவு: ₹${sp.toFixed(2)} | நிலுவை: ₹${Math.max(0,sb).toFixed(2)}`;
@@ -2460,13 +2470,20 @@ function saveEdit(){
       const pItems=collectEditPaidItems();
       const itemsTotal=pItems.reduce((a,it)=>a+(it.amount||0),0);
       const newPaid=cash+itemsTotal;
-      Object.assign(e,{date,supplier:name,items,total,prev,paid:newPaid,balance:total-prev-newPaid,note,commPct,eduppuPct,commission,paidCash:cash,paidItems:pItems});
+      // BUG FIX (Aug 2026): இந்த entry-க்கு முன்னாடி (Payments tab மூலமா) retroPaid
+      // credit ஆயிருந்தா, அதை balance formula-ல் சேர்க்காம இருந்தா, entry edit பண்ணும்போது
+      // (எந்த field-ஆ இருந்தாலும், கூட unrelated field கூட) balance தப்பா "reset"
+      // ஆகி, ஏற்கனவே pay பண்ண தொகை மறுபடி "பாக்கி"-ஆ காட்டும் — இது confirmPay()-ஓட
+      // payment-distribution logic-ஐயும் தப்பா வழிநடத்தும் (அது இதே balance field-ஐ
+      // படிச்சு தான் decide பண்றது). இப்போ retroPaid-ஐயும் கழிக்கிறோம்.
+      Object.assign(e,{date,supplier:name,items,total,prev,paid:newPaid,balance:total-prev-newPaid-(e.retroPaid||0),note,commPct,eduppuPct,commission,paidCash:cash,paidItems:pItems});
     }
   } else {
     const e=db.sales.find(s=>String(s.id)===String(id));
     if(e){
       const prev=parseFloat((document.getElementById('edit-prev')||{value:'0'}).value)||0;
-      Object.assign(e,{date,party:name,items,total,prev,paid,balance:total+prev-paid,note});
+      // அதே fix — sales entries-க்கும் retroPaid balance formula-ல் சேர்க்கணும்.
+      Object.assign(e,{date,party:name,items,total,prev,paid,balance:total+prev-paid-(e.retroPaid||0),note});
     }
   }
   saveDB(); closeEdit(); renderPL(); renderSL(); updateDash(); renderPay();
