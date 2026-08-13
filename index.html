@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix84';
+  var APP_BUILD = '20260810-v122-fix85';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3682,7 +3682,11 @@ function genFullReport(mode){
   const purs=db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to));
   const sals=db.sales.filter(s=>!s.deleted&&(s.date>=from&&s.date<=to));
   if(!purs.length&&!sals.length){ out.innerHTML='<div class="empty">Data இல்லை</div>'; return; }
-  const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
+  const purTotal=purs.reduce((a,b)=>a+b.total,0);
+  // "இதர செலவுகள்" tab-ல் cash counter "வரவு" entries (முல்லை/மல்லி/கொழுந்து கல்லா
+  // வரவு) — உண்மையான மொத்த விற்பனைக்கு இதுவும் சேரணும், Sales tab bills மட்டும் போதாது.
+  const miscIncome=(db.misc||[]).filter(m=>!m.deleted&&m.date>=from&&m.date<=to).reduce((a,m)=>a+(m.in||0),0);
+  const salTotal=sals.reduce((a,b)=>a+b.total,0)+miscIncome,profit=salTotal-purTotal;
   const dl=from.split('-').reverse().join('/')+' — '+to.split('-').reverse().join('/');
 
   const thStyle='padding:5px 6px;text-align:left;font-size:11px;white-space:nowrap';
@@ -3690,11 +3694,12 @@ function genFullReport(mode){
   const tdR='padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap';
 
   const modeTitle = mode==='purchase'?'🌿 Purchase Statement':mode==='sales'?'🛒 Sales Statement':'📊 Full Report';
+  const salSub=sals.length+' bills'+(miscIncome>0?' + ₹'+miscIncome.toLocaleString('en-IN')+' கல்லா வரவு':'');
   const summaryCards = mode==='purchase'
     ? `<div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div>`
     : mode==='sales'
-    ? `<div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div>`
-    : `<div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${sals.length} bills</div></div>`;
+    ? `<div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${salSub}</div></div>`
+    : `<div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toLocaleString('en-IN')}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toLocaleString('en-IN')}</div><div class="sub">${salSub}</div></div>`;
   const profitBox = mode==='both' ? `<div class="profit-box ${profit>=0?'ppos':'pneg'}" style="padding:6px"><div class="plbl">லாபம்</div><div class="pval" style="font-size:20px">${profit>=0?'+':''}₹${profit.toLocaleString('en-IN')}</div></div>` : '';
   let html=`<div class="card" style="border:2px solid #1a6b3a;margin-bottom:12px"><div style="text-align:center;font-size:14px;font-weight:700;color:#1a6b3a;margin-bottom:8px">${modeTitle} | ${dl}</div><div style="display:grid;grid-template-columns:${mode==='both'?'1fr 1fr':'1fr'};gap:8px;margin-bottom:8px">${summaryCards}</div>${profitBox}</div>`;
 
@@ -4213,9 +4218,17 @@ function _genReport(){
   }
   const purs=db.purchases.filter(p=>!p.deleted&&(p.date>=from&&p.date<=to));
   const sals=db.sales.filter(s=>!s.deleted&&(s.date>=from&&s.date<=to));
-  const purTotal=purs.reduce((a,b)=>a+b.total,0),salTotal=sals.reduce((a,b)=>a+b.total,0),profit=salTotal-purTotal;
+  const purTotal=purs.reduce((a,b)=>a+b.total,0);
+  const salBillTotal=sals.reduce((a,b)=>a+b.total,0);
+  // "இதர செலவுகள்" tab-ல் நேரடியா cash counter-ல் record ஆகும் "வரவு" entries (உ.ம்
+  // முல்லை/மல்லி/கொழுந்து கல்லா வரவு) — இவை Sales tab bills-ஆ இல்லாம தனியா
+  // record ஆகுறதால, முன்னாடி இந்த Date Range report-ல் Sales total-ல் சேர்ந்திருக்கல.
+  // இப்போ சேர்க்கிறோம் — இது தான் உண்மையான மொத்த விற்பனை.
+  const miscIncome=(db.misc||[]).filter(m=>!m.deleted&&m.date>=from&&m.date<=to).reduce((a,m)=>a+(m.in||0),0);
+  const salTotal=salBillTotal+miscIncome;
+  const profit=salTotal-purTotal;
   document.getElementById('rpt-print-btn-row').style.display='block';
-  out.innerHTML=`<div class="card"><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="margin-bottom:12px"><div class="plbl">லாபம் (Sales - Purchase)</div><div class="pval">${profit>=0?'+':''}₹${profit.toFixed(2)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toFixed(2)}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toFixed(2)}</div><div class="sub">${sals.length} bills</div></div></div></div><div class="card"><div class="sec" style="margin-top:0">🌿 Supplier Breakdown</div><div class="twrap"><table><thead><tr><th>Supplier</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(purs.map(p=>p.supplier))].sort().map(n=>{ const t=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.total,0),b=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div><div class="card"><div class="sec" style="margin-top:0">🛒 Customer Breakdown</div><div class="twrap"><table><thead><tr><th>Party</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(sals.map(s=>s.party))].sort().map(n=>{ const t=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.total,0),b=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div>`;
+  out.innerHTML=`<div class="card"><div class="profit-box ${profit>=0?'ppos':'pneg'}" style="margin-bottom:12px"><div class="plbl">லாபம் (Sales - Purchase)</div><div class="pval">${profit>=0?'+':''}₹${profit.toFixed(2)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="dash-card"><div class="lbl">Purchase</div><div class="val">₹${purTotal.toFixed(2)}</div><div class="sub">${purs.length} entries</div></div><div class="dash-card gold"><div class="lbl">Sales</div><div class="val">₹${salTotal.toFixed(2)}</div><div class="sub">${sals.length} bills${miscIncome>0?' + ₹'+miscIncome.toFixed(2)+' கல்லா வரவு':''}</div></div></div></div><div class="card"><div class="sec" style="margin-top:0">🌿 Supplier Breakdown</div><div class="twrap"><table><thead><tr><th>Supplier</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(purs.map(p=>p.supplier))].sort().map(n=>{ const t=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.total,0),b=purs.filter(p=>p.supplier===n).reduce((a,p)=>a+p.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div><div class="card"><div class="sec" style="margin-top:0">🛒 Customer Breakdown</div><div class="twrap"><table><thead><tr><th>Party</th><th>மொத்தம்</th><th>நிலுவை</th></tr></thead><tbody>${[...new Set(sals.map(s=>s.party))].sort().map(n=>{ const t=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.total,0),b=sals.filter(s=>s.party===n).reduce((a,s)=>a+s.balance,0); return`<tr><td>${n}</td><td>₹${t.toFixed(2)}</td><td><span class="bdg ${b>0?'br2':'bg2'}">${b>0?'₹'+b.toFixed(2):'Paid ✓'}</span></td></tr>`; }).join('')}</tbody></table></div></div>`;
 }
 
 // ===== HELPERS =====
