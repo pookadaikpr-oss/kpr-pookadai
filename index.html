@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix87';
+  var APP_BUILD = '20260810-v122-fix89';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2290,6 +2290,16 @@ function resetSalUpload(){ document.getElementById('sal-json-input').value=''; s
 function renderPL(){
   const fd=(document.getElementById('pl-date').value||'').trim();
   const fs=(document.getElementById('pl-sup').value||'').trim().toLowerCase();
+  // PERFORMANCE FIX (Aug 2026): Filter (தேதி/பேர்) இல்லாம, ஒவ்வொரு தடவையும் எல்லா
+  // purchase entries-ஐயும் (entries கூடக்கூட இது innum மெதுவாகும்) load பண்ணி
+  // காட்டிக்கிட்டிருந்தோம் — List tab திறக்கும்போதே இது நடந்துச்சு. இப்போ filter
+  // இல்லாம list காலியா இருக்கும், தேடி பாக்க சொல்லும் — வேகமா இருக்க.
+  if(!fd&&!fs){
+    const tb0=document.getElementById('pl-body');
+    if(tb0) tb0.innerHTML='<tr><td colspan="7" class="empty">📅 தேதி அல்லது 🔍 Supplier பேர் தேடி பாருங்க</td></tr>';
+    const totEl=document.getElementById('pl-tot'); if(totEl) totEl.textContent='தேதி/பேர் தேடி பாருங்க';
+    return;
+  }
   let list=db.purchases.filter(p=>{
     if(!p||p.deleted||!p.date||!p.supplier) return false; // deleted/incomplete entries skip (total invalid ஆனாலும் காட்டு, edit/delete பண்ண முடியணும்)
     if(fd&&p.date!==fd) return false; if(fs&&!(p.supplier||'').toLowerCase().includes(fs)) return false; return true;
@@ -2315,6 +2325,13 @@ function renderPL(){
 function renderSL(){
   const fd=(document.getElementById('sl-date').value||'').trim();
   const fp=(document.getElementById('sl-par').value||'').trim().toLowerCase();
+  // அதே PERFORMANCE FIX — filter இல்லாம list காலியா இருக்கும்.
+  if(!fd&&!fp){
+    const tb0=document.getElementById('sl-body');
+    if(tb0) tb0.innerHTML='<tr><td colspan="7" class="empty">📅 தேதி அல்லது 🔍 Party பேர் தேடி பாருங்க</td></tr>';
+    const totEl=document.getElementById('sl-tot'); if(totEl) totEl.textContent='தேதி/பேர் தேடி பாருங்க';
+    return;
+  }
   let list=db.sales.filter(s=>{
     if(!s||s.deleted||typeof s.total!=='number'||!s.date||!s.party) return false; // தப்பான/incomplete/deleted entries skip
     if(fd&&s.date!==fd) return false; if(fp&&!(s.party||'').toLowerCase().includes(fp)) return false; return true;
@@ -2957,6 +2974,16 @@ function generateMonthSlips(){
 
 function renderPay(){
   if(!db.commissions) db.commissions={};
+  // PERFORMANCE FIX (Aug 2026): findMasterSupplier()/findMasterCustomer() ஒவ்வொரு
+  // தடவையும் master.suppliers/customers array-ஐ முழுசா linear-ஆ scan பண்ணும். இதை
+  // ஒவ்வொரு purchase/sale entry-க்கும் (இன்னும் ஒவ்வொரு supplier/customer card
+  // render பண்ணும்போதும்) தனித்தனியா call பண்ணா, entries+suppliers கூடக்கூட இது
+  // O(n×m) ஆ மோசமாகும் — Payments tab slow ஆனதுக்கு இது தான் முக்கிய காரணம்.
+  // இப்போ ஒரே தடவை Map build பண்ணி, O(1) lookup பண்றோம்.
+  const supMap=new Map((master.suppliers||[]).map(s=>[normName_(s.name),s]));
+  const custMap=new Map((master.customers||[]).map(c=>[normName_(c.name),c]));
+  const findSup=n=>supMap.get(normName_(n))||null;
+  const findCust=n=>custMap.get(normName_(n))||null;
   const sm={};
   // BUG FIX: Month Close ஆன பிறகு, master.prev (முன்பாக்கி) ஏற்கனவே அந்த தேதி வரையிலான
   // net balance-ஐ capture பண்ணிடுச்சு. அதுக்கு மேல எல்லா (all-time) sales/purchase entries-ஐயும்
@@ -2964,7 +2991,7 @@ function renderPay(){
   // பிறகான entries மட்டும் எடுத்து, அதுக்கு மேல முன்பாக்கி சேர்க்கிறோம் — Report-ஓட logic exact-ஆ match.
   db.purchases.forEach(p=>{
     if(p.deleted) return;
-    const ms=findMasterSupplier(p.supplier);
+    const ms=findSup(p.supplier);
     const effDate=(ms&&ms.prevDate)||REAL_DATA_CUTOFF;
     if(p.date<effDate) return;
     if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0};
@@ -2976,7 +3003,7 @@ function renderPay(){
   const slist=Object.entries(sm).filter(([n])=>!supSearch||normName_(n).includes(supSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   sdiv.innerHTML=slist.length?slist.map(([n,v])=>{
     const commPct=db.commissions[n]||0;
-    const masterSup=findMasterSupplier(n);
+    const masterSup=findSup(n);
     const effDate=(masterSup&&masterSup.prevDate)||REAL_DATA_CUTOFF;
     const received=(db.payments||[]).filter(p=>!p.deleted&&p.type==='pur_in'&&p.name===n&&p.date>=effDate).reduce((a,p)=>a+(p.amount||0),0);
     const munPakki=masterSup&&masterSup.prev>0?masterSup.prev:0;
@@ -2989,7 +3016,7 @@ function renderPay(){
   const cm={};
   db.sales.forEach(s=>{
     if(s.deleted) return;
-    const mc=findMasterCustomer(s.party);
+    const mc=findCust(s.party);
     const effDate=(mc&&mc.prevDate)||REAL_DATA_CUTOFF;
     if(s.date<effDate) return;
     if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0};
@@ -3000,7 +3027,7 @@ function renderPay(){
   const custSearch=custSearchEl?normName_(custSearchEl.value):'';
   const clist=Object.entries(cm).filter(([n])=>!custSearch||normName_(n).includes(custSearch)).sort((a,b)=>a[0].localeCompare(b[0]));
   cdiv.innerHTML=clist.length?clist.map(([n,v])=>{
-    const mc=findMasterCustomer(n);
+    const mc=findCust(n);
     const openingPrev=mc&&mc.prev>0?mc.prev:0;
     const grandTotal=v.total+openingPrev;
     const dueBal=grandTotal-v.paid;
