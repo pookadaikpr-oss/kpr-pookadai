@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix89';
+  var APP_BUILD = '20260810-v122-fix90';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4333,22 +4333,33 @@ function updateParDL(){ try{ const s=new Set([...(master.customers||[]).map(x=>x
 function syncMasterFromDB(){
   // Auto-add suppliers from purchases to master
   let changed=false;
+  // PERFORMANCE FIX (Aug 2026): இது ஒவ்வொரு save/sync-க்கும் call ஆகும் — இதுவும்
+  // findMasterSupplier()/findMasterCustomer()-ஐ ஒவ்வொரு purchase/sale entry-க்கும்
+  // (linear search) call பண்ணிச்சு, Payments tab bug-கூட அதே pattern. இப்போ Map
+  // வச்சு O(1) lookup பண்றோம் — புது supplier/customer இதே loop-ல் சேர்க்கும்போது,
+  // அதையும் Map-ல் உடனே சேர்த்து duplicate-add தடுக்கிறோம்.
+  const supMap2=new Map((master.suppliers||[]).map(s=>[normName_(s.name),s]));
+  const custMap2=new Map((master.customers||[]).map(c=>[normName_(c.name),c]));
   db.purchases.forEach(p=>{
-    if(p.supplier && !findMasterSupplier(p.supplier)){
-      master.suppliers.push({
+    if(p.supplier && !supMap2.has(normName_(p.supplier))){
+      const rec={
         name:p.supplier,
         town:'',phone:'',
         comm:p.commPct||10,
         eduppu:p.eduppuPct||0,
         prev:p.prev||0
-      });
+      };
+      master.suppliers.push(rec);
+      supMap2.set(normName_(p.supplier),rec);
       changed=true;
     }
   });
   // Auto-add customers from sales to master
   db.sales.forEach(s=>{
-    if(s.party && !findMasterCustomer(s.party)){
-      master.customers.push({name:s.party,town:'',phone:'',prev:s.prev||0});
+    if(s.party && !custMap2.has(normName_(s.party))){
+      const rec={name:s.party,town:'',phone:'',prev:s.prev||0};
+      master.customers.push(rec);
+      custMap2.set(normName_(s.party),rec);
       changed=true;
     }
   });
