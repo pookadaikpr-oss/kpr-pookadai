@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix91';
+  var APP_BUILD = '20260810-v122-fix92';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3989,7 +3989,18 @@ function _genReport(){
     const entries=rptPartyType==='sup'
       ?db.purchases.filter(p=>!p.deleted&&(p.supplier&&normName_(p.supplier)===normName&&p.date>=from&&p.date<=to))
       :db.sales.filter(s=>!s.deleted&&(s.party&&normName_(s.party)===normName&&s.date>=from&&s.date<=to));
-    if(!entries.length){ out.innerHTML='<div class="empty"><div class="eico">📋</div>Data இல்லை</div>'; return; }
+    // BUG FIX (Aug 2026): Sales/Purchase entries முழுசா இல்லாத customer/supplier-க்கு
+    // (Master Data-ல் opening முன்பாக்கி மட்டும், அல்லது Payments tab மூலமா payment
+    // மட்டும் record ஆனவங்க) — "Data இல்லை" ன்னு early-ஆ stop பண்ணிடுச்சு, அவங்க
+    // opening balance/payment-ஐ காட்டவே இல்ல. இப்போ, entries இல்லாட்டியும், opening
+    // balance அல்லது இந்த period-ல் ஏதாவது payment இருந்தா தொடர்ந்து காட்டுறோம்.
+    if(!entries.length){
+      const mrec=rptPartyType==='sup'?findMasterSupplier(name):findMasterCustomer(name);
+      const hasOpening=mrec&&mrec.prev>0;
+      const payType=rptPartyType==='sup'?'pur':'sal';
+      const hasPayment=(db.payments||[]).some(p=>!p.deleted&&p.type===payType&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
+      if(!hasOpening && !hasPayment){ out.innerHTML='<div class="empty"><div class="eico">📋</div>Data இல்லை</div>'; return; }
+    }
     const printBtn=document.getElementById('rpt-print-btn-row');
     if(printBtn) printBtn.style.display='block';
 
