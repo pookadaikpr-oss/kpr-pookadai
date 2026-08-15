@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix90';
+  var APP_BUILD = '20260810-v122-fix91';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -2997,6 +2997,11 @@ function renderPay(){
     if(!sm[p.supplier]) sm[p.supplier]={total:0,paid:0,comm:0};
     sm[p.supplier].total+=p.total; sm[p.supplier].paid+=(p.paid||0)+(p.retroPaid||0); sm[p.supplier].comm+=(p.commission||0);
   });
+  // அதே fix — Purchase entry இல்லாத supplier-க்கும் (Master Data-ல் முன்பாக்கி
+  // advance மட்டும் இருந்தா), card தோன்ற வேண்டும்.
+  (master.suppliers||[]).forEach(s=>{
+    if(s.prev>0 && !sm[s.name]) sm[s.name]={total:0,paid:0,comm:0};
+  });
   const sdiv=document.getElementById('sup-due-list');
   const supSearchEl=document.getElementById('sup-due-search');
   const supSearch=supSearchEl?normName_(supSearchEl.value):'';
@@ -3021,6 +3026,14 @@ function renderPay(){
     if(s.date<effDate) return;
     if(!cm[s.party]) cm[s.party]={total:0,paid:0,balance:0};
     cm[s.party].total+=s.total; cm[s.party].paid+=(s.paid||0)+(s.retroPaid||0); cm[s.party].balance+=s.balance;
+  });
+  // BUG FIX (Aug 2026): Sales entry ஒண்ணு கூட இல்லாத customer-க்கு (Master Data-ல்
+  // முன்பாக்கி மட்டும் இருந்தா), மேல loop-ல் cm[name] உருவாகவே இல்ல — அதனால அவங்க
+  // பேரே இந்த Receivable list-ல் தோன்றல (dummy sales entry போட வேண்டிய கட்டாயம்
+  // இருந்துச்சு). இப்போ, opening முன்பாக்கி இருக்குற suppliers-க்கு (Sales entry
+  // இருந்தாலும் இல்லைன்னாலும்) card தோன்றும்படி சேர்க்கிறோம்.
+  (master.customers||[]).forEach(c=>{
+    if(c.prev>0 && !cm[c.name]) cm[c.name]={total:0,paid:0,balance:0};
   });
   const cdiv=document.getElementById('cust-due-list');
   const custSearchEl=document.getElementById('cust-due-search');
