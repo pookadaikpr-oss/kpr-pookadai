@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix93';
+  var APP_BUILD = '20260810-v122-fix94';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -841,6 +841,14 @@ tbody td{padding:8px 11px}
       <div class="sec" style="margin-top:0">📋 பொருட்கள் List <span style="font-size:11px;color:#888">(number type பண்ணி Enter = shortcut)</span> <button onclick="loadMasterFirebase()" style="background:#1a6b3a;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;margin-left:6px">🔄 Items Refresh</button></div>
       <div id="mst-item-list"></div>
     </div>
+    <div class="card">
+      <div class="sec" style="margin-top:0">🌱 நாத்து வகைகள் <span style="font-size:11px;color:#888">(Purchase entry-ல் "நாத்து" dropdown-ல் இதுவே வரும்)</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="ms-nathu-name" placeholder="புது நாத்து வகை பெயர்" style="flex:1;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit">
+        <button class="btn bg" onclick="saveNathuItem()" style="padding:8px 14px">+ சேர்</button>
+      </div>
+      <div id="mst-nathu-list"></div>
+    </div>
   </div>
 </div>
 
@@ -917,11 +925,12 @@ tbody td{padding:8px 11px}
 
 // ===== MASTER DATA =====
 const MASTER_KEY = 'kpr-master-v1';
-let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'], monthCloseHistory:[] };
+let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'], monthCloseHistory:[], nathuItems:['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'] };
 
 function loadMaster(){
   try{ const m=localStorage.getItem(MASTER_KEY); if(m) master=JSON.parse(m); }catch(e){}
   if(!master.monthCloseHistory) master.monthCloseHistory=[];
+  if(!master.nathuItems||!master.nathuItems.length) master.nathuItems=['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'];
 }
 function saveMasterLocal(){
   try{ localStorage.setItem(MASTER_KEY, JSON.stringify(master)); }catch(e){}
@@ -947,6 +956,7 @@ function loadMasterFirebase(){
         if(!master.customers) master.customers=[];
         if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
         if(!master.monthCloseHistory) master.monthCloseHistory=[];
+        if(!master.nathuItems||!master.nathuItems.length) master.nathuItems=['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'];
         saveMasterLocal();
         renderMaster();
         renderPurMessages(); renderSalMessages(); // phone numbers updated
@@ -1119,6 +1129,23 @@ function deleteMasterItem(idx){
   master.items.splice(idx,1);
   saveMasterLocal(); saveMasterFirebase('items'); renderMaster();
 }
+// நாத்து வகைகள் — பொருட்கள் (Items) list-கூட முற்றிலும் தனி, வேற master field
+// (nathuItems). இதுல சேர்க்கிறது/நீக்குறது, Purchase entry-ல் "நாத்து" dropdown-ஐ
+// மட்டும் பாதிக்கும், "பொருட்கள்" list-ஐ தொடாது.
+function saveNathuItem(){
+  const name=document.getElementById('ms-nathu-name').value.trim();
+  if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  document.getElementById('ms-nathu-name').value='';
+  if(!master.nathuItems) master.nathuItems=[];
+  if(master.nathuItems.includes(name)) return alert2('Already இருக்கு!','warn');
+  master.nathuItems.push(name);
+  saveMasterLocal(); saveMasterFirebase('nathuItems'); renderMaster();
+  alert2(name+' நாத்து வகை சேர்க்கப்பட்டது ✅','ok');
+}
+function deleteMasterNathuItem(idx){
+  master.nathuItems.splice(idx,1);
+  saveMasterLocal(); saveMasterFirebase('nathuItems'); renderMaster();
+}
 function editMasterSupByName(name){
   const idx=master.suppliers.findIndex(s=>s.name===name);
   if(idx>=0) editMasterSup(idx);
@@ -1209,6 +1236,17 @@ function renderMaster(){
         <span style="background:#1a6b3a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</span>
         <span style="flex:1;font-size:13px">${item}</span>
         <button onclick="deleteMasterItem(${i})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
+      </div>`).join('')
+    : '<div style="color:#aaa;font-size:13px;padding:10px 0">இன்னும் சேர்க்கலை</div>';
+
+  // நாத்து வகைகள் (தனி list — பொருட்கள் list-கூட கலக்காது)
+  const nl=document.getElementById('mst-nathu-list');
+  if(nl) nl.innerHTML=(master.nathuItems||[]).length
+    ? master.nathuItems.map((item,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0ede8">
+        <span style="background:#7a4a1a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</span>
+        <span style="flex:1;font-size:13px">${item}</span>
+        <button onclick="deleteMasterNathuItem(${i})" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer">×</button>
       </div>`).join('')
     : '<div style="color:#aaa;font-size:13px;padding:10px 0">இன்னும் சேர்க்கலை</div>';
 }
@@ -1788,11 +1826,7 @@ function addPaidItem(){
     <div class="frow t4 pit-nathu" style="display:none">
       <div class="fg"><label>பொருள்</label>
         <select class="pit-nathu-item" onchange="calcPaidItemAmt('${id}')">
-          <option value="மல்லி">மல்லி</option>
-          <option value="முல்லை">முல்லை</option>
-          <option value="கஞ்சா">கஞ்சா</option>
-          <option value="கனகாம்பரம்">கனகாம்பரம்</option>
-          <option value="கோழி">கோழி</option>
+          ${(master.nathuItems||['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி']).map(n=>`<option value="${n}">${n}</option>`).join('')}
         </select>
       </div>
       <div class="fg"><label>எண்ணிக்கை</label><input type="number" class="pit-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcPaidItemAmt('${id}')"></div>
@@ -2529,11 +2563,7 @@ function addEditPaidItem(item){
     <div class="frow t4 pit-nathu" style="display:none">
       <div class="fg"><label>பொருள்</label>
         <select class="pit-nathu-item" onchange="calcEditPaidItemAmt('${id}')">
-          <option value="மல்லி">மல்லி</option>
-          <option value="முல்லை">முல்லை</option>
-          <option value="கஞ்சா">கஞ்சா</option>
-          <option value="கனகாம்பரம்">கனகாம்பரம்</option>
-          <option value="கோழி">கோழி</option>
+          ${(master.nathuItems||['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி']).map(n=>`<option value="${n}">${n}</option>`).join('')}
         </select>
       </div>
       <div class="fg"><label>எண்ணிக்கை</label><input type="number" class="pit-nathu-qty" placeholder="0" min="0" step="0.5" oninput="calcEditPaidItemAmt('${id}')"></div>
