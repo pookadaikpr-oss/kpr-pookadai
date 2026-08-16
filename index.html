@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix94';
+  var APP_BUILD = '20260810-v122-fix96';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -925,12 +925,13 @@ tbody td{padding:8px 11px}
 
 // ===== MASTER DATA =====
 const MASTER_KEY = 'kpr-master-v1';
-let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'], monthCloseHistory:[], nathuItems:['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'] };
+let master = { suppliers:[], customers:[], items:['மல்லி','முல்லை','கஞ்சா','சம்பங்கி','டிங்டாங்','அரளி','பச்சை','செவ்வந்தி','துளசி','கொழுந்து','கனகாம்பரம்','நந்தியாவட்டம்','தாமரை'], monthCloseHistory:[], nathuItems:['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'], deletedNames:{suppliers:[],customers:[]} };
 
 function loadMaster(){
   try{ const m=localStorage.getItem(MASTER_KEY); if(m) master=JSON.parse(m); }catch(e){}
   if(!master.monthCloseHistory) master.monthCloseHistory=[];
   if(!master.nathuItems||!master.nathuItems.length) master.nathuItems=['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'];
+  if(!master.deletedNames) master.deletedNames={suppliers:[],customers:[]};
 }
 function saveMasterLocal(){
   try{ localStorage.setItem(MASTER_KEY, JSON.stringify(master)); }catch(e){}
@@ -957,6 +958,7 @@ function loadMasterFirebase(){
         if(!master.items) master.items=['மல்லி','முல்லை','கஞ்சா','சம்பங்கி'];
         if(!master.monthCloseHistory) master.monthCloseHistory=[];
         if(!master.nathuItems||!master.nathuItems.length) master.nathuItems=['மல்லி','முல்லை','கஞ்சா','கனகாம்பரம்','கோழி'];
+        if(!master.deletedNames) master.deletedNames={suppliers:[],customers:[]};
         saveMasterLocal();
         renderMaster();
         renderPurMessages(); renderSalMessages(); // phone numbers updated
@@ -965,6 +967,22 @@ function loadMasterFirebase(){
         alert2('Firebase-ல் master data காலியா இருக்கு','warn');
       }
     }).catch((err)=>{ alert2('Firebase fetch error: '+err.message,'err'); });
+}
+// BUG FIX (Aug 2026): loadMasterFirebase() safety இல்லாம நேரடியா pull பண்ணி, local
+// master-ஐ overwrite பண்ணும். Master Data-ல் Supplier/Customer delete பண்ணினப்போ,
+// அந்த push Firebase-க்கு (network weak-ஆ இருந்து) FAIL ஆயிருந்தா — local delete
+// சரியா தான் இருக்கும், ஆனா Firebase-ல் பழைய (delete ஆகாத) copy தங்கிடும். App-ஐ
+// மறுபடி திற/login பண்ணும்போது, loadMasterFirebase() நேரடியா call ஆகி, அந்த பழைய
+// Firebase data local delete-ஐ மேலெழுதி, "delete பண்ணது திரும்ப வருது" பிரச்சனை
+// வந்துச்சு. இப்போ, app login/startup-ல் — refreshFromFirebase()-ல் இருக்குற அதே
+// "admin-ஆ இருந்தா முதல்ல push, அப்புறமே pull" safety பயன்படுத்துறோம்.
+function safeSyncMasterOnStartup(){
+  if(currentRole==='admin'){
+    fetch(FIREBASE_URL+'/master.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(master)})
+      .catch(()=>{}); // fail ஆனாலும், local state-ஐ pull மூலமா overwrite பண்ண மாட்டோம் — safe.
+  } else {
+    loadMasterFirebase(); // Staff/View — Master Data edit பண்ணாததால், நேரா pull பண்ணலாம்.
+  }
 }
 
 function updateAllDataLists(){
@@ -1001,6 +1019,12 @@ async function saveMasterSup(){
       const ok=await confirm2('"'+name+'" ஏற்கனவே இருக்கு! Edit பண்ணாம நேரடியா Save பண்ணா, அவங்க முன்பாக்கி/மற்ற details இப்போ இந்த form-ல இருக்குறது (பெரும்பாலும் 0/காலி) ஆல மாறிடும். இதனால பழைய data இழக்கலாம்.<br><br>தொடரணுமா? (இல்லைன்னா Cancel பண்ணி, அந்த supplier-ன் ✏️ Edit பட்டனை தட்டி update பண்ணுங்க)');
       if(!ok) return;
     }
+  }
+  // நீங்க delete பண்ணின பேரையே மறுபடி consciously add பண்ணினா, tombstone-ல் இருந்து
+  // நீக்கிடுவோம் — இல்லைன்னா புது entry போட்டாலும் அது auto-sync ஆகாது.
+  if(master.deletedNames && master.deletedNames.suppliers){
+    const di=master.deletedNames.suppliers.indexOf(normName_(name));
+    if(di>-1) master.deletedNames.suppliers.splice(di,1);
   }
   const sup={
     name,
@@ -1045,6 +1069,11 @@ async function saveMasterSup(){
 function saveMasterCust(){
   const name=document.getElementById('ms-cust-name').value.trim();
   if(!name) return alert2('பெயர் enter பண்ணுங்க!','err');
+  // அதே fix — consciously மறுபடி add பண்ணினா tombstone-ல் இருந்து நீக்கு.
+  if(master.deletedNames && master.deletedNames.customers){
+    const di=master.deletedNames.customers.indexOf(normName_(name));
+    if(di>-1) master.deletedNames.customers.splice(di,1);
+  }
   const cust={
     name,
     town:document.getElementById('ms-cust-town').value.trim(),
@@ -1101,8 +1130,20 @@ function saveMasterItem(){
 
 async function deleteMasterSup(idx){
   if(!(await confirm2('Delete பண்ணவா?'))) return;
+  // BUG FIX (Aug 2026): Master Data-ல் இருந்து delete பண்ணினாலும், அந்த பேர்ல ஏற்கனவே
+  // save ஆன பழைய Purchase entries touch ஆகாது (accounting history, அப்படியே இருக்கணும்).
+  // ஆனா syncMasterFromDB() (app திறக்கும் ஒவ்வொரு தடவையும் run ஆகும்) அந்த பழைய
+  // entries-ஐ பாத்து, "இந்த பேர் Master Data-ல் இல்லையே" ன்னு தானா திரும்ப add
+  // பண்ணிடும் — delete பண்ணது "திரும்ப வரும்" பிரச்சனை. இப்போ, delete பண்ணின பேரை
+  // ஒரு "deletedNames" tombstone list-ல் சேமிச்சு, syncMasterFromDB() அதை skip
+  // பண்ணும்படி பண்றோம் — உங்க transaction entries touch ஆகாம, permanent-ஆ delete ஆகும்.
+  const delName=master.suppliers[idx]&&master.suppliers[idx].name;
   master.suppliers.splice(idx,1);
-  saveMasterLocal(); saveMasterFirebase('suppliers'); renderMaster();
+  if(delName){
+    if(!master.deletedNames) master.deletedNames={suppliers:[],customers:[]};
+    if(!master.deletedNames.suppliers.includes(normName_(delName))) master.deletedNames.suppliers.push(normName_(delName));
+  }
+  saveMasterLocal(); saveMasterFirebase('suppliers'); saveMasterFirebase('deletedNames'); renderMaster();
 }
 let editingCustIdx=-1;
 function editMasterCust(idx){
@@ -1122,8 +1163,15 @@ function editMasterCust(idx){
 }
 async function deleteMasterCust(idx){
   if(!(await confirm2('Delete பண்ணவா?'))) return;
+  // அதே fix — Delete பண்ணின customer பேர், அந்த பேர்ல பழைய Sales entries இருக்குற
+  // வரைக்கும் தானா திரும்ப add ஆகாம tombstone-ல் சேமிக்கிறோம்.
+  const delName=master.customers[idx]&&master.customers[idx].name;
   master.customers.splice(idx,1);
-  saveMasterLocal(); saveMasterFirebase('customers'); renderMaster();
+  if(delName){
+    if(!master.deletedNames) master.deletedNames={suppliers:[],customers:[]};
+    if(!master.deletedNames.customers.includes(normName_(delName))) master.deletedNames.customers.push(normName_(delName));
+  }
+  saveMasterLocal(); saveMasterFirebase('customers'); saveMasterFirebase('deletedNames'); renderMaster();
 }
 function deleteMasterItem(idx){
   master.items.splice(idx,1);
@@ -4394,8 +4442,14 @@ function syncMasterFromDB(){
   // அதையும் Map-ல் உடனே சேர்த்து duplicate-add தடுக்கிறோம்.
   const supMap2=new Map((master.suppliers||[]).map(s=>[normName_(s.name),s]));
   const custMap2=new Map((master.customers||[]).map(c=>[normName_(c.name),c]));
+  // BUG FIX (Aug 2026): Master Data-ல் ஒரு supplier/customer-ஐ delete பண்ணினா,
+  // இந்த auto-add logic அந்த பேர்ல பழைய entries இருக்குற வரைக்கும் தானா திரும்ப
+  // add பண்ணிடும் ("delete பண்ணது திரும்ப வருது" பிரச்சனை). deletedNames
+  // tombstone-ல் இருக்கிற பேர்களை இப்போ skip பண்றோம்.
+  const delSup=new Set((master.deletedNames&&master.deletedNames.suppliers)||[]);
+  const delCust=new Set((master.deletedNames&&master.deletedNames.customers)||[]);
   db.purchases.forEach(p=>{
-    if(p.supplier && !supMap2.has(normName_(p.supplier))){
+    if(p.supplier && !supMap2.has(normName_(p.supplier)) && !delSup.has(normName_(p.supplier))){
       const rec={
         name:p.supplier,
         town:'',phone:'',
@@ -4410,7 +4464,7 @@ function syncMasterFromDB(){
   });
   // Auto-add customers from sales to master
   db.sales.forEach(s=>{
-    if(s.party && !custMap2.has(normName_(s.party))){
+    if(s.party && !custMap2.has(normName_(s.party)) && !delCust.has(normName_(s.party))){
       const rec={name:s.party,town:'',phone:'',prev:s.prev||0};
       master.customers.push(rec);
       custMap2.set(normName_(s.party),rec);
@@ -5293,7 +5347,7 @@ function doLogin(){
   document.getElementById('logout-btn').style.display='block';
   kprResetActivity();
   applyRoleRestrictions();
-  loadMasterFirebase();
+  safeSyncMasterOnStartup();
 }
 
 function checkSavedRole(){
@@ -5352,7 +5406,7 @@ loadSummaryPin();
 setTimeout(()=>{
   if(checkSavedRole()){
     doFbFetch(1); // load data if already logged in
-    loadMasterFirebase(); // load master data too
+    safeSyncMasterOnStartup(); // load master data too (admin-safe)
   }
 }, 500);
 
