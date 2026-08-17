@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v124-fix100';
+  var APP_BUILD = '20260817-v125-fix101';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -565,17 +565,17 @@ tbody td{padding:8px 11px}
     <div style="margin-bottom:12px;border:1.5px solid #2d8a50;border-radius:8px;padding:10px">
       <label style="font-size:11px;font-weight:700;color:#1a6b3a">📔 தின பேரேடு (Daily வரவு-செலவு) — Personal Notebook</label>
       <div style="font-size:10px;color:#888;margin:4px 0 8px;line-height:1.4">Purchase/Sales-ஓட சம்பந்தம் இல்லாத, உங்க கை பேரேடு-ல எழுதுற தினசரி மொத்த வரவு/செலவு. இது உங்களுக்கு மட்டும் தெரியும் (இது Sales/Purchase இருப்போட சேராது — முற்றிலும் தனி கணக்கு).</div>
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
-        <span style="font-size:10.5px;color:#666;white-space:nowrap">தொடக்க இருப்பு</span>
-        <input type="number" id="kpr-book-opening" placeholder="0" step="0.50" style="flex:1;font-size:12px;padding:4px 6px">
-        <button class="btn" style="padding:4px 10px;font-size:11px;background:#2d8a50;color:#fff" onclick="kprSaveBookOpening()">Set</button>
+      <label style="font-size:10.5px;color:#666">தொடக்க இருப்பு</label>
+      <div style="display:flex;gap:6px;margin-top:4px;margin-bottom:8px">
+        <input type="number" id="kpr-book-opening" placeholder="0" step="0.50" style="flex:1;min-width:0;font-size:12px;padding:6px">
+        <button class="btn" style="flex-shrink:0;padding:6px 12px;font-size:11px;background:#2d8a50;color:#fff" onclick="kprSaveBookOpening()">Set</button>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input type="date" id="kpr-book-date" style="flex:1.2">
+        <input type="date" id="kpr-book-date" style="flex:1;min-width:0">
       </div>
       <div style="display:flex;gap:6px;margin-bottom:8px">
-        <input type="number" id="kpr-book-in" placeholder="வரவு ₹" step="0.50" style="flex:1">
-        <input type="number" id="kpr-book-out" placeholder="பற்று ₹" step="0.50" style="flex:1">
+        <input type="number" id="kpr-book-in" placeholder="வரவு ₹" step="0.50" style="flex:1;min-width:0">
+        <input type="number" id="kpr-book-out" placeholder="பற்று ₹" step="0.50" style="flex:1;min-width:0">
       </div>
       <button class="btn bg" style="width:100%;padding:8px" onclick="kprSaveDailyBookEntry()">💾 இந்த தேதிக்கு Save</button>
       <div style="text-align:center;margin-top:10px;padding:8px;background:#f0faf4;border-radius:8px">
