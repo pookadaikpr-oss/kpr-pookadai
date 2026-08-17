@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix97';
+  var APP_BUILD = '20260810-v122-fix98';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4140,8 +4140,18 @@ function _genReport(){
       const laterPaymentsByDate={};
       db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterPaymentsByDate[p.date]=(laterPaymentsByDate[p.date]||0)+p.amount; });
       const laterPaymentsList=Object.keys(laterPaymentsByDate).sort().map(dt=>({date:dt,amount:laterPaymentsByDate[dt]}));
+      // BUG FIX (Aug 2026): Supplier நமக்கு advance/பாக்கி திருப்பி தர்றது (Payments tab
+      // "💰 Receive" — type='pur_in') — monthClose()-ல் இது சரியா கணக்கில் எடுத்துக்கப்பட்டது,
+      // ஆனா இந்த "தனியார்" report formula-ல் இது missing-ஆ இருந்துச்சு — Receive பண்ணினாலும்
+      // "இப்போதைய அதிக பற்று" குறையாம அப்படியே காட்டிக்கிட்டிருந்துச்சு. இப்போ paymentsPaid
+      // (Pay)-கூட அதே pattern-ல் receivedTotal (Receive)-ஐயும் சேர்க்கிறோம்.
+      const receivedTotal=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from).reduce((a,p)=>a+p.amount,0);
+      const periodReceivedTotal=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to).reduce((a,p)=>a+p.amount,0);
+      const laterReceivedByDate={};
+      db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterReceivedByDate[p.date]=(laterReceivedByDate[p.date]||0)+p.amount; });
+      const laterReceivedList=Object.keys(laterReceivedByDate).sort().map(dt=>({date:dt,amount:laterReceivedByDate[dt]}));
       // FIX: வெளியூர்/வெளிகடை-க்கும் தோட்டம் formula-ஏ — சரக்கு-முதலில்-பணம்-பிறகு.
-      const netBal=pooVaravu-(totalPatru+munPakki+totalComm);
+      const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
       const thS='padding:3px 2px;font-size:9.5px;text-align:left;white-space:nowrap;overflow:hidden';
@@ -4161,6 +4171,9 @@ function _genReport(){
       // db.payments பற்று rows
       const supPayments=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
       supPayments.forEach(p=>{ allRows.push({date:p.date,type:'paid',amount:p.amount,label:(p.mode==='gpay'?'GPay':'ரொக்கம்')}); });
+      // db.payments பெற்றது rows (supplier நமக்கு திருப்பி தந்தது — negative "பற்று", அதாவது "வரவு"-ஆ காட்டு)
+      const supReceived=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
+      supReceived.forEach(p=>{ allRows.push({date:p.date,type:'received',amount:p.amount,label:(p.mode==='gpay'?'GPay':'ரொக்கம்')}); });
       // Sort by date
       allRows.sort((a,b)=>a.date.localeCompare(b.date));
       let lastDate='';
@@ -4177,6 +4190,10 @@ function _genReport(){
         if(r.type==='item'){
           dateItemTotal+=r.item.amount||0;
           rowsHtml+=`<tr><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}">${r.item.name}</td><td style="${tdR}">${r.item.qty||''}</td><td style="${tdR}">${r.item.price||''}</td><td style="${tdR}">${r.item.amount>0?r.item.amount.toFixed(2):''}</td><td style="${tdR}"></td></tr>`;
+        } else if(r.type==='received'){
+          // Supplier நமக்கு திருப்பி தந்தது — இது "பற்று" இல்ல, முன்பாக்கியை குறைக்கும் தொகை.
+          // தனி நிறம் (gold) வச்சு, daily subtotal-ல் கலக்காம தனியா காட்டுறோம்.
+          rowsHtml+=`<tr style="background:#fff7e0"><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}" colspan="4"><i>பெற்றது (திருப்பி)${r.label?' — '+r.label:''}</i></td><td style="${tdR};color:#c8952a;font-weight:700">${r.amount.toFixed(2)}</td></tr>`;
         } else {
           datePaidTotal+=r.amount||0;
           rowsHtml+=`<tr style="background:#f0faf4"><td style="${tdS}">${showDate?fmtDate(r.date):''}</td><td style="${tdS}" colspan="4"><i>பற்று${r.label?' ('+r.label+')':''}</i></td><td style="${tdR};color:#1a6b3a;font-weight:700">${r.amount.toFixed(2)}</td></tr>`;
@@ -4217,20 +4234,26 @@ function _genReport(){
             <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>கமிசன் :</span><span></span><span>${totalCommOnly.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>
             ${totalEduppuOnly>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>எடுப்பு :</span><span></span><span>${totalEduppuOnly.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
             ${munPakki>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>முன் பாக்கி .</span><span></span><span>${munPakki.toLocaleString('en-IN',{minimumFractionDigits:2})}</span></div>`:''}
+            ${periodReceivedTotal>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>பெற்றது (திருப்பி) :</span><span>${periodReceivedTotal.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><span></span></div>`:''}
             <div style="display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px;margin-top:4px">
               <span></span>
-              <span style="font-weight:700">${pooVaravu.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+              <span style="font-weight:700">${(pooVaravu+periodReceivedTotal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
               <span style="font-weight:700">${(totalComm+munPakki+periodPatru).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>
             ${laterPaymentsList.map(lp=>`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:#555;background:#f2f2f2;padding:6px 10px;border-radius:8px">
               <span>+ ${fmtDate(lp.date)} அன்று pay பண்ணது</span>
               <span style="font-weight:700">${lp.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>`).join('')}
+            ${laterReceivedList.map(lr=>`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:#555;background:#fff7e0;padding:6px 10px;border-radius:8px">
+              <span>+ ${fmtDate(lr.date)} அன்று பெற்றது (திருப்பி)</span>
+              <span style="font-weight:700">${lr.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            </div>`).join('')}
             ${Math.abs(netBal)>0.01?`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
               <span>${netBal>0?'இப்போதைய இருப்பு :':'இப்போதைய அதிக பற்று :'}</span>
               <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>`:''}
             ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal},${pooVaravu},${totalComm+munPakki+periodPatru},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
+            ${netBal<-0.01?`<button class="rpt-action-btn" onclick="receiveFromSupplier('${normName}',${Math.abs(netBal)})" style="margin-top:10px;width:100%;padding:12px;background:#c8952a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💰 Receive ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})} (Supplier நமக்கு திருப்பி தந்தால்)</button>`:''}
             <button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>
             ${(masterSup&&masterSup.floatTarget>0)?(()=>{
               const currentFloat=-netBal;
