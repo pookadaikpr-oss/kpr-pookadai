@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix98';
+  var APP_BUILD = '20260817-v123-fix99';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -3758,7 +3758,11 @@ function _genSupplierMonthlyStatement(){
     const paidCashTotal=entries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
     const paymentsPaid=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName_(name)&&p.date>=from&&p.date<=to).reduce((a,p)=>a+(p.amount||0),0);
     const totalPatru=paidCashTotal+paymentsPaid;
-    const netBal=pooVaravu-(totalPatru+munPakki+totalComm); // + = இருப்பு (பாக்கி கொடுக்கணும்), - = அதிக பற்று
+    // fix99: monthClose()/genReport()-ல் இருக்குற receivedTotal (pur_in — Supplier நமக்கு
+    // "💰 Receive" மூலமா திருப்பி தந்தது) இந்த மாத சிட்டை report-ல் missing-ஆ இருந்துச்சு —
+    // அதனால Receive பண்ணினாலும் இந்த report-ல் balance குறையாம அப்படியே காட்டிக்கிட்டிருந்துச்சு.
+    const receivedTotal=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName_(name)&&p.date>=from&&p.date<=to).reduce((a,p)=>a+(p.amount||0),0);
+    const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal; // + = இருப்பு (பாக்கி கொடுக்கணும்), - = அதிக பற்று
     const isFloat=masterSup.floatTarget>0;
     let col2, col3Text, col3;
     if(isFloat){
