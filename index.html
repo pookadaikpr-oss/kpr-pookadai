@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260810-v122-fix96';
+  var APP_BUILD = '20260810-v122-fix97';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4768,19 +4768,22 @@ function showNameMergeTool(){
       if(ai.isMaster!==bi.isMaster) return ai.isMaster?-1:1;
       return bi.count-ai.count;
     });
-    resultsEl.innerHTML = '<div style="font-size:12.5px;color:#666;margin-bottom:8px">'+variants.length+' வெவ்வேறு spelling கிடைச்சிருக்கு. எது <b>சரியான பேர்</b>-ன்னு தேர்ந்தெடுங்க (🏅 = Master Data-ல் இருக்குறது):</div>' +
+    resultsEl.innerHTML = '<div style="font-size:12.5px;color:#666;margin-bottom:8px">'+variants.length+' வெவ்வேறு spelling கிடைச்சிருக்கு. முதல்ல <b>சரியான பேர்</b> (target) தேர்ந்தெடுங்க, அப்புறம் <b>எந்த spellings மட்டும் இதுல merge ஆகணும்-ன்னு</b> ✓ tick பண்ணுங்க (🏅 = Master Data-ல் இருக்குறது). ⚠️ வேற real ஆள்-ஓட பேர் தற்செயலா இதே search-ல வந்திருக்கலாம் — அதை tick பண்ணாதீங்க!</div>' +
       variants.map((v,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid ${i===0?'#1a6b3a':'#eee'};border-radius:8px;margin-bottom:6px;cursor:pointer">
-        <input type="radio" name="nmerge-canon" value="${i}" ${i===0?'checked':''}>
+        <input type="radio" name="nmerge-canon" value="${i}" ${i===0?'checked':''} onchange="document.querySelectorAll('.nmerge-chk').forEach(c=>{c.disabled=(c.dataset.idx===this.value);if(c.disabled)c.checked=false;});">
         <span style="flex:1;font-size:13.5px">${variantInfo[v].isMaster?'🏅 ':''}${v}</span>
         <span style="font-size:11px;color:#888;white-space:nowrap">${variantInfo[v].count} entries</span>
+        <input type="checkbox" class="nmerge-chk" data-idx="${i}" ${i===0?'disabled':'checked'} style="width:20px;height:20px;flex-shrink:0" title="இதை merge பண்ணணுமா">
       </label>`).join('') +
-      `<button id="nmerge-apply" style="width:100%;margin-top:8px;padding:10px;background:#c0392b;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✅ தேர்ந்தெடுத்த பேர்-க்கு எல்லாத்தையும் மாத்து</button>`;
+      `<div style="font-size:11px;color:#888;margin:4px 0 8px">✓ tick பண்ணிருக்குறது மட்டும் merge ஆகும், tick நீக்கினா அந்த பேர் தனியா அப்படியே இருக்கும்.</div>` +
+      `<button id="nmerge-apply" style="width:100%;margin-top:8px;padding:10px;background:#c0392b;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✅ ✓ Tick பண்ண பேர்களை மட்டும் மாத்து</button>`;
     resultsEl.querySelector('#nmerge-apply').onclick=async function(){
       const idx=parseInt(resultsEl.querySelector('input[name="nmerge-canon"]:checked').value,10);
       const canon=variants[idx];
-      const others=variants.filter((v,i)=>i!==idx);
+      const others=Array.from(resultsEl.querySelectorAll('.nmerge-chk:checked')).map(c=>variants[parseInt(c.dataset.idx,10)]);
+      if(!others.length){ alert2('ஒரு spelling-ஐயும் merge பண்ண tick பண்ணல — எதுவும் மாறல்.','warn'); return; }
       const totalCount=others.reduce((a,v)=>a+variantInfo[v].count,0);
-      const ok=await confirm2(others.length+' வேற spelling-ல் இருக்குற '+totalCount+' entries, "'+canon+'"-க்கு மாத்தப்படும். இதை Firebase-க்கும் அனுப்பப்படும். தொடரணுமா?');
+      const ok=await confirm2(others.length+' spelling-ல் இருக்குற '+totalCount+' entries, "'+canon+'"-க்கு மாத்தப்படும்:<br>'+others.map(v=>'• '+v).join('<br>')+'<br><br>இதை Firebase-க்கும் அனுப்பப்படும். தொடரணுமா?');
       if(!ok) return;
       let changed=0;
       (db.purchases||[]).forEach(p=>{ if(!p.deleted&&p.supplier&&others.includes(p.supplier)){ p.supplier=canon; changed++; } });
