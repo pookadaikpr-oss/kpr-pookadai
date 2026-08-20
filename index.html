@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v125-fix101';
+  var APP_BUILD = '20260817-v127-fix103';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -1946,13 +1946,17 @@ function calcPaidTotal(){
 function collectPaidItems(){
   const items=[];
   document.querySelectorAll('#pe-paiditems .pi-card').forEach(card=>{
-    const type=card.querySelector('.pi-head select').value;
+    const selEl=card.querySelector('.pi-head select');
+    const type=selEl?selEl.value:'';
+    if(!type) return; // malformed/incomplete card — skip, don't crash the whole save
     if(type==='நாத்து'){
-      const qty=parseFloat(card.querySelector('.pit-nathu-qty').value)||0;
-      const price=parseFloat(card.querySelector('.pit-nathu-price').value)||0;
-      if(qty>0&&price>0) items.push({type,item:card.querySelector('.pit-nathu-item').value,qty,price,amount:qty*price});
+      const qtyEl=card.querySelector('.pit-nathu-qty'), priceEl=card.querySelector('.pit-nathu-price'), itemEl=card.querySelector('.pit-nathu-item');
+      const qty=qtyEl?parseFloat(qtyEl.value)||0:0;
+      const price=priceEl?parseFloat(priceEl.value)||0:0;
+      if(qty>0&&price>0) items.push({type,item:itemEl?itemEl.value:'',qty,price,amount:qty*price});
     } else if(type==='உரம்'||type==='மருந்து'){
-      const amt=parseFloat(card.querySelector('.pit-amt-simple').value)||0;
+      const amtEl=card.querySelector('.pit-amt-simple');
+      const amt=amtEl?parseFloat(amtEl.value)||0:0;
       if(amt>0) items.push({type,amount:amt});
     }
   });
@@ -2101,7 +2105,7 @@ function onParInput(val){
 function findMasterSupplier(name){
   const n=normName_(name);
   if(!n) return null;
-  return master.suppliers.find(s=>normName_(s.name)===n) || null;
+  return (master.suppliers||[]).find(s=>normName_(s.name)===n) || null;
 }
 // HISTORY-AWARE OPENING BALANCE: report/statement எந்த period-க்கு generate ஆனாலும்
 // (இப்போ close ஆன latest period-க்கு மட்டும் இல்லாம, பழைய மாசங்களுக்கும்), சரியான
@@ -2171,14 +2175,15 @@ function clearPur(){
 function savePur(){
   const btn=document.getElementById('pur-save-btn');
   if(btn) btn.disabled=true; // prevent double click
+  try{
   const sup=document.getElementById('pe-sup').value.trim();
   const date=document.getElementById('pe-date').value;
   const supType=document.getElementById('pe-type').value;
   const paid=parseFloat(document.getElementById('pe-paid').value)||0;
   const prev=parseFloat(document.getElementById('pe-prev').value)||0;
   const total=parseFloat(document.getElementById('pe-tot').value)||0;
-  if(!sup) return alert2('Supplier பெயர் எழுது!','err');
-  if(!total && !prev && !paid) return alert2('பொருட்கள், முன்பாக்கி அல்லது கட்டியது enter பண்ணவும்!','err');
+  if(!sup){ if(btn) btn.disabled=false; return alert2('Supplier பெயர் எழுது!','err'); }
+  if(!total && !prev && !paid){ if(btn) btn.disabled=false; return alert2('பொருட்கள், முன்பாக்கி அல்லது கட்டியது enter பண்ணவும்!','err'); }
   const items=[];
   document.querySelectorAll('#pe-items .irow').forEach(r=>{
     const ins=r.querySelectorAll('input');
@@ -2215,6 +2220,10 @@ function savePur(){
   }).catch(()=>{
     alert2('✅ '+sup+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! (Network வந்ததும் "🔄 Sync Now" தட்டுங்க)','ok');
   }).finally(()=>{ if(btn) btn.disabled=false; });
+  }catch(e){
+    if(btn) btn.disabled=false;
+    alert2('❌ Save ஆகல, Error: '+e.message+' — Screenshot எடுத்து அனுப்புங்க','err');
+  }
 }
 
 // ===== SALES ITEMS =====
@@ -2298,13 +2307,15 @@ function clearSal(){
 function saveSal(){
   const btn=document.getElementById('sal-save-btn');
   if(btn&&btn.disabled) return;
+  if(btn) btn.disabled=true;
+  try{
   const par=document.getElementById('se-par').value.trim();
   const date=document.getElementById('se-date').value;
   const paid=parseFloat(document.getElementById('se-paid').value)||0;
   const prev=parseFloat(document.getElementById('se-prev').value)||0;
   const total=parseFloat(document.getElementById('se-tot').value)||0;
-  if(!par) return alert2('Party பெயர் எழுது!','err');
-  if(!total && !prev && !paid) return alert2('பொருட்கள், முன்பாக்கி அல்லது வரவு enter பண்ணவும்!','err');
+  if(!par){ if(btn) btn.disabled=false; return alert2('Party பெயர் எழுது!','err'); }
+  if(!total && !prev && !paid){ if(btn) btn.disabled=false; return alert2('பொருட்கள், முன்பாக்கி அல்லது வரவு enter பண்ணவும்!','err'); }
   const items=[];
   document.querySelectorAll('#se-items .irow').forEach(r=>{
     const ins=r.querySelectorAll('input');
@@ -2325,6 +2336,10 @@ function saveSal(){
   }).catch(()=>{
     alert2('✅ '+par+' - ₹'+total.toFixed(2)+' சேமிக்கப்பட்டது! (Network வந்ததும் "🔄 Sync Now" தட்டுங்க)','ok');
   });
+  }catch(e){
+    if(btn) btn.disabled=false;
+    alert2('❌ Save ஆகல, Error: '+e.message+' — Screenshot எடுத்து அனுப்புங்க','err');
+  }
 }
 
 function rmRow(id,recalc){ document.getElementById(id).remove(); recalc(); }
@@ -3354,6 +3369,7 @@ async function undoPayment(paymentId){
   saveDB().then(()=>{ alert2('✅ Payment undo ஆனது!','ok'); }).catch(()=>{ alert2('✅ Local-ல் undo ஆனது! (Sync Now தட்டுங்க)','ok'); });
 }
 function confirmPay(){
+  try{
   const varavyInput=document.getElementById('pm-varavy-input');
   const enteredAmt=varavyInput?parseFloat(varavyInput.value)||0:0;
   const due=parseFloat(document.getElementById('pm-due')?document.getElementById('pm-due').value:payData.due)||payData.due;
@@ -3377,6 +3393,9 @@ function confirmPay(){
   db.payments.push(payRec);
   saveDB(); closePay(); renderPay(); renderPL(); renderSL(); updateDash();
   alert2('✅ ₹'+amt.toFixed(2)+(lessAmt>0?' + தள்ளுபடி ₹'+lessAmt.toFixed(2):'')+' payment பதிவானது!','ok');
+  }catch(e){
+    alert2('❌ Save ஆகல, Error: '+e.message+' — Screenshot எடுத்து அனுப்புங்க','err');
+  }
 }
 
 // ===== LEDGER =====
@@ -4958,6 +4977,7 @@ function mxSetMode(mode){
 }
 let editingMiscId=null;
 function saveMisc(){
+  try{
   const date=document.getElementById('mx-date').value;
   const cat=document.getElementById('mx-cat').value.trim();
   const paid=parseFloat(document.getElementById('mx-paid').value)||0;
@@ -4983,6 +5003,9 @@ function saveMisc(){
   document.getElementById('mx-date').value=keepDate;
   renderMisc();
   saveDB().then(()=>{ alert2('✅ Save ஆச்சு!','ok'); }).catch(()=>{ alert2('✅ Local-ல் Save ஆச்சு! (Sync Now தட்டுங்க)','ok'); });
+  }catch(e){
+    alert2('❌ Save ஆகல, Error: '+e.message+' — Screenshot எடுத்து அனுப்புங்க','err');
+  }
 }
 function editMisc(id){
   const m=(db.misc||[]).find(x=>String(x.id)===String(id));
