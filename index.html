@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v128-fix104';
+  var APP_BUILD = '20260817-v130-fix106';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4201,8 +4201,12 @@ function _genReport(){
       const laterReceivedByDate={};
       db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>to).forEach(p=>{ laterReceivedByDate[p.date]=(laterReceivedByDate[p.date]||0)+p.amount; });
       const laterReceivedList=Object.keys(laterReceivedByDate).sort().map(dt=>({date:dt,amount:laterReceivedByDate[dt]}));
-      // FIX: வெளியூர்/வெளிகடை-க்கும் தோட்டம் formula-ஏ — சரக்கு-முதலில்-பணம்-பிறகு.
-      const netBal=pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal;
+      // தோட்டம் suppliers: முன்பாக்கி = நாம் முன்னாடியே கொடுத்த Advance → கழிக்கணும்.
+      // வெளியூர்/வெளிகடை suppliers: முன்பாக்கி = நாம் அவங்களுக்கு கொடுக்க வேண்டிய Due → கூட்டணும்.
+      // (fix105 — திசை நேர் எதிரி, ஒரே formula தப்பா இரண்டுக்கும் use ஆகிட்டிருந்துச்சு)
+      const netBal=isOutside
+        ? (pooVaravu+munPakki-totalPatru-totalComm+receivedTotal)
+        : (pooVaravu-(totalPatru+munPakki+totalComm)+receivedTotal);
       const d1=from.split('-').reverse().join('/');
       const d2=to.split('-').reverse().join('/');
       const thS='padding:3px 2px;font-size:9.5px;text-align:left;white-space:nowrap;overflow:hidden';
@@ -4299,13 +4303,13 @@ function _genReport(){
               <span>+ ${fmtDate(lr.date)} அன்று பெற்றது (திருப்பி)</span>
               <span style="font-weight:700">${lr.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>`).join('')}
-            ${Math.abs(netBal)>0.01?`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${netBal>0?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
-              <span>${netBal>0?'இப்போதைய இருப்பு :':'இப்போதைய அதிக பற்று :'}</span>
-              <span style="color:${netBal>0?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+            ${Math.abs(netBal)>0.01?`<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;font-weight:700;background:${(isOutside?netBal<0:netBal>0)?'#e6f7ed':'#fdecea'};padding:8px 10px;border-radius:8px">
+              <span>${isOutside?(netBal>0?'இப்போதைய அதிக பற்று :':'இப்போதைய இருப்பு :'):(netBal>0?'இப்போதைய இருப்பு :':'இப்போதைய அதிக பற்று :')}</span>
+              <span style="color:${(isOutside?netBal<0:netBal>0)?'#1a6b3a':'#c0392b'}">${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
             </div>`:''}
             ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal},${pooVaravu},${totalComm+munPakki+periodPatru},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
             ${netBal<-0.01?`<button class="rpt-action-btn" onclick="receiveFromSupplier('${normName}',${Math.abs(netBal)})" style="margin-top:10px;width:100%;padding:12px;background:#c8952a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💰 Receive ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})} (Supplier நமக்கு திருப்பி தந்தால்)</button>`:''}
-            <button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>
+            ${!isOutside?`<button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>`:''}
             ${(masterSup&&masterSup.floatTarget>0)?(()=>{
               const currentFloat=-netBal;
               const diff=masterSup.floatTarget-currentFloat;
