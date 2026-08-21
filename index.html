@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v130-fix106';
+  var APP_BUILD = '20260817-v131-fix107';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4309,7 +4309,7 @@ function _genReport(){
             </div>`:''}
             ${netBal>0?`<button class="rpt-action-btn" onclick="paySupplier('${normName}',${netBal},${pooVaravu},${totalComm+munPakki+periodPatru},'${fmtDate(from)}–${fmtDate(to)}')" style="margin-top:10px;width:100%;padding:12px;background:#1a6b3a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💸 Pay ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})}</button>`:''}
             ${netBal<-0.01?`<button class="rpt-action-btn" onclick="receiveFromSupplier('${normName}',${Math.abs(netBal)})" style="margin-top:10px;width:100%;padding:12px;background:#c8952a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💰 Receive ₹${Math.abs(netBal).toLocaleString('en-IN',{minimumFractionDigits:2})} (Supplier நமக்கு திருப்பி தந்தால்)</button>`:''}
-            ${!isOutside?`<button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>`:''}
+            <button class="rpt-action-btn" onclick="recalcSupplierCommission('${normName}','${from}','${to}')" style="margin-top:8px;width:100%;padding:10px;background:#fff;color:#7a4a1a;border:1.5px solid #d4af37;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 இந்த காலத்துக்கு Commission % மறு கணக்கீடு (Master Data % படி)</button>
             ${(masterSup&&masterSup.floatTarget>0)?(()=>{
               const currentFloat=-netBal;
               const diff=masterSup.floatTarget-currentFloat;
