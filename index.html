@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v127-fix103';
+  var APP_BUILD = '20260817-v128-fix104';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -4159,7 +4159,10 @@ function _genReport(){
           const gapCommTotal=gapEntries.reduce((a,e)=>a+(e.commission||0),0);
           const gapPaidCash=gapEntries.reduce((a,e)=>a+paidBreakdownParts(e).reduce((s,pt)=>s+(pt.amount||0),0),0);
           const gapPaymentsAmt=db.payments.filter(p=>!p.deleted&&p.type==='pur'&&p.name&&normName_(p.name)===normName&&p.date>=effPrevDate2&&p.date<from).reduce((a,p)=>a+p.amount,0);
-          const gapPatru=gapPaidCash+gapPaymentsAmt;
+          // fix104: gap window-ல் supplier நமக்கு "Receive" (திருப்பி தந்தது) பண்ணி இருந்தா,
+          // அதுவும் பற்று மாதிரியே முன்பாக்கியை குறைக்கணும் — இல்லாட்டி முன்பாக்கி அதிகமா காட்டும்.
+          const gapReceivedAmt=db.payments.filter(p=>!p.deleted&&p.type==='pur_in'&&p.name&&normName_(p.name)===normName&&p.date>=effPrevDate2&&p.date<from).reduce((a,p)=>a+p.amount,0);
+          const gapPatru=gapPaidCash+gapPaymentsAmt+gapReceivedAmt;
           const gapNetBal=gapTotal-gapPatru-gapCommTotal;
           munPakki=baseMunPakki+gapNetBal;
         }
@@ -4334,7 +4337,7 @@ function _genReport(){
       const gapTotal=gapEntries.reduce((a,e)=>a+e.total,0);
       const gapPaidEntries=gapEntries.reduce((a,e)=>a+(e.paid||0),0);
       const gapPayments=db.payments.filter(p=>!p.deleted&&p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=baseDate&&p.date<from);
-      const gapPaid=gapPayments.length>0?gapPayments.reduce((a,p)=>a+(p.amount||0),0):gapPaidEntries;
+      const gapPaid=gapPayments.length>0?gapPayments.reduce((a,p)=>a+(p.amount||0)+(p.less||0),0):gapPaidEntries;
       const munPakkiCust=baseAmt+gapTotal-gapPaid;
       const mottaVirpanai=entries.reduce((a,e)=>a+e.total,0);
       const custPayments=db.payments.filter(p=>!p.deleted&&p.type==='sal'&&p.name&&normName_(p.name)===normName&&p.date>=from&&p.date<=to);
