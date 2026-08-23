@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v131-fix107';
+  var APP_BUILD = '20260817-v132-fix108';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -561,28 +561,6 @@ tbody td{padding:8px 11px}
       </div>
       <button class="btn bg" style="width:100%;margin-top:8px;padding:8px" onclick="kprAddHomeEntry()">➕ சேர்</button>
       <div id="kpr-home-list" style="margin-top:10px;max-height:150px;overflow-y:auto"></div>
-    </div>
-    <div style="margin-bottom:12px;border:1.5px solid #2d8a50;border-radius:8px;padding:10px">
-      <label style="font-size:11px;font-weight:700;color:#1a6b3a">📔 தின பேரேடு (Daily வரவு-செலவு) — Personal Notebook</label>
-      <div style="font-size:10px;color:#888;margin:4px 0 8px;line-height:1.4">Purchase/Sales-ஓட சம்பந்தம் இல்லாத, உங்க கை பேரேடு-ல எழுதுற தினசரி மொத்த வரவு/செலவு. இது உங்களுக்கு மட்டும் தெரியும் (இது Sales/Purchase இருப்போட சேராது — முற்றிலும் தனி கணக்கு).</div>
-      <label style="font-size:10.5px;color:#666">தொடக்க இருப்பு</label>
-      <div style="display:flex;gap:6px;margin-top:4px;margin-bottom:8px">
-        <input type="number" id="kpr-book-opening" placeholder="0" step="0.50" style="flex:1;min-width:0;font-size:12px;padding:6px">
-        <button class="btn" style="flex-shrink:0;padding:6px 12px;font-size:11px;background:#2d8a50;color:#fff" onclick="kprSaveBookOpening()">Set</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input type="date" id="kpr-book-date" style="flex:1;min-width:0">
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:8px">
-        <input type="number" id="kpr-book-in" placeholder="வரவு ₹" step="0.50" style="flex:1;min-width:0">
-        <input type="number" id="kpr-book-out" placeholder="பற்று ₹" step="0.50" style="flex:1;min-width:0">
-      </div>
-      <button class="btn bg" style="width:100%;padding:8px" onclick="kprSaveDailyBookEntry()">💾 இந்த தேதிக்கு Save</button>
-      <div style="text-align:center;margin-top:10px;padding:8px;background:#f0faf4;border-radius:8px">
-        <div style="font-size:10px;color:#888">தற்போதைய இருப்பு (Book Balance)</div>
-        <div id="kpr-book-total" style="font-size:18px;font-weight:800"></div>
-      </div>
-      <div id="kpr-book-list" style="margin-top:10px;max-height:150px;overflow-y:auto"></div>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:8px">
       <div style="flex:1;background:#1a6b3a;color:#fff;padding:8px 4px;border-radius:8px;text-align:center">
@@ -1460,13 +1438,13 @@ function resolveItemShortcut(val){
   return val;
 }
 const LOCAL_KEY = 'kpr-db-v2';
-let db = { purchases:[], sales:[], payments:[], commissions:{}, misc:[], balances:{cash:0,bank:0,home:0}, homeMoney:[], dailyBook:[] };
+let db = { purchases:[], sales:[], payments:[], commissions:{}, misc:[], balances:{cash:0,bank:0,home:0}, homeMoney:[] };
 
 function saveLocal(){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(db)); }catch(e){} }
 function loadLocal(){
   try{
     const d=localStorage.getItem(LOCAL_KEY);
-    if(d){ const p=JSON.parse(d); if(p&&p.purchases){ db=p; if(!db.commissions) db.commissions={}; if(!db.misc) db.misc=[]; if(!db.balances) db.balances={cash:0,bank:0,home:0}; if(db.balances.home===undefined) db.balances.home=0; if(!db.homeMoney) db.homeMoney=[]; if(!db.dailyBook) db.dailyBook=[]; } }
+    if(d){ const p=JSON.parse(d); if(p&&p.purchases){ db=p; if(!db.commissions) db.commissions={}; if(!db.misc) db.misc=[]; if(!db.balances) db.balances={cash:0,bank:0,home:0}; if(db.balances.home===undefined) db.balances.home=0; if(!db.homeMoney) db.homeMoney=[]; } }
   }catch(e){}
 }
 
@@ -1479,7 +1457,7 @@ function saveDB(){
   // இல்லைன்னா ஒரு device-ல ஒரு field save பண்ணும்போது, அந்த device-ன் stale
   // copy-ல இருக்குற மற்ற fields (எ.கா homeMoney) மேலெழுதப்பட்டு, மற்ற device-ல
   // செய்த மாற்றங்கள் (delete உட்பட) இழக்கப்படும் ரிஸ்க் இருக்கு.
-  const allFields = ['commissions','misc','balances','homeMoney','dailyBook'];
+  const allFields = ['commissions','misc','balances','homeMoney'];
   // Speed optimization: கடைசியா successfully save ஆன snapshot-உடன் ஒப்பிட்டு,
   // உண்மையில் மாறின fields-ஐ மட்டும் அனுப்புறோம் (automatic diff — manual field
   // குறிப்பிடும் தேவை இல்லை, அதனால தவறா ஒரு field skip ஆகும் ரிஸ்க் இல்லை).
@@ -1579,7 +1557,6 @@ function dedupDB(){
   if(!db.balances) db.balances={cash:0,bank:0,home:0};
   if(db.balances.home===undefined) db.balances.home=0;
   if(!db.homeMoney) db.homeMoney=[];
-  if(!db.dailyBook) db.dailyBook=[];
 }
 
 // ===== DATE FORMAT HELPER =====
@@ -1667,7 +1644,6 @@ window.addEventListener('DOMContentLoaded', function(){
           const fbMisc = toArr(data.misc||[]);
           const fbBalances = data.balances||null;
           const fbHomeMoney = toArr(data.homeMoney||[]);
-          const fbDailyBook = toArr(data.dailyBook||[]);
           const fbCount = fbPur.length + fbSal.length;
           if(fbCount > 0){
             const localPur = db.purchases.filter(p=>!p.deleted&&(!fbPur.find(f=>String(f.id)===String(p.id))));
@@ -1685,8 +1661,7 @@ window.addEventListener('DOMContentLoaded', function(){
               commissions:Object.assign({},fbComm,db.commissions||{}),
               misc:[...fbMisc,...localMisc],
               balances:fbBalances||db.balances||{cash:0,bank:0,home:0},
-              homeMoney:fbHomeMoney,
-              dailyBook:fbDailyBook
+              homeMoney:fbHomeMoney
             };
             dedupDB(); saveLocal();
             syncMasterFromDB();
@@ -4915,7 +4890,6 @@ function refreshFromFirebase(){
         const fbMisc=toArr(data.misc||[]);
         const fbBalances=data.balances||{cash:0,bank:0,home:0};
         const fbHomeMoney=toArr(data.homeMoney||[]);
-        const fbDailyBook=toArr(data.dailyBook||[]);
         // Safe merge — Firebase-ல் இருக்குறதுடன், இந்த device-ல் மட்டும் இருக்கிற
         // (இன்னும் Firebase-க்கு போகாத) entries-யும் சேர்த்துக்குறோம். இதனால
         // weak network-ல் sync ஆகாத entries "Sync Now" தட்டும்போது தப்பா அழியாது.
@@ -4924,7 +4898,7 @@ function refreshFromFirebase(){
         const localSal = db.sales.filter(s=>!s.deleted&&(!fbSal.find(f=>String(f.id)===String(s.id))));
         const localPay = (db.payments||[]).filter(p=>!p.deleted&&(!fbPay.find(f=>String(f.id)===String(p.id))));
         const localMisc = (db.misc||[]).filter(m=>!fbMisc.find(f=>String(f.id)===String(m.id)));
-        db={purchases:[...fbPur,...localPur],sales:[...fbSal,...localSal],payments:[...fbPay,...localPay],commissions:fbComm,misc:[...fbMisc,...localMisc],balances:fbBalances,homeMoney:fbHomeMoney,dailyBook:fbDailyBook};
+        db={purchases:[...fbPur,...localPur],sales:[...fbSal,...localSal],payments:[...fbPay,...localPay],commissions:fbComm,misc:[...fbMisc,...localMisc],balances:fbBalances,homeMoney:fbHomeMoney};
         dedupDB(); saveLocal();
         updateDash(); renderPL(); renderSL(); renderPay(); renderMisc();
         updateSupDL(); updateParDL();
@@ -5371,9 +5345,6 @@ function kprOpenSummary(){
   document.getElementById('kpr-sum-total').textContent='₹'+grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
   kprRenderHomeList();
   updateHomeCatDL();
-  document.getElementById('kpr-book-opening').value=(bal.bookOpening)||0;
-  if(!document.getElementById('kpr-book-date').value) document.getElementById('kpr-book-date').value=today;
-  kprRenderDailyBookList();
   document.getElementById('kprSumMod').classList.add('on');
 }
 function updateHomeCatDL(){
@@ -5410,62 +5381,6 @@ function kprDeleteHomeEntry(id){
   db.homeMoney=(db.homeMoney||[]).filter(h=>String(h.id)!==String(id));
   saveLocal();
   kprOpenSummary();
-  saveDB().catch(()=>{});
-}
-function kprSaveBookOpening(){
-  const val=parseFloat(document.getElementById('kpr-book-opening').value)||0;
-  db.balances=db.balances||{cash:0,bank:0};
-  db.balances.bookOpening=val;
-  saveLocal();
-  kprRenderDailyBookList();
-  saveDB().catch(()=>{});
-  alert2('✅ தொடக்க இருப்பு Save ஆச்சு!','ok');
-}
-// ஒரு தேதிக்கு ஒரே entry — அதே தேதிக்கு மறுபடி Save பண்ணா, புது entry-ஆ சேராம
-// அந்த தேதியோட entry-யே update ஆகும் (misc/purchase entries மாதிரி டூப்ளிகேட் ஆகாது)
-function kprSaveDailyBookEntry(){
-  const date=document.getElementById('kpr-book-date').value;
-  const inAmt=parseFloat(document.getElementById('kpr-book-in').value)||0;
-  const outAmt=parseFloat(document.getElementById('kpr-book-out').value)||0;
-  if(!date){ alert2('தேதி போடுங்க!','err'); return; }
-  if(inAmt<=0 && outAmt<=0){ alert2('வரவு அல்லது பற்று amount போடுங்க!','err'); return; }
-  db.dailyBook=db.dailyBook||[];
-  const idx=db.dailyBook.findIndex(e=>e.date===date);
-  if(idx>-1){ db.dailyBook[idx]={...db.dailyBook[idx],date,in:inAmt,out:outAmt}; }
-  else{ db.dailyBook.push({id:'book_'+Date.now(),date,in:inAmt,out:outAmt}); }
-  document.getElementById('kpr-book-in').value='';
-  document.getElementById('kpr-book-out').value='';
-  saveLocal();
-  kprRenderDailyBookList();
-  saveDB().catch(()=>{});
-  alert2('✅ Save ஆச்சு!','ok');
-}
-function kprRenderDailyBookList(){
-  const opening=(db.balances&&db.balances.bookOpening)||0;
-  const list=(db.dailyBook||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  let running=opening;
-  const withBal=list.map(e=>{ running+=(e.in||0)-(e.out||0); return {...e,bal:running}; });
-  const totalEl=document.getElementById('kpr-book-total');
-  totalEl.textContent='₹'+running.toLocaleString('en-IN',{minimumFractionDigits:2});
-  totalEl.style.color=running>=0?'var(--green)':'var(--red)';
-  const div=document.getElementById('kpr-book-list');
-  if(!withBal.length){ div.innerHTML='<div style="text-align:center;color:#999;font-size:11px;padding:8px">இன்னும் entries இல்ல</div>'; return; }
-  div.innerHTML=withBal.slice().reverse().map(e=>`<div style="padding:6px 2px;border-bottom:1px solid #eee;font-size:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-weight:600">${fmtDate(e.date)}</span>
-      <span style="display:flex;align-items:center;gap:6px"><b>இருப்பு: ₹${e.bal.toLocaleString('en-IN',{minimumFractionDigits:2})}</b>
-      <button onclick="kprDeleteDailyBookEntry('${e.id}')" style="border:none;background:none;color:#c0392b;font-size:13px;cursor:pointer">🗑</button></span>
-    </div>
-    <div style="display:flex;gap:10px;color:#888;font-size:11px;margin-top:2px">
-      <span style="color:var(--green)">வரவு +₹${(e.in||0).toLocaleString('en-IN')}</span>
-      <span style="color:var(--red)">பற்று −₹${(e.out||0).toLocaleString('en-IN')}</span>
-    </div>
-  </div>`).join('');
-}
-function kprDeleteDailyBookEntry(id){
-  db.dailyBook=(db.dailyBook||[]).filter(e=>String(e.id)!==String(id));
-  saveLocal();
-  kprRenderDailyBookList();
   saveDB().catch(()=>{});
 }
 function kprSaveBalances(){
