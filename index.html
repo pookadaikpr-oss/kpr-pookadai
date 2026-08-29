@@ -8,7 +8,7 @@
 <script>
 // ===== AUTO CACHE-BUST: புது version வந்தா தானாகவே cache clear பண்ணி reload ஆகும் =====
 (function(){
-  var APP_BUILD = '20260817-v132-fix108';
+  var APP_BUILD = '20260829-v133-fix109';
   try{
     var stored = localStorage.getItem('kpr-app-build');
     if(stored !== APP_BUILD){
@@ -679,6 +679,7 @@ tbody td{padding:8px 11px}
       <button class="stab" id="rpt-kilo-btn" onclick="setRptMode('kilo')" style="font-size:11px">🌸 பூ கிலோ</button>
       <button class="stab" id="rpt-topsup-btn" onclick="setRptMode('topsup')" style="font-size:11px">🏆 Top</button>
       <button class="stab" id="rpt-supstmt-btn" onclick="setRptMode('supstmt')" style="font-size:11px">📒 மாத சிட்டை</button>
+      <button class="stab" id="rpt-veliyur-btn" onclick="setRptMode('veliyur')" style="font-size:11px">🚚 வெளியூர் சிட்டை</button>
     </div>
     <div id="rpt-month-filter">
       <div class="frow">
@@ -755,6 +756,18 @@ tbody td{padding:8px 11px}
         <div class="fg"><label>To</label><input type="date" id="rpt-supstmt-to" onchange="document.getElementById('rpt-supstmt-month').value=''"></div>
       </div>
       <button class="btn bg" style="width:100%;margin-top:4px" onclick="genSupplierMonthlyStatement()">📊 Generate</button>
+    </div>
+    <div id="rpt-veliyur-filter" style="display:none">
+      <div style="font-size:12px;color:#777;margin-bottom:8px">தேதி-வாரியா தோட்டம் + வெளியூர்/வெளிகடை Purchase + விற்பனை — ஒரே table-ல், மொத்த Purchase total-உடன்</div>
+      <div class="fg" style="margin-bottom:8px">
+        <label>மாதம்</label>
+        <input type="month" id="rpt-veliyur-month" style="width:100%;padding:8px;border:1.5px solid #e0dcd5;border-radius:8px;font-size:13px;font-family:inherit" oninput="setVeliyurMonth(this.value)">
+      </div>
+      <div class="frow">
+        <div class="fg"><label>From</label><input type="date" id="rpt-veliyur-from" onchange="document.getElementById('rpt-veliyur-month').value=''"></div>
+        <div class="fg"><label>To</label><input type="date" id="rpt-veliyur-to" onchange="document.getElementById('rpt-veliyur-month').value=''"></div>
+      </div>
+      <button class="btn bg" style="width:100%;margin-top:4px" onclick="genVeliyurMonthlyReport()">📊 Generate</button>
     </div>
   </div>
   <div id="rpt-out"></div>
@@ -3611,7 +3624,7 @@ function copyMsgById(btn){
 let rptMode='month', rptPartyType='sup';
 function setRptMode(m){
   rptMode=m;
-  ['month','range','party','full','kilo','topsup','supstmt'].forEach(x=>{
+  ['month','range','party','full','kilo','topsup','supstmt','veliyur'].forEach(x=>{
     const f=document.getElementById('rpt-'+x+'-filter');
     const b=document.getElementById('rpt-'+x+'-btn');
     if(f) f.style.display=x===m?'block':'none';
@@ -3827,6 +3840,113 @@ function _genSupplierMonthlyStatement(){
     </div>`;
   if(printRow) printRow.style.display='block';
 }
+function setVeliyurMonth(val){
+  if(!val) return;
+  const from=val+'-01';
+  const d=new Date(val+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0);
+  document.getElementById('rpt-veliyur-from').value=from;
+  document.getElementById('rpt-veliyur-to').value=localDateStr(d);
+}
+function genVeliyurMonthlyReport(){
+  // p.supType ஒவ்வொரு purchase entry-லும் already save ஆகி இருக்குறதால, இதுக்கு
+  // Master Data fetch தேவையில்ல — நேரடியா db.purchases-ஐ வெச்சே கணக்கு போடலாம்.
+  _genVeliyurMonthlyReport();
+}
+function _genVeliyurMonthlyReport(){
+  const out=document.getElementById('rpt-out');
+  const printRow=document.getElementById('rpt-print-btn-row');
+  const month=document.getElementById('rpt-veliyur-month').value;
+  let from=document.getElementById('rpt-veliyur-from').value, to=document.getElementById('rpt-veliyur-to').value;
+  if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=localDateStr(d); }
+  if(!from||!to){ alert2('மாதம் அல்லது Date range கொடுங்க!','err'); return; }
+
+  // Fixed columns — ஒவ்வொரு column-உம் ஒன்று அல்லது அதற்கு மேற்பட்ட Supplier பேர்களின் கூட்டுத்தொகை
+  const namedCols=[
+    {label:'சௌந்தர்', names:['சௌந்தர்']},
+    {label:'AD/அரளி', names:['AD','அரளி']},
+    {label:'அருகு&வில்வம்', names:['அருகு','வில்வம்']},
+    {label:'தாமரை', names:['தாமரை']},
+    {label:'திண்டுக்கல்', names:['திண்டுக்கல்']},
+    {label:'KVS', names:['KVS']},
+    {label:'SGR', names:['SGR']},
+    {label:'NBP', names:['NBP']}
+  ];
+  const namedSet=new Set();
+  namedCols.forEach(c=>c.names.forEach(n=>namedSet.add(normName_(n))));
+
+  // தோட்டம் column — supType='தோட்டம்' (அல்லது legacy entries-ல் supType இல்லாட்டி,
+  // default தோட்டம்-ஆ கருதப்படும்), மேலே பேர்-வாரியா column இல்லாத entries மட்டும்.
+  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்' && !namedSet.has(normName_(p.supplier));
+  // "வெளிகடை" catch-all column — supType='வெளிகடை' ஆன, மேலே தனியா column
+  // இல்லாத suppliers அனைத்தும் (எ.கா NBP தவிர மத்தவை: No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...).
+  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !namedSet.has(normName_(p.supplier));
+
+  const allCols=[
+    {label:'தோட்டம்', match:isThottamPur},
+    ...namedCols.map(c=>({label:c.label, match:p=>new Set(c.names.map(normName_)).has(normName_(p.supplier))})),
+    {label:'வெளிகடை', match:isVelikadaiPur}
+  ];
+
+  const anyInRange = db.purchases.some(p=>!p.deleted&&p.date>=from&&p.date<=to) || db.sales.some(s=>!s.deleted&&s.date>=from&&s.date<=to);
+  if(!anyInRange){
+    out.innerHTML='<div class="card"><div class="empty"><div class="eico">🚚</div>'+fmtDate(from)+' முதல் '+fmtDate(to)+' வரை — இந்த காலத்துக்கு Data இல்லை</div></div>';
+    if(printRow) printRow.style.display='none';
+    return;
+  }
+
+  const dates=[];
+  let cur=new Date(from+'T00:00:00');
+  const end=new Date(to+'T00:00:00');
+  while(cur<=end){ dates.push(localDateStr(cur)); cur.setDate(cur.getDate()+1); }
+
+  const rows=[];
+  const colTotals=allCols.map(()=>0);
+  let purGrandTotal=0, salesTotal=0;
+
+  dates.forEach(date=>{
+    const dayPur=db.purchases.filter(p=>!p.deleted&&p.date===date);
+    const vals=allCols.map(col=>dayPur.filter(col.match).reduce((a,p)=>a+(p.total||0),0));
+    const dayPurTotal=vals.reduce((a,v)=>a+v,0);
+    const daySales=db.sales.filter(s=>!s.deleted&&s.date===date).reduce((a,s)=>a+(s.total||0),0);
+    const rowHasData = dayPurTotal>0 || daySales>0;
+    if(!rowHasData) return;
+    vals.forEach((v,i)=>colTotals[i]+=v);
+    purGrandTotal+=dayPurTotal;
+    salesTotal+=daySales;
+    rows.push({date, vals, dayPurTotal, daySales});
+  });
+
+  if(!rows.length){
+    out.innerHTML='<div class="card"><div class="empty"><div class="eico">🚚</div>'+fmtDate(from)+' முதல் '+fmtDate(to)+' வரை — இந்த காலத்துக்கு Data இல்லை</div></div>';
+    if(printRow) printRow.style.display='none';
+    return;
+  }
+
+  const d1=fmtDate(from), d2=fmtDate(to);
+  const thS='padding:4px 3px;font-size:9px;text-align:center;overflow:hidden';
+  const tdS='padding:3px 3px;font-size:9px;border-bottom:1px solid #eee;text-align:center;overflow:hidden';
+  const tdName='padding:3px 3px;font-size:9px;border-bottom:1px solid #eee;text-align:left;overflow:hidden;white-space:nowrap';
+
+  out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">🚚 வெளியூர் மாத சிட்டை — ${d1} முதல் ${d2} வரை</div>
+    <div style="overflow-x:auto"><table style="min-width:920px"><thead><tr>
+      <th style="${thS};text-align:left">தேதி</th>
+      ${allCols.map(c=>`<th style="${thS}">${c.label}</th>`).join('')}
+      <th style="${thS};background:#f0ede6;font-weight:800">மொத்த Purchase</th>
+      <th style="${thS};background:#eef6ff">விற்பனை</th>
+    </tr></thead><tbody>
+    ${rows.map(r=>`<tr><td style="${tdName}">${fmtDate(r.date)}</td>${r.vals.map(v=>`<td style="${tdS}">${v?v.toLocaleString('en-IN'):''}</td>`).join('')}<td style="${tdS};background:#f7f5f0;font-weight:700">${r.dayPurTotal?r.dayPurTotal.toLocaleString('en-IN'):''}</td><td style="${tdS};background:#f7fbff">${r.daySales?r.daySales.toLocaleString('en-IN'):''}</td></tr>`).join('')}
+    </tbody>
+    <tfoot><tr style="font-weight:700;background:#f5f3ee">
+      <td style="${tdName}">மொத்தம்</td>
+      ${colTotals.map(t=>`<td style="${tdS}">${t.toLocaleString('en-IN')}</td>`).join('')}
+      <td style="${tdS};background:#ece7db">${purGrandTotal.toLocaleString('en-IN')}</td>
+      <td style="${tdS};background:#eef6ff">${salesTotal.toLocaleString('en-IN')}</td>
+    </tr></tfoot>
+    </table></div>
+    <div style="font-size:10.5px;color:#999;margin-top:8px">🚚 தோட்டம் column-ல் Purchase Entry-ல் "வகை: தோட்டம்" தேர்ந்தெடுக்கப்பட்ட அனைத்து entries-ஓட கூட்டுத்தொகை. வெளிகடை column-ல் NBP தவிர மற்ற "வகை: வெளிகடை" entries (எ.கா No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...) அனைத்தும் கூட்டப்பட்டிருக்கு. "மொத்த Purchase" = இந்த வரிசையின் எல்லா columns-ஓட கூட்டுத்தொகை — விற்பனையோடு ஒப்பிட்டு பாக்கலாம்.</div>
+    </div>`;
+  if(printRow) printRow.style.display='block';
+}
 function genFullReport(mode){
   mode=mode||'both';
   const out=document.getElementById('rpt-out');
@@ -3977,7 +4097,7 @@ function printReport(elId){
   const out=document.getElementById(elId||'rpt-out');
   if(!out||!out.innerHTML.trim()){ alert2('முதல்ல Generate பண்ணுங்க!','err'); return; }
   const hasOwnHeader = out.innerHTML.indexOf('KPR வன்னிசெந்தூர்') !== -1;
-  const isWideTable = out.innerHTML.indexOf('மாத சப்ளையர் சிட்டை') !== -1 || out.innerHTML.indexOf('மாத முடிவு சிட்டை') !== -1;
+  const isWideTable = out.innerHTML.indexOf('மாத சப்ளையர் சிட்டை') !== -1 || out.innerHTML.indexOf('மாத முடிவு சிட்டை') !== -1 || out.innerHTML.indexOf('வெளியூர் மாத சிட்டை') !== -1;
   // 5-column wide summary table (162 suppliers, 7-digit amounts) 105mm-ல் readable-ஆ
   // fit ஆகாது — இதுக்கு மட்டும் A4 full width, சாதாரண படிக்கிற font size.
   const pageCss = isWideTable ? '@page{size:A4;margin:10mm}' : '@page{size:105mm 300mm;margin:5mm 6mm}';
