@@ -3866,7 +3866,7 @@ function _genVeliyurMonthlyReport(){
     {label:'AD/அரளி', names:['AD','அரளி']},
     {label:'அருகு&வில்வம்', names:['அருகு','வில்வம்']},
     {label:'தாமரை', names:['தாமரை']},
-    {label:'திண்டுக்கல்', names:['திண்டுக்கல்']},
+    {label:'திண்டுக்கல்', names:['திண்டுக்கல்','ஜான்','TPS','போஸ்','LPP','கென்னடி','விசுவாசம்']},
     {label:'KVS', names:['KVS']},
     {label:'SGR', names:['SGR']},
     {label:'NBP', names:['NBP']}
@@ -3907,7 +3907,12 @@ function _genVeliyurMonthlyReport(){
     const dayPur=db.purchases.filter(p=>!p.deleted&&p.date===date);
     const vals=allCols.map(col=>dayPur.filter(col.match).reduce((a,p)=>a+(p.total||0),0));
     const dayPurTotal=vals.reduce((a,v)=>a+v,0);
-    const daySales=db.sales.filter(s=>!s.deleted&&s.date===date).reduce((a,s)=>a+(s.total||0),0);
+    const daySalesBills=db.sales.filter(s=>!s.deleted&&s.date===date).reduce((a,s)=>a+(s.total||0),0);
+    // "இதர செலவுகள்" tab-ல் நேரடியா cash counter-ல் record ஆகும் "வரவு" entries —
+    // மல்லி கல்லா வரவு, முல்லை கல்லா வரவு, கொழுந்து வரவு — இவை Sales tab bills-ஆ
+    // இல்லாம தனியா record ஆகுறதால, இங்க தனியா சேர்க்கிறோம்.
+    const dayKallaVaravu=(db.misc||[]).filter(m=>!m.deleted&&m.date===date&&['மல்லி','முல்லை','கொழுந்து'].some(k=>normName_(m.cat).includes(normName_(k)))).reduce((a,m)=>a+(m.in||0),0);
+    const daySales=daySalesBills+dayKallaVaravu;
     const rowHasData = dayPurTotal>0 || daySales>0;
     if(!rowHasData) return;
     vals.forEach((v,i)=>colTotals[i]+=v);
@@ -3928,7 +3933,7 @@ function _genVeliyurMonthlyReport(){
   const tdName='padding:3px 3px;font-size:9px;border-bottom:1px solid #eee;text-align:left;overflow:hidden;white-space:nowrap';
 
   out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">🚚 வெளியூர் மாத சிட்டை — ${d1} முதல் ${d2} வரை</div>
-    <div style="overflow-x:auto"><table style="min-width:920px"><thead><tr>
+    <table style="min-width:920px;width:100%"><thead><tr>
       <th style="${thS};text-align:left">தேதி</th>
       ${allCols.map(c=>`<th style="${thS}">${c.label}</th>`).join('')}
       <th style="${thS};background:#f0ede6;font-weight:800">மொத்த Purchase</th>
@@ -3942,8 +3947,8 @@ function _genVeliyurMonthlyReport(){
       <td style="${tdS};background:#ece7db">${purGrandTotal.toLocaleString('en-IN')}</td>
       <td style="${tdS};background:#eef6ff">${salesTotal.toLocaleString('en-IN')}</td>
     </tr></tfoot>
-    </table></div>
-    <div style="font-size:10.5px;color:#999;margin-top:8px">🚚 தோட்டம் column-ல் Purchase Entry-ல் "வகை: தோட்டம்" தேர்ந்தெடுக்கப்பட்ட அனைத்து entries-ஓட கூட்டுத்தொகை. வெளிகடை column-ல் NBP தவிர மற்ற "வகை: வெளிகடை" entries (எ.கா No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...) அனைத்தும் கூட்டப்பட்டிருக்கு. "மொத்த Purchase" = இந்த வரிசையின் எல்லா columns-ஓட கூட்டுத்தொகை — விற்பனையோடு ஒப்பிட்டு பாக்கலாம்.</div>
+    </table>
+    <div style="font-size:10.5px;color:#999;margin-top:8px">🚚 தோட்டம் column-ல் Purchase Entry-ல் "வகை: தோட்டம்" தேர்ந்தெடுக்கப்பட்ட அனைத்து entries-ஓட கூட்டுத்தொகை. திண்டுக்கல் column-ல் ஜான், TPS, போஸ், LPP, கென்னடி, விசுவாசம் ஆகிய கடைகள் அனைத்தும் சேர்க்கப்பட்டிருக்கு. வெளிகடை column-ல் NBP தவிர மற்ற "வகை: வெளிகடை" entries (எ.கா No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...) அனைத்தும் கூட்டப்பட்டிருக்கு. விற்பனை column-ல் Sales bills மட்டும் இல்லாம, "இதர செலவுகள்" tab-ல் இருக்கிற மல்லி/முல்லை/கொழுந்து கல்லா வரவு entries-உம் சேர்க்கப்பட்டிருக்கு. "மொத்த Purchase" = இந்த வரிசையின் எல்லா columns-ஓட கூட்டுத்தொகை — விற்பனையோடு ஒப்பிட்டு பாக்கலாம்.</div>
     </div>`;
   if(printRow) printRow.style.display='block';
 }
