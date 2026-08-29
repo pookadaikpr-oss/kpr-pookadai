@@ -3928,9 +3928,9 @@ function _genVeliyurMonthlyReport(){
   }
 
   const d1=fmtDate(from), d2=fmtDate(to);
-  const thS='padding:4px 3px;font-size:9px;text-align:center;overflow:hidden';
-  const tdS='padding:3px 3px;font-size:9px;border-bottom:1px solid #eee;text-align:center;overflow:hidden';
-  const tdName='padding:3px 3px;font-size:9px;border-bottom:1px solid #eee;text-align:left;overflow:hidden;white-space:nowrap';
+  const thS='padding:8px 6px;font-size:14px;text-align:center;overflow:hidden';
+  const tdS='padding:7px 6px;font-size:14px;border-bottom:1px solid #eee;text-align:center;overflow:hidden';
+  const tdName='padding:7px 6px;font-size:14px;border-bottom:1px solid #eee;text-align:left;overflow:hidden;white-space:nowrap';
 
   out.innerHTML=`<div class="card"><div class="sec" style="margin-top:0">🚚 வெளியூர் மாத சிட்டை — ${d1} முதல் ${d2} வரை</div>
     <table style="min-width:920px;width:100%"><thead><tr>
@@ -3948,7 +3948,6 @@ function _genVeliyurMonthlyReport(){
       <td style="${tdS};background:#eef6ff">${salesTotal.toLocaleString('en-IN')}</td>
     </tr></tfoot>
     </table>
-    <div style="font-size:10.5px;color:#999;margin-top:8px">🚚 தோட்டம் column-ல் Purchase Entry-ல் "வகை: தோட்டம்" தேர்ந்தெடுக்கப்பட்ட அனைத்து entries-ஓட கூட்டுத்தொகை. திண்டுக்கல் column-ல் ஜான், TPS, போஸ், LPP, கென்னடி, விசுவாசம் ஆகிய கடைகள் அனைத்தும் சேர்க்கப்பட்டிருக்கு. வெளிகடை column-ல் NBP தவிர மற்ற "வகை: வெளிகடை" entries (எ.கா No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...) அனைத்தும் கூட்டப்பட்டிருக்கு. விற்பனை column-ல் Sales bills மட்டும் இல்லாம, "இதர செலவுகள்" tab-ல் இருக்கிற மல்லி/முல்லை/கொழுந்து கல்லா வரவு entries-உம் சேர்க்கப்பட்டிருக்கு. "மொத்த Purchase" = இந்த வரிசையின் எல்லா columns-ஓட கூட்டுத்தொகை — விற்பனையோடு ஒப்பிட்டு பாக்கலாம்.</div>
     </div>`;
   if(printRow) printRow.style.display='block';
 }
