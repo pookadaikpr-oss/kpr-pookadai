@@ -3861,35 +3861,46 @@ function _genVeliyurMonthlyReport(){
   if(!from||!to){ alert2('மாதம் அல்லது Date range கொடுங்க!','err'); return; }
 
   // Copy-paste பண்ணும்போது கண்ணுக்கு தெரியாத characters (non-breaking space,
-  // zero-width space/joiner போன்றவை) சேர்ந்து exact match தவறிடலாம் — அதை
+  // zero-width space/joiner போன்றவை) சேர்ந்து match தவறிடலாம் — அதை
   // தவிர்க்க, இந்த report-க்கு மட்டும் இன்னும் கடுமையான normalize செய்யிறோம்.
   const normVeliyur_ = s => normName_(s).replace(/[\u200B-\u200D\uFEFF\u00A0\u2060]/g,' ').replace(/\s+/g,' ').trim();
 
-  // Fixed columns — ஒவ்வொரு column-உம் ஒன்று அல்லது அதற்கு மேற்பட்ட Supplier பேர்களின் கூட்டுத்தொகை
+  // Fixed columns — ஒவ்வொரு column-உம் ஒன்று அல்லது அதற்கு மேற்பட்ட பேர்களால்
+  // ஆரம்பிக்குற (starts-with) suppliers-ஓட கூட்டுத்தொகை. "சௌந்தர் கொழுந்து",
+  // "அருகு தொட்டி" போன்ற item பெயர் சேர்த்த entries-உம் இதனால் தானா சேரும் —
+  // exact name-ஆ இருக்கணும்னு கட்டாயம் இல்ல.
   const namedCols=[
-    {label:'சௌந்தர்', names:['சௌந்தர்']},
-    {label:'AD/அரளி', names:['AD','அரளி','AD/அரளி']},
-    {label:'அருகு&வில்வம்', names:['அருகு','வில்வம்','அருகு&வில்வம்']},
-    {label:'தாமரை', names:['தாமரை']},
-    {label:'திண்டுக்கல்', names:['திண்டுக்கல்','ஜான்','TPS','போஸ்','LPP','கென்னடி','விசுவாசம்']},
-    {label:'KVS', names:['KVS']},
-    {label:'SGR', names:['SGR']},
-    {label:'NBP', names:['NBP']}
+    {label:'சௌந்தர்', prefixes:['சௌந்தர்']},
+    {label:'AD/அரளி', prefixes:['AD','அரளி']},
+    {label:'அருகு&வில்வம்', prefixes:['அருகு','வில்வம்']},
+    {label:'தாமரை', prefixes:['தாமரை']},
+    {label:'திண்டுக்கல்', prefixes:['திண்டுக்கல்','ஜான்','TPS','போஸ்','LPP','கென்னடி','விசுவாசம்']},
+    {label:'KVS', prefixes:['KVS']},
+    {label:'SGR', prefixes:['SGR']},
+    {label:'NBP', prefixes:['NBP']}
   ];
-  const namedSet=new Set();
-  namedCols.forEach(c=>c.names.forEach(n=>namedSet.add(normVeliyur_(n))));
+  const matchesPrefixList = (supplier, prefixes) => {
+    const n = normVeliyur_(supplier);
+    return prefixes.some(pfx => n.startsWith(normVeliyur_(pfx)));
+  };
+  const isNamedMatch = supplier => namedCols.some(c => matchesPrefixList(supplier, c.prefixes));
 
   // தோட்டம் column — supType='தோட்டம்' (அல்லது legacy entries-ல் supType இல்லாட்டி,
   // default தோட்டம்-ஆ கருதப்படும்), மேலே பேர்-வாரியா column இல்லாத entries மட்டும்.
-  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்' && !namedSet.has(normVeliyur_(p.supplier));
+  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்' && !isNamedMatch(p.supplier);
   // "வெளிகடை" catch-all column — supType='வெளிகடை' ஆன, மேலே தனியா column
   // இல்லாத suppliers அனைத்தும் (எ.கா NBP தவிர மத்தவை: No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...).
-  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !namedSet.has(normVeliyur_(p.supplier));
+  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !isNamedMatch(p.supplier);
+  // "மற்ற வெளியூர்" catch-all — supType='வெளியூர்' ஆன, மேலே பேர்-வாரியா column
+  // இல்லாத suppliers அனைத்தும். இது இல்லாட்டி, பேர் மேலே உள்ள 8-ல் exact-ஆ
+  // பொருந்தாத வெளியூர் purchases எங்குமே தெரியாம மொத்தத்திலேயே காணாம போயிடும்.
+  const isOtherVeliyurPur = p => p.supType==='வெளியூர்' && !isNamedMatch(p.supplier);
 
   const allCols=[
     {label:'தோட்டம்', match:isThottamPur},
-    ...namedCols.map(c=>({label:c.label, match:p=>new Set(c.names.map(normVeliyur_)).has(normVeliyur_(p.supplier))})),
-    {label:'வெளிகடை', match:isVelikadaiPur}
+    ...namedCols.map(c=>({label:c.label, match:p=>matchesPrefixList(p.supplier, c.prefixes)})),
+    {label:'வெளிகடை', match:isVelikadaiPur},
+    {label:'மற்ற வெளியூர்', match:isOtherVeliyurPur}
   ];
 
   const anyInRange = db.purchases.some(p=>!p.deleted&&p.date>=from&&p.date<=to) || db.sales.some(s=>!s.deleted&&s.date>=from&&s.date<=to);
