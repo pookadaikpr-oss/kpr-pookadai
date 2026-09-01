@@ -3860,6 +3860,11 @@ function _genVeliyurMonthlyReport(){
   if(month){ from=month+'-01'; const d=new Date(month+'-01'); d.setMonth(d.getMonth()+1); d.setDate(0); to=localDateStr(d); }
   if(!from||!to){ alert2('மாதம் அல்லது Date range கொடுங்க!','err'); return; }
 
+  // Copy-paste பண்ணும்போது கண்ணுக்கு தெரியாத characters (non-breaking space,
+  // zero-width space/joiner போன்றவை) சேர்ந்து exact match தவறிடலாம் — அதை
+  // தவிர்க்க, இந்த report-க்கு மட்டும் இன்னும் கடுமையான normalize செய்யிறோம்.
+  const normVeliyur_ = s => normName_(s).replace(/[\u200B-\u200D\uFEFF\u00A0\u2060]/g,' ').replace(/\s+/g,' ').trim();
+
   // Fixed columns — ஒவ்வொரு column-உம் ஒன்று அல்லது அதற்கு மேற்பட்ட Supplier பேர்களின் கூட்டுத்தொகை
   const namedCols=[
     {label:'சௌந்தர்', names:['சௌந்தர்']},
@@ -3872,18 +3877,18 @@ function _genVeliyurMonthlyReport(){
     {label:'NBP', names:['NBP']}
   ];
   const namedSet=new Set();
-  namedCols.forEach(c=>c.names.forEach(n=>namedSet.add(normName_(n))));
+  namedCols.forEach(c=>c.names.forEach(n=>namedSet.add(normVeliyur_(n))));
 
   // தோட்டம் column — supType='தோட்டம்' (அல்லது legacy entries-ல் supType இல்லாட்டி,
   // default தோட்டம்-ஆ கருதப்படும்), மேலே பேர்-வாரியா column இல்லாத entries மட்டும்.
-  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்' && !namedSet.has(normName_(p.supplier));
+  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்' && !namedSet.has(normVeliyur_(p.supplier));
   // "வெளிகடை" catch-all column — supType='வெளிகடை' ஆன, மேலே தனியா column
   // இல்லாத suppliers அனைத்தும் (எ.கா NBP தவிர மத்தவை: No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...).
-  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !namedSet.has(normName_(p.supplier));
+  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !namedSet.has(normVeliyur_(p.supplier));
 
   const allCols=[
     {label:'தோட்டம்', match:isThottamPur},
-    ...namedCols.map(c=>({label:c.label, match:p=>new Set(c.names.map(normName_)).has(normName_(p.supplier))})),
+    ...namedCols.map(c=>({label:c.label, match:p=>new Set(c.names.map(normVeliyur_)).has(normVeliyur_(p.supplier))})),
     {label:'வெளிகடை', match:isVelikadaiPur}
   ];
 
@@ -3911,7 +3916,7 @@ function _genVeliyurMonthlyReport(){
     // "இதர செலவுகள்" tab-ல் நேரடியா cash counter-ல் record ஆகும் "வரவு" entries —
     // மல்லி கல்லா வரவு, முல்லை கல்லா வரவு, கொழுந்து வரவு — இவை Sales tab bills-ஆ
     // இல்லாம தனியா record ஆகுறதால, இங்க தனியா சேர்க்கிறோம்.
-    const dayKallaVaravu=(db.misc||[]).filter(m=>!m.deleted&&m.date===date&&['மல்லி','முல்லை','கொழுந்து'].some(k=>normName_(m.cat).includes(normName_(k)))).reduce((a,m)=>a+(m.in||0),0);
+    const dayKallaVaravu=(db.misc||[]).filter(m=>!m.deleted&&m.date===date&&['மல்லி','முல்லை','கொழுந்து'].some(k=>normVeliyur_(m.cat).includes(normVeliyur_(k)))).reduce((a,m)=>a+(m.in||0),0);
     const daySales=daySalesBills+dayKallaVaravu;
     const rowHasData = dayPurTotal>0 || daySales>0;
     if(!rowHasData) return;
