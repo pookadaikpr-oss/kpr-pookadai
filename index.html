@@ -3883,22 +3883,29 @@ function _genVeliyurMonthlyReport(){
     const n = normVeliyur_(supplier);
     return prefixes.some(pfx => n.startsWith(normVeliyur_(pfx)));
   };
-  const isNamedMatch = supplier => namedCols.some(c => matchesPrefixList(supplier, c.prefixes));
+  // தோட்டம் master list-ல் 162+ suppliers இருக்குறதால், அவங்களுள் யாராவது
+  // "அரளி"/"சௌந்தர்" போன்ற பேர்-ல் ஆரம்பிச்சா (எ.கா "அரளி கணேசன்"), அது
+  // தப்பா இந்த வெளியூர் columns-ல் இழுத்துடாம இருக்க — வகை "தோட்டம்" ஆன
+  // entries-ஐ இந்த named-column match-லேயே சேர்க்காம முழுக்க தவிர்க்கிறோம்.
+  const isNamedMatch = p => {
+    if((p.supType||'தோட்டம்')==='தோட்டம்') return false;
+    return namedCols.some(c => matchesPrefixList(p.supplier, c.prefixes));
+  };
 
   // தோட்டம் column — supType='தோட்டம்' (அல்லது legacy entries-ல் supType இல்லாட்டி,
-  // default தோட்டம்-ஆ கருதப்படும்), மேலே பேர்-வாரியா column இல்லாத entries மட்டும்.
-  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்' && !isNamedMatch(p.supplier);
+  // default தோட்டம்-ஆ கருதப்படும்).
+  const isThottamPur = p => (p.supType||'தோட்டம்')==='தோட்டம்';
   // "வெளிகடை" catch-all column — supType='வெளிகடை' ஆன, மேலே தனியா column
   // இல்லாத suppliers அனைத்தும் (எ.கா NBP தவிர மத்தவை: No1, RK, SN, VK, AVE, EV, ABRS, MLS, UPS...).
-  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !isNamedMatch(p.supplier);
+  const isVelikadaiPur = p => p.supType==='வெளிகடை' && !isNamedMatch(p);
   // "மற்ற வெளியூர்" catch-all — supType='வெளியூர்' ஆன, மேலே பேர்-வாரியா column
   // இல்லாத suppliers அனைத்தும். இது இல்லாட்டி, பேர் மேலே உள்ள 8-ல் exact-ஆ
   // பொருந்தாத வெளியூர் purchases எங்குமே தெரியாம மொத்தத்திலேயே காணாம போயிடும்.
-  const isOtherVeliyurPur = p => p.supType==='வெளியூர்' && !isNamedMatch(p.supplier);
+  const isOtherVeliyurPur = p => p.supType==='வெளியூர்' && !isNamedMatch(p);
 
   const allCols=[
     {label:'தோட்டம்', match:isThottamPur},
-    ...namedCols.map(c=>({label:c.label, match:p=>matchesPrefixList(p.supplier, c.prefixes)})),
+    ...namedCols.map(c=>({label:c.label, match:p=>isNamedMatch(p) && matchesPrefixList(p.supplier, c.prefixes)})),
     {label:'வெளிகடை', match:isVelikadaiPur},
     {label:'மற்ற வெளியூர்', match:isOtherVeliyurPur}
   ];
