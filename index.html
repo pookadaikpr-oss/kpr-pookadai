@@ -1599,6 +1599,12 @@ window.addEventListener('DOMContentLoaded', function(){
   const _now = new Date();
   today = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
   document.getElementById('pe-date').value = today;
+  // BUG FIX (Sep 2026): pe-date-ஐ இங்க நேரடியா today-ஆ வெச்சாலும், localStorage-ல்
+  // 'kpr-pur-date' பழைய (நேற்றைய) தேதியா தான் இருக்கும் (அது onchange மூலமா மட்டும்
+  // update ஆகும்). இதனால முதல் Purchase entry save ஆனதும் clearPur() அந்த பழைய
+  // localStorage value-ஐ திரும்ப ஏத்தி, date தானா நேற்றைக்கு மாறிடும். இங்கயே
+  // localStorage-ஐயும் today-க்கு sync பண்ணி இந்த bug-ஐ தடுக்கிறோம்.
+  localStorage.setItem('kpr-pur-date', today);
   document.getElementById('se-date').value = today;
   document.getElementById('pm-date').value = today;
   document.getElementById('rpt-month').value = today.slice(0,7);
@@ -4396,8 +4402,8 @@ function _genReport(){
             <table style="width:100%;border-collapse:collapse;table-layout:fixed">
               <thead style="background:#1a6b3a;color:#fff">
                 <tr>
-                  <th style="${thS};width:16%">தேதி</th>
-                  <th style="${thS};width:30%">பொருள்</th>
+                  <th style="${thS};width:19%">தேதி</th>
+                  <th style="${thS};width:27%">பொருள்</th>
                   <th style="${thS};text-align:right;width:14%">அளவு</th>
                   <th style="${thS};text-align:right;width:14%">விலை</th>
                   <th style="${thS};text-align:right;width:13%">வரவு</th>
@@ -4534,8 +4540,8 @@ function _genReport(){
             <table style="width:100%;border-collapse:collapse;table-layout:fixed">
               <thead style="background:#c8860a;color:#fff">
                 <tr>
-                  <th style="${thS};width:15%">தேதி</th>
-                  <th style="${thS};width:29%">பொருள்</th>
+                  <th style="${thS};width:19%">தேதி</th>
+                  <th style="${thS};width:25%">பொருள்</th>
                   <th style="${thS};text-align:right;width:12%">Qty</th>
                   <th style="${thS};text-align:right;width:14%">விலை</th>
                   <th style="${thS};text-align:right;width:15%">மொத்தம்</th>
