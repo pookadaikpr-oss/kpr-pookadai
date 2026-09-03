@@ -1606,7 +1606,10 @@ window.addEventListener('DOMContentLoaded', function(){
   // localStorage-ஐயும் today-க்கு sync பண்ணி இந்த bug-ஐ தடுக்கிறோம்.
   localStorage.setItem('kpr-pur-date', today);
   document.getElementById('se-date').value = today;
+  // இதே bug Sales entry-க்கும் இருக்கு (kpr-sal-date) — அதையும் sync பண்றோம்.
+  localStorage.setItem('kpr-sal-date', today);
   document.getElementById('pm-date').value = today;
+  localStorage.setItem('kpr-pay-date', today);
   document.getElementById('rpt-month').value = today.slice(0,7);
   const now = new Date();
   document.getElementById('hdrDate').innerHTML =
