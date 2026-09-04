@@ -3967,13 +3967,13 @@ function _genVeliyurMonthlyReport(){
       <th style="${thS};background:#eef6ff;color:#1a5c8e;font-weight:800">விற்பனை</th>
     </tr></thead><tbody>
     ${rows.map(r=>`<tr><td style="${tdName}">${fmtDate(r.date)}</td>${r.vals.map(v=>`<td style="${tdS}">${v?v.toLocaleString('en-IN'):''}</td>`).join('')}<td style="${tdS};background:#f7f5f0;font-weight:700">${r.dayPurTotal?r.dayPurTotal.toLocaleString('en-IN'):''}</td><td style="${tdS};background:#f7fbff">${r.daySales?r.daySales.toLocaleString('en-IN'):''}</td></tr>`).join('')}
-    </tbody>
-    <tfoot><tr style="font-weight:700;background:#f5f3ee">
+    <tr style="font-weight:700;background:#f5f3ee">
       <td style="${tdName}">மொத்தம்</td>
       ${colTotals.map(t=>`<td style="${tdS}">${t.toLocaleString('en-IN')}</td>`).join('')}
       <td style="${tdS};background:#ece7db">${purGrandTotal.toLocaleString('en-IN')}</td>
       <td style="${tdS};background:#eef6ff">${salesTotal.toLocaleString('en-IN')}</td>
-    </tr></tfoot>
+    </tr>
+    </tbody>
     </table>
     </div>`;
   if(printRow) printRow.style.display='block';
